@@ -323,6 +323,10 @@ Docker Compose is the documented path in **both** environments.
   That is the multi-architecture index digest of tag `16.15` (Debian trixie);
   Docker Hub lists the same digest for `16` and `16.15-trixie`, last updated
   2026-10-07, so 16.15 is the newest 16.x release.
+- **Host port 5433** (container port 5432), bound to `127.0.0.1`, decided by
+  the author on 2026-10-18: the author's Windows PC already runs a native
+  PostgreSQL on 5432, which stays installed and untouched. Development and
+  test connection strings use `localhost:5433`.
 - The digest was read from the Docker Hub tags API through a web tool, not
   from a `docker pull`. The pull on Windows is the real verification: a wrong
   digest makes the pull fail.
@@ -334,7 +338,7 @@ Docker Compose is the documented path in **both** environments.
 |---|---|
 | Linux — executed: native PostgreSQL 16.15 start, create DB, query over TCP, stop | OK |
 | Windows — executed: Docker 29.8.2, Compose v5.6.0, engine running, `hello-world` | OK |
-| Windows — pending: host port 5432 free | — |
+| Windows — executed 2026-10-18: host port 5432 | Occupied by a native PostgreSQL (`postgres`, PID 8488); port 5433 free. Led to the 5433 decision above |
 | Windows — pending: pull and run the pinned image, `pg_isready`, `select version()` | — |
 | Claude Code environment — executed 2026-10-18: pull by digest, `pg_isready`, `select version()` → 16.15 (details in `VERIFICATION.md`) | OK |
 

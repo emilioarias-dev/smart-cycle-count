@@ -20,7 +20,10 @@ heatmap, audit plans and the count flow come in later milestones. See
   release). Any later 24.x works; other major versions are rejected by
   `npm ci` (`engine-strict`).
 - Docker with Docker Compose (for PostgreSQL 16.15).
-- Free local ports: `5432` (PostgreSQL), `3001` (API), `3000` (web).
+- Free local ports: `5433` (PostgreSQL container), `3001` (API), `3000`
+  (web). The container uses host port 5433 so it does not collide with a
+  PostgreSQL already installed on the machine (usually on 5432), which is
+  left untouched.
 
 ## Getting started
 
@@ -53,6 +56,9 @@ PowerShell except where two variants are shown.
    ```
    npm run db:up
    ```
+
+   `docker compose ps` should show the `db` service as `healthy` with
+   `127.0.0.1:5433->5432/tcp`.
 
 4. Generate the Prisma client, apply the migrations and load the sample data:
 
