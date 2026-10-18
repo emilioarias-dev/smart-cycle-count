@@ -414,7 +414,8 @@ exactly these pins was resolved with
 **Validation (2026-10-18):** in the Claude Code environment, `npm ci`, both
 builds, the API tests and the running apps passed with these exact versions
 (see `VERIFICATION.md`); no version had to change and no Vitest plugin was
-needed. Windows validation is pending. Note: `@types/node` 26.6.5 also
+needed. Windows validation passed on 2026-10-18 (`npm ci`, build, tests,
+running apps). Note: `@types/node` 26.6.5 also
 appears at the root of `node_modules` as an optional peer of the Nest CLI's
 prompt library; the workspaces use their pinned 24.19.2.
 

@@ -201,15 +201,22 @@ was applied; the exact commit was not confirmed.
 | `select version();` | `PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu …` |
 | `npm.cmd run db:migrate` | Datasource `localhost:5433`; `1 migration found`, `No pending migrations to apply` (it had been applied in the earlier run, whose output was not shared) |
 
+## 2026-10-18 — WIN: tests, install and page states (shared by the author)
+
+| Command | Result |
+|---|---|
+| `npm.cmd test` (on `a501c55`) | Datasource `smart_cycle_count_test` at `localhost:5433`, no pending migrations; **4/4 passed**: Prisma service injected (Nest DI under Vitest, no plugin), 200, 404, seed idempotency |
+| `npm.cmd ci` | `added 449 packages … in 32s`, `found 0 vulnerabilities`, no install-script notices (450 on Linux: platform-specific optional packages differ). Run after the tests; the lockfile is the same one the tests ran with |
+| `Test-Path node_modules\@img\sharp-win32-ia32` | `False`: the optional 32-bit package is skipped under `engine-strict` |
+| `Test-Path node_modules\@img\sharp-win32-x64` | `True` |
+| Page states at <http://localhost:3000> | **Reported by the author:** bin `SAMPLE-BIN-01` shown; "Bin not found" after the delete; "Could not load the bin" with only the web running |
+
+With this, every milestone 1 check has passed on Windows on commit
+`a501c55`. Later commits on the branch only change documentation.
+
 ## Pending
 
-Milestone 1:
-
-- WIN: `npm.cmd test` output; `npm.cmd ci` output (first attempt).
-- WIN: what the page showed in its three states (bin, not-found, error),
-  as reported by the author.
-- WIN: optional 32-bit `sharp` package skipped by `npm ci` under
-  `engine-strict`.
+Milestone 1: nothing pending. Merge of the pull request by the author.
 
 Later or optional:
 

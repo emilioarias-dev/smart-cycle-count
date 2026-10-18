@@ -22,22 +22,23 @@ proposed in `HANDOFF.md` §12, with these adjustments:
   (added 2026-10-18 after the first Windows run: the author's PC runs a
   native PostgreSQL on 5432).
 
-**Status:** implemented on branch `m1-walking-skeleton` and verified in the
-Claude Code environment. **Not complete** until the author reproduces the
-same commit on Windows and merges the pull request (E-001, E-009).
+**Status:** implemented on branch `m1-walking-skeleton` and **verified in both
+environments**: Claude Code (Linux) and the author's Windows PC, on code
+commit `a501c55` (later commits only change documentation). It becomes part
+of `main` when the author merges the pull request (E-009).
 
 | # | Criterion | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|---|
-| 1 | Structure | Root workspace, one lockfile, `.nvmrc`/`.node-version`, `.npmrc`, `.gitattributes`, `.gitignore`, `.env.example` per app, `docker-compose.yml`, docs | Yes | Pending |
-| 2 | Reproducible install | `npm ci` from the committed lockfile; Node/npm enforced by `engines` + `engine-strict` | Yes (Node 22 rejected, Node 24.22.0 OK) | Pending |
+| 1 | Structure | Root workspace, one lockfile, `.nvmrc`/`.node-version`, `.npmrc`, `.gitattributes`, `.gitignore`, `.env.example` per app, `docker-compose.yml`, docs | Yes | Yes |
+| 2 | Reproducible install | `npm ci` from the committed lockfile; Node/npm enforced by `engines` + `engine-strict` | Yes (Node 22 rejected, Node 24.22.0 OK) | Yes (`npm ci`; 32-bit `sharp` skipped) |
 | 3 | Database | Compose service with the pinned image on host port 5433; migration `create_bins` | Yes (from an empty volume; port change with data preserved) | Yes on `a501c55` (healthy on 5433, 16.15, migrations up to date); the first application of the migration was not shown |
-| 4 | Data | `npm run db:seed` upserts `SAMPLE-BIN-01` | Yes (twice → one row) | Partly: seed after a delete → one row, also while `dev` ran; double-seed output not shared |
-| 5 | API | `GET /bins/:code` through `BinsService` → `PrismaService` (adapter-pg); Vitest suite against the test database | Yes (4/4 tests, manual 200/404) | Partly: manual 200/404 yes; `npm test` output not shared |
-| 6 | Web | Server component fetches the bin; bin, not-found and error states | Yes (all three states) | Partly: renders and error path in logs; page content not shared |
+| 4 | Data | `npm run db:seed` upserts `SAMPLE-BIN-01` | Yes (twice → one row) | Yes (seed after delete and while `dev` ran → one row; idempotency covered by the tests) |
+| 5 | API | `GET /bins/:code` through `BinsService` → `PrismaService` (adapter-pg); Vitest suite against the test database | Yes (4/4 tests, manual 200/404) | Yes (4/4 tests, manual 200/404) |
+| 6 | Web | Server component fetches the bin; bin, not-found and error states | Yes (all three states) | Yes (three states, reported by the author; API reachability and errors in the logs) |
 | 7 | Dev workflow | `npm run dev` starts both apps; Ctrl+C stops both | Yes (Linux) | Yes (Ctrl+C asks `S/N` per process; ports freed) |
-| 8 | Builds | `npm run build` type-checks and builds both apps | Yes | Yes (first attempt, `1874d44`) |
+| 8 | Builds | `npm run build` type-checks and builds both apps | Yes | Yes (first attempt, `1874d44`; code unchanged since except the port) |
 | 9 | Repository | Small commits, no secrets or generated files; push demonstrated | Yes | — |
-| 10 | Evidence | `VERIFICATION.md`, per environment | CC recorded | Pending |
+| 10 | Evidence | `VERIFICATION.md`, per environment | CC recorded | Recorded |
 
 ### Where things are
 
