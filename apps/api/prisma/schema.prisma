@@ -1,0 +1,24 @@
+// Prisma schema for the API. The client is generated into src/generated/prisma
+// (git-ignored); regenerate it with `npm run db:generate`.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+  // Relative imports end in .js, as compiled ESM output requires (E-005).
+  importFileExtension = "js"
+}
+
+// The connection URL is configured in prisma.config.ts (Prisma 7).
+datasource db {
+  provider = "postgresql"
+}
+
+// Milestone 1 keeps the bin minimal. Location (aisle/rack), inventory and the
+// final code format come in later milestones through new migrations.
+model Bin {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+
+  @@map("bins")
+}
