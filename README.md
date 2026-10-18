@@ -79,6 +79,10 @@ PowerShell except where two variants are shown.
    - Web: <http://localhost:3000>
    - API: <http://localhost:3001/bins/SAMPLE-BIN-01>
 
+   On Windows, Ctrl+C makes `cmd.exe` ask `Terminate batch job (Y/N)?`
+   (`¿Desea terminar el trabajo por lotes (S/N)?` in Spanish) once per
+   process; answer `Y` / `S` and both apps stop.
+
 ## Other commands
 
 | Command | What it does |

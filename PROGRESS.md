@@ -31,10 +31,10 @@ same commit on Windows and merges the pull request (E-001, E-009).
 | 1 | Structure | Root workspace, one lockfile, `.nvmrc`/`.node-version`, `.npmrc`, `.gitattributes`, `.gitignore`, `.env.example` per app, `docker-compose.yml`, docs | Yes | Pending |
 | 2 | Reproducible install | `npm ci` from the committed lockfile; Node/npm enforced by `engines` + `engine-strict` | Yes (Node 22 rejected, Node 24.22.0 OK) | Pending |
 | 3 | Database | Compose service with the pinned image on host port 5433; migration `create_bins` | Yes (from an empty volume; port change with data preserved) | Pending (first attempt hit the native PostgreSQL on 5432) |
-| 4 | Data | `npm run db:seed` upserts `SAMPLE-BIN-01` | Yes (twice → one row) | Pending |
-| 5 | API | `GET /bins/:code` through `BinsService` → `PrismaService` (adapter-pg); Vitest suite against the test database | Yes (4/4 tests, manual 200/404) | Pending |
-| 6 | Web | Server component fetches the bin; bin, not-found and error states | Yes (all three states) | Pending |
-| 7 | Dev workflow | `npm run dev` starts both apps; Ctrl+C stops both | Yes (Linux) | Pending |
+| 4 | Data | `npm run db:seed` upserts `SAMPLE-BIN-01` | Yes (twice → one row) | Partly: seed after a delete → one row, also while `dev` ran; double-seed output not shared |
+| 5 | API | `GET /bins/:code` through `BinsService` → `PrismaService` (adapter-pg); Vitest suite against the test database | Yes (4/4 tests, manual 200/404) | Partly: manual 200/404 yes; `npm test` output not shared |
+| 6 | Web | Server component fetches the bin; bin, not-found and error states | Yes (all three states) | Partly: renders and error path in logs; page content not shared |
+| 7 | Dev workflow | `npm run dev` starts both apps; Ctrl+C stops both | Yes (Linux) | Yes (Ctrl+C asks `S/N` per process; ports freed) |
 | 8 | Builds | `npm run build` type-checks and builds both apps | Yes | Yes (first attempt, `1874d44`) |
 | 9 | Repository | Small commits, no secrets or generated files; push demonstrated | Yes | — |
 | 10 | Evidence | `VERIFICATION.md`, per environment | CC recorded | Pending |

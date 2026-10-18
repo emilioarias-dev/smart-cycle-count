@@ -165,14 +165,41 @@ native installation and publish the container on host port 5433 (E-002).
 | `npm run dev` | `GET /bins/SAMPLE-BIN-01` → 200 `{"id":3,…}`; unknown → 404; page shows the bin; SIGINT → ports 3000/3001 free, no errors in the log |
 | Simulated native PostgreSQL | Stopped and removed |
 
+## 2026-10-18 — WIN: second reproduction attempt, port 5433 (output shared by the author)
+
+The author reported "everything ready" and shared the output of the run
+phase only. The outputs of `git pull` / `git rev-parse HEAD`, the `.env`
+update, `npm run db:up`, `docker compose ps`, `select version()`,
+`db:migrate`, the two initial seeds and `npm test` were **not shared**, so
+those steps are not recorded as passed. The port 5433 listener (PID 26024)
+and connections from the API to `127.0.0.1:5433` show that the port change
+was applied; the exact commit was not confirmed.
+
+| Command | Result |
+|---|---|
+| `npm.cmd run dev` (API log) | Nest started: `AppModule`, `PrismaModule`, `BinsModule` initialised; route `GET /bins/:code` mapped |
+| `Invoke-RestMethod http://localhost:3001/bins/SAMPLE-BIN-01` | `id 1, code SAMPLE-BIN-01` |
+| `curl.exe -i http://localhost:3001/bins/UNKNOWN-BIN` | `HTTP/1.1 404 Not Found`, `{"message":"Bin UNKNOWN-BIN not found","error":"Not Found","statusCode":404}` |
+| `docker compose exec …` and `npm.cmd run db:seed` run from `C:\Windows\system32` | Failed: `no configuration file provided` / `ENOENT … package.json` (commands run outside the repository folder; not a project issue) |
+| From the repository: `DELETE FROM bins WHERE code = 'SAMPLE-BIN-01'` | `DELETE 1` |
+| `npm.cmd run db:seed` while `npm.cmd run dev` was running | `Sample bin ready: SAMPLE-BIN-01 (id 2). Bins in database: 1.`; the API log shows no rebuild or crash afterwards (seed regression check passes on Windows) |
+| Web log during the run | Eight `GET / 200`, no `Request … failed` lines, so every page render reached the API. What each page showed (bin / not-found) was not shared |
+| `Get-NetTCPConnection -LocalPort 3000,3001 -State Listen` | Only `:: 3000` listening. Most likely taken while the stop was in progress (see next row); not conclusive |
+| Ctrl+C in the `npm.cmd run dev` window | cmd.exe asked `¿Desea terminar el trabajo por lotes (S/N)?` for each process; after `s`, both exited (`exited with code 1`) and concurrently stopped the rest |
+| `Get-NetTCPConnection` (full list) after the stop | No listener on 3000 or 3001; 5432 still owned by the native PostgreSQL (PID 8488); 5433 listening (Docker) |
+| `npm.cmd run dev:web` with the API stopped | Ready on port 3000 (so 3000 was free); each request logs `ECONNREFUSED ::1:3001` and `127.0.0.1:3001`, page answers `GET / 200` (error state rendered; its content was not shared) |
+| Ctrl+C, `s` | Web stopped |
+| `npm.cmd run db:down` | Container and network removed (volume kept) |
+
 ## Pending
 
 Milestone 1:
 
-- WIN: reproduction of the milestone commit with host port 5433, from
-  `npm run db:up` onwards (pull/run of the pinned image, migrate, seed,
-  tests, dev servers, page states), plus the earlier steps whose output was
-  not shared (`npm ci`).
+- WIN: outputs not yet shared for the port 5433 run: `git rev-parse HEAD`,
+  `npm.cmd run db:up` + `docker compose ps` + `select version()`,
+  `db:migrate`, `npm.cmd test`; and `npm.cmd ci` from the first attempt.
+- WIN: what the page showed in its three states (bin, not-found, error),
+  as reported by the author.
 - WIN: optional 32-bit `sharp` package skipped by `npm ci` under
   `engine-strict`.
 
