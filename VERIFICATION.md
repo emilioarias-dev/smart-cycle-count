@@ -189,7 +189,7 @@ was applied; the exact commit was not confirmed.
 | `Get-NetTCPConnection` (full list) after the stop | No listener on 3000 or 3001; 5432 still owned by the native PostgreSQL (PID 8488); 5433 listening (Docker) |
 | `npm.cmd run dev:web` with the API stopped | Ready on port 3000 (so 3000 was free); each request logs `ECONNREFUSED ::1:3001` and `127.0.0.1:3001`, page answers `GET / 200` (error state rendered; its content was not shared) |
 | Ctrl+C, `s` | Web stopped |
-| `npm.cmd run db:down` | Container and network removed (volume kept) |
+| `npm.cmd run db:down` | Container and network removed. The output does not mention the volume; that it was kept is shown indirectly by the next run (`db:migrate` → `No pending migrations`), not by reading the bin |
 
 ## 2026-10-18 — WIN: missing outputs for the port 5433 run (shared by the author)
 
@@ -214,9 +214,23 @@ was applied; the exact commit was not confirmed.
 With this, every milestone 1 check has passed on Windows on commit
 `a501c55`. Later commits on the branch only change documentation.
 
+## 2026-10-18 — CC: bin persistence across `db:down` / `db:up` without seeding
+
+| Command | Result |
+|---|---|
+| `select id, code from bins` (before) | `3 \| SAMPLE-BIN-01` |
+| `npm run db:down` | Container stopped and removed, network removed; volume `smart-cycle-count_db-data` still listed by `docker volume ls` |
+| `npm run db:up` (no seed afterwards) | Container `healthy`, `127.0.0.1:5433->5432/tcp` |
+| `select id, code from bins` (after) | `3 \| SAMPLE-BIN-01`: same row, same id |
+| `npm run dev:api`, `GET /bins/SAMPLE-BIN-01` | `200 {"id":3,"code":"SAMPLE-BIN-01"}`; stopped with SIGINT, port 3001 free |
+
 ## Pending
 
-Milestone 1: nothing pending. Merge of the pull request by the author.
+Milestone 1:
+
+- WIN: bin persistence across `npm.cmd run db:down` / `npm.cmd run db:up`
+  without running the seed (read the row before and after, and through the
+  API). Not shared yet.
 
 Later or optional:
 
