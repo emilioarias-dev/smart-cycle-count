@@ -1,0 +1,24 @@
+# Local development database only. The credentials below are local
+# development values, not secrets; the port is bound to localhost.
+name: smart-cycle-count
+
+services:
+  db:
+    # PostgreSQL 16.15, pinned by digest (E-002).
+    image: postgres:16.15@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+    environment:
+      POSTGRES_USER: scc
+      POSTGRES_PASSWORD: scc_local_dev
+      POSTGRES_DB: smart_cycle_count
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scc -d smart_cycle_count"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  db-data:
