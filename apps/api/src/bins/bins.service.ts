@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { type ScoreDetail, scoreDetail } from '../scoring/presenter.js';
 
 export type BinDetail = {
   code: string;
@@ -13,6 +14,8 @@ export type BinDetail = {
     quantity: number;
     product: { sku: string; name: string; unit: string };
   }[];
+  // Latest stored score with its breakdown, or null if never scored.
+  score: ScoreDetail | null;
 };
 
 @Injectable()
@@ -28,6 +31,7 @@ export class BinsService {
           orderBy: { code: 'asc' },
           include: { product: { select: { sku: true, name: true, unit: true } } },
         },
+        score: true,
       },
     });
     if (!bin) {
@@ -41,6 +45,7 @@ export class BinsService {
       inventoryVersion: bin.inventoryVersion,
       lastAuditedAt: bin.lastAuditedAt,
       pallets: bin.pallets.map(({ code: palletCode, quantity, product }) => ({ code: palletCode, quantity, product })),
+      score: scoreDetail(bin.score),
     };
   }
 }

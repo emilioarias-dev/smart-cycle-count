@@ -1,12 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { type ScoreSummary, scoreSummary } from '../scoring/presenter.js';
 
 export type WarehouseLayout = {
   aisles: {
     aisle: string;
     racks: {
       rack: number;
-      bins: { code: string; position: number; palletCount: number; lastAuditedAt: Date | null }[];
+      bins: {
+        code: string;
+        position: number;
+        palletCount: number;
+        lastAuditedAt: Date | null;
+        score: ScoreSummary | null;
+      }[];
     }[];
   }[];
 };
@@ -25,6 +32,7 @@ export class WarehouseService {
         rack: true,
         position: true,
         lastAuditedAt: true,
+        score: true,
         _count: { select: { pallets: true } },
       },
     });
@@ -46,6 +54,7 @@ export class WarehouseService {
         position: bin.position,
         palletCount: bin._count.pallets,
         lastAuditedAt: bin.lastAuditedAt,
+        score: scoreSummary(bin.score),
       });
     }
     return { aisles };

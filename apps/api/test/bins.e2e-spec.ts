@@ -35,6 +35,22 @@ describe('Warehouse and bins API (PostgreSQL)', () => {
     expect(app.get(BinsService)['prisma']).toBe(prisma);
   });
 
+  it('GET /warehouse includes each bin\'s score, priority band and label', async () => {
+    const { body } = await request(app.getHttpServer()).get('/warehouse').expect(200);
+    const bins = body.aisles.flatMap((a: any) => a.racks.flatMap((r: any) => r.bins));
+    expect(bins).toHaveLength(30);
+    for (const bin of bins) {
+      const stored = await prisma.binScore.findFirstOrThrow({ where: { bin: { code: bin.code } } });
+      const priority = stored.score >= 70 ? 'high' : stored.score >= 40 ? 'medium' : 'low';
+      expect(bin.score).toEqual({
+        value: stored.score,
+        priority,
+        label: { high: 'High priority', medium: 'Medium priority', low: 'Low priority' }[priority],
+        reference: FIXED_REFERENCE.toISOString(),
+      });
+    }
+  });
+
   it('GET /warehouse returns aisles → racks → bins in location order', async () => {
     const { body } = await request(app.getHttpServer()).get('/warehouse').expect(200);
 
@@ -73,7 +89,10 @@ describe('Warehouse and bins API (PostgreSQL)', () => {
         quantity: p.quantity,
         product: { sku: p.product.sku, name: p.product.name, unit: p.product.unit },
       })),
+      score: expect.objectContaining({ reference: FIXED_REFERENCE.toISOString(), formulaVersion: 1 }),
     });
+    expect(body.score.breakdown.score).toBe(body.score.value);
+    expect(Object.keys(body.score.breakdown.factors)).toEqual(['age', 'activity', 'adjustments']);
     expect(body.pallets.length).toBeGreaterThan(0);
     expect(body.pallets.every((p: { quantity: number }) => p.quantity > 0)).toBe(true);
   });
@@ -87,6 +106,20 @@ describe('Warehouse and bins API (PostgreSQL)', () => {
   it('GET /bins/:code normalises spaces and lower case', async () => {
     const { body } = await request(app.getHttpServer()).get('/bins/%20a-01-03%20').expect(200);
     expect(body.code).toBe('A-01-03');
+  });
+
+  it('POST /scores/recompute scores every bin for the current time', async () => {
+    const before = Date.now();
+    const { body } = await request(app.getHttpServer()).post('/scores/recompute').expect(200);
+    const after = Date.now();
+
+    expect(body.bins).toBe(30);
+    expect(body.byPriority.low + body.byPriority.medium + body.byPriority.high).toBe(30);
+    const reference = new Date(body.reference).getTime();
+    expect(reference).toBeGreaterThanOrEqual(before);
+    expect(reference).toBeLessThanOrEqual(after);
+    const references = await prisma.binScore.findMany({ select: { referenceAt: true } });
+    expect(new Set(references.map((r) => r.referenceAt.getTime()))).toEqual(new Set([reference]));
   });
 
   it('GET /bins/:code returns 404 for an unknown code', async () => {
