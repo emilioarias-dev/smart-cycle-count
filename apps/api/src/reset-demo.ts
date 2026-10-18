@@ -18,7 +18,13 @@ if (!confirmReset) {
   process.exit(1);
 }
 
-const reference = resolveReference(process.env.SEED_NOW);
+let reference: Date;
+try {
+  reference = resolveReference(process.env.SEED_NOW);
+} catch (error) {
+  console.error(`Refused: ${error instanceof Error ? error.message : error}`);
+  process.exit(1);
+}
 console.log(
   `Generator v${GENERATOR_VERSION}, seed ${DEFAULT_SEED}, reference ${reference.toISOString()}` +
     (process.env.SEED_NOW ? ' (from SEED_NOW)' : ' (current time)'),
