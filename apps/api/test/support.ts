@@ -6,13 +6,13 @@ import type { PrismaClient } from '../src/generated/prisma/client.js';
 export const FIXED_REFERENCE = new Date('2026-10-18T12:00:00Z');
 
 export async function clearInventory(prisma: PrismaClient): Promise<void> {
-  await prisma.$executeRaw`TRUNCATE movements, pallets, products, bins RESTART IDENTITY`;
+  await prisma.$executeRaw`TRUNCATE bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
 }
 
 // Business data only (codes, quantities, locations, dates, movement order),
 // never internal ids (D-009).
 export async function businessSnapshot(prisma: PrismaClient) {
-  const [bins, products, pallets, movements] = await Promise.all([
+  const [bins, products, pallets, movements, scores] = await Promise.all([
     prisma.bin.findMany({
       orderBy: [{ aisle: 'asc' }, { rack: 'asc' }, { position: 'asc' }],
       select: { code: true, aisle: true, rack: true, position: true, inventoryVersion: true, lastAuditedAt: true },
@@ -33,6 +33,11 @@ export async function businessSnapshot(prisma: PrismaClient) {
         toBin: { select: { code: true } },
       },
     }),
+    // computedAt is the wall-clock time of the computation, not business data.
+    prisma.binScore.findMany({
+      orderBy: { bin: { code: 'asc' } },
+      select: { score: true, formulaVersion: true, referenceAt: true, breakdown: true, bin: { select: { code: true } } },
+    }),
   ]);
   return {
     bins,
@@ -45,6 +50,13 @@ export async function businessSnapshot(prisma: PrismaClient) {
       to: m.toBin?.code ?? null,
       change: m.quantityChange,
       occurredAt: m.occurredAt.toISOString(),
+    })),
+    scores: scores.map((s) => ({
+      bin: s.bin.code,
+      score: s.score,
+      formulaVersion: s.formulaVersion,
+      reference: s.referenceAt.toISOString(),
+      breakdown: s.breakdown,
     })),
   };
 }
