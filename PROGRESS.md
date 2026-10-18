@@ -24,17 +24,16 @@ proposed in `HANDOFF.md` §12, with these adjustments:
 
 **Status:** implemented on branch `m1-walking-skeleton` and verified in both
 environments, Claude Code (Linux) and the author's Windows PC, on code commit
-`a501c55` (later commits only change documentation). **One Windows check is
-still pending:** the bin persisting across `db:down` / `db:up` without
-seeding. It becomes part of `main` when the author merges the pull request
-(E-009).
+`a501c55` (later commits only change documentation). Merged into `main` as
+`9622bb6` after all checks passed, including bin persistence across
+`db:down` / `db:up` on Windows.
 
 | # | Criterion | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|---|
 | 1 | Structure | Root workspace, one lockfile, `.nvmrc`/`.node-version`, `.npmrc`, `.gitattributes`, `.gitignore`, `.env.example` per app, `docker-compose.yml`, docs | Yes | Yes |
 | 2 | Reproducible install | `npm ci` from the committed lockfile; Node/npm enforced by `engines` + `engine-strict` | Yes (Node 22 rejected, Node 24.22.0 OK) | Yes (`npm ci`; 32-bit `sharp` skipped) |
 | 3 | Database | Compose service with the pinned image on host port 5433; migration `create_bins` | Yes (from an empty volume; port change with data preserved) | Yes on `a501c55` (healthy on 5433, 16.15, migrations up to date); the first application of the migration was not shown |
-| 4 | Data | `npm run db:seed` upserts `SAMPLE-BIN-01`; data kept in a Docker volume | Yes (twice → one row; same row after `db:down` / `db:up` without seed) | Seed: yes (after delete and while `dev` ran → one row; idempotency covered by the tests). Persistence after `db:down` / `db:up`: **pending** |
+| 4 | Data | `npm run db:seed` upserts `SAMPLE-BIN-01`; data kept in a Docker volume | Yes (twice → one row; same row after `db:down` / `db:up` without seed) | Seed: yes (after delete and while `dev` ran → one row; idempotency covered by the tests). Persistence after `db:down` / `db:up`: yes (same row, volume kept) |
 | 5 | API | `GET /bins/:code` through `BinsService` → `PrismaService` (adapter-pg); Vitest suite against the test database | Yes (4/4 tests, manual 200/404) | Yes (4/4 tests, manual 200/404) |
 | 6 | Web | Server component fetches the bin; bin, not-found and error states | Yes (all three states) | Yes (three states, reported by the author; API reachability and errors in the logs) |
 | 7 | Dev workflow | `npm run dev` starts both apps; Ctrl+C stops both | Yes (Linux) | Yes (Ctrl+C asks `S/N` per process; ports freed) |

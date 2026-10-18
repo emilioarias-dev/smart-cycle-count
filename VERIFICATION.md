@@ -224,13 +224,20 @@ With this, every milestone 1 check has passed on Windows on commit
 | `select id, code from bins` (after) | `3 \| SAMPLE-BIN-01`: same row, same id |
 | `npm run dev:api`, `GET /bins/SAMPLE-BIN-01` | `200 {"id":3,"code":"SAMPLE-BIN-01"}`; stopped with SIGINT, port 3001 free |
 
+## 2026-10-18 — WIN: bin persistence across `db:down` / `db:up` (shared by the author after merging PR #1)
+
+| Command | Result |
+|---|---|
+| `npm.cmd ci` (repeated) | `added 449 packages`, `found 0 vulnerabilities`; `sharp-win32-ia32` → `False`, `sharp-win32-x64` → `True` |
+| `npm.cmd run db:up`, `select id, code from bins` | `2 \| SAMPLE-BIN-01` |
+| `npm.cmd run db:down` | Container and network removed |
+| `docker volume ls --filter name=smart-cycle-count` | `smart-cycle-count_db-data` still present |
+| `npm.cmd run db:up` (no seed), `select id, code from bins` | `2 \| SAMPLE-BIN-01`: same row, same id |
+| `git switch main`, `git pull --ff-only` | `main` up to date with `origin/main` (merge commit `9622bb6`) |
+
 ## Pending
 
-Milestone 1:
-
-- WIN: bin persistence across `npm.cmd run db:down` / `npm.cmd run db:up`
-  without running the seed (read the row before and after, and through the
-  API). Not shared yet.
+Milestone 1: nothing pending (merged as `9622bb6`).
 
 Later or optional:
 
