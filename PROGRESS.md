@@ -75,7 +75,8 @@ through the API, D-001 concurrency tests (count milestone).
 Code environment and, on Windows, tests and builds pass on code commit
 `a1461d6` (a first Windows run failed on a test hook limit and was
 corrected). **Not complete:** Windows evidence for an empty-database
-migration and for the running pages is pending (E-001, E-009).
+migration and the visual checks of the pages (except the error state) is
+pending (E-001, E-009).
 
 | # | Criterion | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|---|
@@ -85,8 +86,8 @@ migration and for the running pages is pending (E-001, E-009).
 | 4 | Independent rebuild; versions = movements per bin | Test replays the log without `applyMovement` | Yes | Yes |
 | 5 | Unauthorised reset refused; rollback on failure | `resetDemoData` + `npm run db:reset-demo` | Yes (no flag, non-dedicated database, invalid `SEED_NOW`, failing rebuild) | Yes (refusal without the flag; reset tests incl. rollback) |
 | 6 | API: warehouse and bin detail, 404 | `GET /warehouse`, `GET /bins/:code` (normalised) | Yes (6 tests + manual) | Yes (6 tests); manual check pending with the pages |
-| 7 | Grid, detail, error/not-found states, mobile width | Pages `/` and `/bins/[code]` | Yes (all states; 375 px viewport without horizontal overflow) | Pending |
-| 8 | Builds, tests, documented start; Windows reproduction | README | Yes (39/39 tests, builds, `npm run dev`, reset while `dev` runs) | Yes on `86da0ef` (39/39, builds); first run on `dc312aa` **failed** (hook timeout), corrected in `a1461d6`; `npm run dev` pending |
+| 7 | Grid, detail, error/not-found states, mobile width | Pages `/` and `/bins/[code]` | Yes (all states; 375 px viewport without horizontal overflow) | Partly: error state (author's visual confirmation, `ECONNREFUSED` in the log); grid, detail, normalised code, not-found and phone width pending |
+| 8 | Builds, tests, documented start; Windows reproduction | README | Yes (39/39 tests, builds, `npm run dev`, reset while `dev` runs) | Yes on `86da0ef` (39/39, builds; apps start, reset while `dev` runs, Ctrl+C stops both); first run on `dc312aa` **failed** (hook timeout), corrected in `a1461d6` |
 
 ### Where things are
 

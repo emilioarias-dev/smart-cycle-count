@@ -328,16 +328,36 @@ Notes:
 - `npm ci` on the branch was not shared; the lockfile is identical to
   `main`, whose `npm ci` on Windows was recorded (449 packages).
 
+## 2026-10-18 — WIN: milestone 2, running the apps (shared by the author)
+
+Terminal output:
+
+| Command | Result |
+|---|---|
+| `npm.cmd run dev` (API log) | Nest started 4:10:02 p. m. local time; `BinsModule` and `WarehouseModule` initialised; routes `GET /bins/:code` and `GET /warehouse` mapped. No web request lines were included in the shared log |
+| `npm.cmd run db:reset-demo` (no `SEED_NOW`), run while `npm.cmd run dev` was running (dev started 4:09:54 p. m. local; reset reference 20:10:07Z) | Reference = current time; `30 bins (2 empty, 11 never audited), 12 products, 110 pallets (27 depleted), movements: 110 putaway, 257 pick, 63 move, 47 adjustment`; last movement 17:48:26Z, before the reference |
+| Ctrl+C in the `dev` window, `s` | Both processes exited (`exited with code 1`, concurrently stopped the rest) |
+| `npm.cmd run dev:web` with the API stopped | Ready on port 3000; `Request to http://localhost:3001/warehouse failed … ECONNREFUSED ::1:3001 / 127.0.0.1:3001`; `GET / 200` |
+| Ctrl+C, `s` | Web stopped |
+
+Visual confirmation by the author (not terminal output):
+
+- With only the web running, the page showed "Could not load the warehouse".
+- "The demo reset finished correctly" — this confirms the command, not how
+  the pages looked after it; the reload after the reset was not reported.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
 
 Milestone 2:
 
-- WIN: migration of an **empty** database to the current schema.
-- WIN: pages with `npm.cmd run dev` (grid, detail, normalised code,
-  not-found, phone width, reset while `dev` runs, Ctrl+C, error state with
-  only the web running).
+- WIN: migration of an **empty** database to the current schema (not
+  shared).
+- WIN, visual confirmation pending: grid and bin detail; no horizontal
+  scrolling at about 375 px; `/bins/%20a-01-03%20` opens `A-01-03`;
+  `/bins/Z-99-99` shows "Bin not found"; the page still works after a
+  reset while `dev` runs.
 
 Later or optional:
 
