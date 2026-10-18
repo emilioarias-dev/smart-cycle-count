@@ -71,11 +71,10 @@ read endpoints and a neutral grid with a mobile-friendly bin detail. Out of
 scope: scoring and risk colors, audit plans, counts, creating movements
 through the API, D-001 concurrency tests (count milestone).
 
-**Status:** implemented on branch `m2-warehouse-data`; verified in the Claude
-Code environment and, on Windows, tests and builds pass on code commit
-`a1461d6` (a first Windows run failed on a test hook limit and was
-corrected). **Not complete:** on Windows, the not-found state of the bin page
-gave inconsistent results and needs one directed check (E-001, E-009).
+**Status:** implemented on branch `m2-warehouse-data` and **verified in both
+environments**, Claude Code (Linux) and the author's Windows PC, on code
+commit `a1461d6` (later commits only change documentation). A first Windows
+run failed on a test hook limit and was corrected. Ready to merge (E-009).
 
 | # | Criterion | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|---|
@@ -85,7 +84,7 @@ gave inconsistent results and needs one directed check (E-001, E-009).
 | 4 | Independent rebuild; versions = movements per bin | Test replays the log without `applyMovement` | Yes | Yes |
 | 5 | Unauthorised reset refused; rollback on failure | `resetDemoData` + `npm run db:reset-demo` | Yes (no flag, non-dedicated database, invalid `SEED_NOW`, failing rebuild) | Yes (refusal without the flag; reset tests incl. rollback) |
 | 6 | API: warehouse and bin detail, 404 | `GET /warehouse`, `GET /bins/:code` (normalised) | Yes (6 tests + manual) | Yes (6 tests; pages served through the API in `npm run dev`) |
-| 7 | Grid, detail, error/not-found states, mobile width | Pages `/` and `/bins/[code]` | Yes (all states; 375 px viewport without horizontal overflow) | Partly: grid and detail (author's visual confirmation), phone width (overflow 0 measured at 375 px on grid and detail), error state (visual + log); **not-found state inconclusive** (one `True`, a later `False`) |
+| 7 | Grid, detail, error/not-found states, mobile width | Pages `/` and `/bins/[code]` | Yes (all states; 375 px viewport without horizontal overflow) | Yes: grid and detail (author's visual confirmation), phone width (overflow 0 at 375 px), error state (visual + log), not-found state (directed check: API 404, page shows "Bin not found") |
 | 8 | Builds, tests, documented start; Windows reproduction | README | Yes (39/39 tests, builds, `npm run dev`, reset while `dev` runs) | Yes on `86da0ef` (39/39, builds; apps start, reset while `dev` runs, Ctrl+C stops both); first run on `dc312aa` **failed** (hook timeout), corrected in `a1461d6` |
 
 ### Where things are

@@ -398,22 +398,33 @@ therefore expected whenever the API is not reachable (for example during the
 start-up race recorded above), but this has not been shown for the Windows
 run.
 
+## 2026-10-18 — WIN: milestone 2, directed not-found check — **PASSED** (shared by the author)
+
+Fresh variables, `-ErrorAction Stop`, with `npm.cmd run dev` running:
+
+| Command | Result |
+|---|---|
+| `Invoke-WebRequest http://localhost:3001/warehouse` | `200` (API up) |
+| `Invoke-WebRequest http://localhost:3001/bins/Z-99-99` | `404` |
+| `Invoke-WebRequest http://localhost:3000/bins/Z-99-99` | `200` |
+| `$page.Content -match 'Bin not found'` | `True` |
+| `$page.Content -match 'Could not load the bin'` | `False` |
+
+This settles the earlier inconclusive result: with the API up, an unknown
+code shows the not-found state. The earlier `False` is consistent with the
+API not being reachable at that moment (reproduced in CC), but that cause
+was not shown on Windows.
+
+With this, every milestone 2 criterion has passed on Windows on code commit
+`a1461d6` (later commits only change documentation).
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
 
-Milestone 2 (required to close):
-
-- WIN: one directed check of the not-found page with the API confirmed
-  up (API `GET /bins/Z-99-99` → 404 and the page shows "Bin not found"),
-  to settle the inconsistent `True` / `False` results.
-
-Milestone 2 (optional):
-
-- WIN: `/bins/%20a-01-03%20` displays `A-01-03` (normalisation is already
-  covered on Windows by the API test).
-- WIN: the page after a reset while `dev` runs (regression check from
-  milestone 1; the reset itself succeeded while `dev` was running).
+Milestone 2: nothing required pending. Optional, not run on Windows: the
+page for `/bins/%20a-01-03%20` (normalisation covered by the API test) and
+the page reload after a reset while `dev` runs.
 
 Later or optional:
 
