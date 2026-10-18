@@ -277,7 +277,7 @@ commit does not change code.
 | `docker compose down -v`, `db:up`, `db:migrate`, `db:reset-demo` | 0 tables → both migrations applied → demo data loaded with the same totals |
 | `git status` in the clone | Clean |
 
-## 2026-10-18 — WIN: milestone 2, first run of `dc312aa` — **FAILED** (shared by the author)
+## 2026-10-18 — WIN: milestone 2, first run of `dc312aa` — **FAILED, corrected in `a1461d6`** (shared by the author)
 
 The author shared the output from the demo reset onwards. Blocks 1–2 (branch
 switch, `npm ci`, migration of the development database) and the build were
@@ -307,17 +307,37 @@ Not known yet: why the hook needed more than 10 s on Windows when one
 reset takes 5–6 s there. The Windows rerun with the split hooks will show
 whether it finishes and how long the suite takes.
 
+## 2026-10-18 — WIN: milestone 2, second run on `86da0ef` (code `a1461d6`) — **PASSED** (shared by the author)
+
+| Command | Result |
+|---|---|
+| `git status --short`, `git pull --ff-only`, `git rev-parse HEAD` | Clean; fast-forward `dc312aa..86da0ef`; `86da0ef4e0a03d8accca0a8d2e196306caef8d84` |
+| `Measure-Command { node dist-scripts/reset-demo.js --confirm-reset }` | **6.19 s** for one demo reset (about 2× Linux) |
+| `npx.cmd vitest run test/bins.e2e-spec.ts` | **6/6 passed**; file 5.46 s; `Duration 12.13s` including startup |
+| `npm.cmd test` | **39/39 passed**: demo reset 7 (42.2 s; one reset 5.0–5.5 s, two 9.9–10.6 s), bins 6 (5.85 s), movements 12, constraints 4, generator 10; `Duration 59.26s` |
+| `npm.cmd run build` | API (Prisma generate + `nest build`) and web (`/` and `/bins/[code]` dynamic) OK |
+
+Notes:
+
+- The bins suite now passes with its demo-data hook well inside the 30 s
+  limit. The first run's hook exceeded 10 s although one reset takes about
+  6 s there; that excess was not reproduced and remains unexplained.
+- The first run's test output already showed the **milestone 1 → 2
+  migration** on Windows: the test database (left by the milestone 1 tests
+  with `SAMPLE-BIN-01`) received `20261018120000_warehouse_inventory`.
+- `npm ci` on the branch was not shared; the lockfile is identical to
+  `main`, whose `npm ci` on Windows was recorded (449 packages).
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
 
 Milestone 2:
 
-- WIN: **the first run failed** (bins suite hook timeout, see above). Rerun
-  the bins suite and then all 39 tests with the fix.
-- WIN: outputs not shared yet: branch switch and `npm ci`, migration of the
-  development database from milestone 1, `npm.cmd run build`, pages
-  (grid, detail, normalised code, not-found, error, phone width).
+- WIN: migration of an **empty** database to the current schema.
+- WIN: pages with `npm.cmd run dev` (grid, detail, normalised code,
+  not-found, phone width, reset while `dev` runs, Ctrl+C, error state with
+  only the web running).
 
 Later or optional:
 

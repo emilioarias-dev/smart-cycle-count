@@ -71,20 +71,22 @@ read endpoints and a neutral grid with a mobile-friendly bin detail. Out of
 scope: scoring and risk colors, audit plans, counts, creating movements
 through the API, D-001 concurrency tests (count milestone).
 
-**Status:** implemented on branch `m2-warehouse-data` and verified in the
-Claude Code environment. **Not complete** until the author reproduces the
-same commit on Windows and merges the pull request (E-001, E-009).
+**Status:** implemented on branch `m2-warehouse-data`; verified in the Claude
+Code environment and, on Windows, tests and builds pass on code commit
+`a1461d6` (a first Windows run failed on a test hook limit and was
+corrected). **Not complete:** Windows evidence for an empty-database
+migration and for the running pages is pending (E-001, E-009).
 
 | # | Criterion | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|---|
-| 1 | Migration from milestone 1 and from an empty database; constraints | Migration `warehouse_inventory` in its own transaction: removes only `SAMPLE-BIN-01`, refuses other existing bins; CHECKs, unique keys and non-cascading relations | Yes (M1 database, empty database, refusal with an extra bin; constraint tests) | Pending |
-| 2 | Reproducible seed, time coverage, no future events | `generateDemoData` (seeded, `SEED_NOW` with explicit zone, UTC) | Yes (same data twice, compared by SQL and by tests; no event after the reference) | Reset output and fingerprints identical to Linux; tests pending |
-| 3 | Four movements, rejections, rollback | `applyMovement` | Yes (12 tests, incl. rollback of quantities, location, log and versions) | Pending |
-| 4 | Independent rebuild; versions = movements per bin | Test replays the log without `applyMovement` | Yes | Pending |
-| 5 | Unauthorised reset refused; rollback on failure | `resetDemoData` + `npm run db:reset-demo` | Yes (no flag, non-dedicated database, invalid `SEED_NOW`, failing rebuild) | Pending |
-| 6 | API: warehouse and bin detail, 404 | `GET /warehouse`, `GET /bins/:code` (normalised) | Yes (6 tests + manual) | Pending |
+| 1 | Migration from milestone 1 and from an empty database; constraints | Migration `warehouse_inventory` in its own transaction: removes only `SAMPLE-BIN-01`, refuses other existing bins; CHECKs, unique keys and non-cascading relations | Yes (M1 database, empty database, refusal with an extra bin; constraint tests) | Partly: milestone 1 → 2 on the test database; empty database pending |
+| 2 | Reproducible seed, time coverage, no future events | `generateDemoData` (seeded, `SEED_NOW` with explicit zone, UTC) | Yes (same data twice, compared by SQL and by tests; no event after the reference) | Yes (reset output and data fingerprints identical to Linux; generator tests) |
+| 3 | Four movements, rejections, rollback | `applyMovement` | Yes (12 tests, incl. rollback of quantities, location, log and versions) | Yes (12 tests) |
+| 4 | Independent rebuild; versions = movements per bin | Test replays the log without `applyMovement` | Yes | Yes |
+| 5 | Unauthorised reset refused; rollback on failure | `resetDemoData` + `npm run db:reset-demo` | Yes (no flag, non-dedicated database, invalid `SEED_NOW`, failing rebuild) | Yes (refusal without the flag; reset tests incl. rollback) |
+| 6 | API: warehouse and bin detail, 404 | `GET /warehouse`, `GET /bins/:code` (normalised) | Yes (6 tests + manual) | Yes (6 tests); manual check pending with the pages |
 | 7 | Grid, detail, error/not-found states, mobile width | Pages `/` and `/bins/[code]` | Yes (all states; 375 px viewport without horizontal overflow) | Pending |
-| 8 | Builds, tests, documented start; Windows reproduction | README | Yes (39/39 tests, builds, `npm run dev`, reset while `dev` runs) | **Failed** on `dc312aa` (bins suite hook timeout, 33 passed / 6 skipped); fix pending verification |
+| 8 | Builds, tests, documented start; Windows reproduction | README | Yes (39/39 tests, builds, `npm run dev`, reset while `dev` runs) | Yes on `86da0ef` (39/39, builds); first run on `dc312aa` **failed** (hook timeout), corrected in `a1461d6`; `npm run dev` pending |
 
 ### Where things are
 
