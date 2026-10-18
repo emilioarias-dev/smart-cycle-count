@@ -224,13 +224,207 @@ With this, every milestone 1 check has passed on Windows on commit
 | `select id, code from bins` (after) | `3 \| SAMPLE-BIN-01`: same row, same id |
 | `npm run dev:api`, `GET /bins/SAMPLE-BIN-01` | `200 {"id":3,"code":"SAMPLE-BIN-01"}`; stopped with SIGINT, port 3001 free |
 
+## 2026-10-18 — WIN: bin persistence across `db:down` / `db:up` (shared by the author after merging PR #1)
+
+| Command | Result |
+|---|---|
+| `npm.cmd ci` (repeated) | `added 449 packages`, `found 0 vulnerabilities`; `sharp-win32-ia32` → `False`, `sharp-win32-x64` → `True` |
+| `npm.cmd run db:up`, `select id, code from bins` | `2 \| SAMPLE-BIN-01` |
+| `npm.cmd run db:down` | Container and network removed |
+| `docker volume ls --filter name=smart-cycle-count` | `smart-cycle-count_db-data` still present |
+| `npm.cmd run db:up` (no seed), `select id, code from bins` | `2 \| SAMPLE-BIN-01`: same row, same id |
+| `git switch main`, `git pull --ff-only` | `main` up to date with `origin/main` (merge commit `9622bb6`) |
+
+## 2026-10-18 — CC: milestone 2 development
+
+| Command / action | Result |
+|---|---|
+| `prisma migrate dev --create-only` | Refused in a non-interactive environment; SQL generated with `prisma migrate diff --from-config-datasource --to-schema` and completed by hand (guard, `DELETE`, CHECKs) |
+| Throwaway database in the milestone 1 shape with `SAMPLE-BIN-01` **and** `OTHER-BIN`, then `migrate deploy` | `P3018`, `bins contains rows other than the milestone 1 sample bin…`; both bins still present, no `aisle` column, no enum: nothing applied |
+| Probe migration `CREATE TABLE …; SELECT 1/0;` | Failed and **the table remained**: Prisma does not wrap a migration in a transaction |
+| Same probe wrapped in `BEGIN … COMMIT` | Failed and the table did **not** remain; a successful `BEGIN … COMMIT` migration is recorded as applied. The milestone 2 migration was wrapped accordingly |
+| `npm run db:migrate` on the development database (milestone 1 state: `3 \| SAMPLE-BIN-01`) | Migration applied; 0 bins left; 9 CHECK constraints present; `prisma migrate diff --exit-code` → 0 (no drift) |
+| `node dist-scripts/reset-demo.js` without `--confirm-reset` | `Refused: …`, exit 1 |
+| First generator parameters (simulated without database) | 109 of 131 pallets located, 22 bins full: unrealistic. Second attempt: 14 empty bins. Third (version 1): 83 located, 2 empty, varied occupancy |
+| Mutation check: version bump without de-duplication | 2 tests fail (adjustment bumps once; rebuild from the log); code restored |
+| `npm test` | Two reset tests timed out at Vitest's default 5 s (two resets each); `testTimeout` raised to 30 s; then 39/39 |
+| Headless Chrome screenshots at `--window-size=375` | Cropped on the right; measured with a Playwright mobile viewport instead: horizontal overflow 0 px. The cropping came from the tool's minimum window width, not the page |
+| Pages: grid, detail, empty bin, `/bins/%20a-01-03%20`, `/bins/Z-99-99`, `/bins/%25`, no bins, API stopped | Grid and detail render; normalised code found; not-found state; "No bins yet" with the reset hint; "Could not load the warehouse/bin" with the API stopped |
+
+## 2026-10-18 — CC: milestone 2 clean verification (commit `500b76b`)
+
+Fresh `git clone`. Code commits end at `500b76b`; the later documentation
+commit does not change code.
+
+| Command | Result |
+|---|---|
+| Lockfile compared with `main` | Unchanged |
+| At `9622bb6` (milestone 1): `npm ci`, `docker compose down -v`, `db:up`, `db:generate`, `db:migrate`, `db:seed` | `1 \| SAMPLE-BIN-01` |
+| Switch to the branch, `npm ci`, `npm install-scripts ls` | 450 packages; no unreviewed install scripts |
+| `git status` after switching | `apps/api/dist-seed/` untracked (milestone 1 output no longer ignored). **Fixed** by ignoring it again (`9709360`); clean afterwards |
+| `npm run db:migrate` (from milestone 1) | `Applying migration 20261018120000_warehouse_inventory`; 0 bins; both migrations finished; 9 CHECKs; no schema drift |
+| `SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo` twice | Target `scc@localhost:5433/smart_cycle_count`; generator v1, seed 20261018; `30 bins (2 empty, 11 never audited), 12 products, 110 pallets (27 depleted), movements: 110 putaway, 257 pick, 63 move, 47 adjustment`; SQL dump of business data (629 rows, ordered, no ids) **identical** |
+| SQL checks on that data | 0 movements at or after the reference; only `PUTAWAY` (57) before the last 30 days; 420 movements of all four types inside them |
+| Direct run without `--confirm-reset` | Refused, exit 1 |
+| `SEED_NOW=2026-10-18T12:00:00` (no zone) | Refused with the explicit-zone message (stack trace removed in `500b76b`) |
+| `DATABASE_URL=…/postgres … --confirm-reset` | `Refusing to reset "postgres": only dedicated project databases…`, exit 1; development data untouched (477 movements) |
+| `npm run db:reset-demo` without `SEED_NOW` at 16:23:27Z | Reference 16:23:30Z (current time); same totals; latest movement 14:01:49Z; 0 movements after `now()` |
+| `vitest run` (verbose) | Test database created and both migrations applied from empty; **39/39 passed** (12 movement, 7 reset, 6 API, 10 generator, 4 constraint tests) |
+| `npm run build` | API and web OK; `/` and `/bins/[code]` dynamic |
+| `npm run dev`, `curl` | `GET /warehouse` 200; `GET /bins/%20b-02-04%20` 200 with `B-02-04`; `GET /bins/Z-99-99` 404; grid with aisles A–C and 30 bin links; detail page with last audit and inventory version |
+| `npm run db:reset-demo` while `npm run dev` runs | API and web still 200 afterwards; no errors in the dev log |
+| SIGINT to `npm run dev` | Ports 3000 and 3001 free |
+| `docker compose down -v`, `db:up`, `db:migrate`, `db:reset-demo` | 0 tables → both migrations applied → demo data loaded with the same totals |
+| `git status` in the clone | Clean |
+
+## 2026-10-18 — WIN: milestone 2, first run of `dc312aa` — **FAILED, corrected in `a1461d6`** (shared by the author)
+
+The author shared the output from the demo reset onwards. Blocks 1–2 (branch
+switch, `npm ci`, migration of the development database) and the build were
+not shared, so they are not recorded as passed.
+
+| Command | Result |
+|---|---|
+| `$env:SEED_NOW = "2026-10-18T12:00:00Z"; npm.cmd run db:reset-demo` | Target `scc@localhost:5433/smart_cycle_count`; generator v1, seed 20261018; `30 bins (2 empty, 11 never audited), 12 products, 110 pallets (27 depleted), movements: 110 putaway, 257 pick, 63 move, 47 adjustment (2026-08-19T21:31:32.000Z → 2026-10-18T09:38:19.000Z)` — same as Linux |
+| Business-data fingerprints (`md5` over ordered movements and bins) | `movements b26c5b3117e09117efa3e9d99933d0f3`, `bins 4f1f12749a292fe7e26c80518b05831d` — **identical to Linux**: the demo data is reproducible across operating systems |
+| `node dist-scripts/reset-demo.js` without `--confirm-reset` | `Refused: …` |
+| `npm.cmd test` | Test database migrated (`warehouse_inventory` applied). **Failed:** `test/bins.e2e-spec.ts` → `Hook timed out in 10000ms` in `beforeAll`; 6 tests skipped. Other files passed: movements 12 (2.1 s), demo reset 7 (45.2 s; one reset 5.3–6.2 s, two resets 10.2–11.6 s), generator 10, constraints 4. **33 passed, 6 skipped** |
+
+## 2026-10-18 — CC: diagnosis and fix of the Windows hook timeout
+
+| Command / action | Result |
+|---|---|
+| Configuration review | `testTimeout` had been raised to 30 s, but `hookTimeout` was Vitest's default **10 s**; the bins suite's `beforeAll` starts Nest **and** rebuilds the whole demo |
+| Temporary timing test (not committed), 3 runs | Nest start 109–123 ms; data generation 5–6 ms; **demo reset 2.84–2.90 s** (477 movements, ~6 ms each); close 3–7 ms. The reset is ~95 % of the hook |
+| Full suite while sampling `pg_stat_activity` every 0.3 s | No session waiting on a lock; only the reset's own transaction between statements ("idle in transaction"). No block on Linux |
+| Fix | `beforeAll` split into "start Nest" and "load demo data", so a timeout names the slow step; `hookTimeout: 30_000` (same as `testTimeout`; ~5× one Windows reset) |
+| `vitest run test/bins.e2e-spec.ts` | 6/6 passed (4.8 s) |
+| `vitest run` | 39/39 passed |
+| Block check: `LOCK TABLE bins IN ACCESS EXCLUSIVE MODE` held for 45 s in the test database while running the bins suite | `Hook timed out in 30000ms` at `bins.e2e-spec.ts:26` (the demo-data hook); vitest exited with code 1 after 44 s: a real block still fails and points to the step |
+| `vitest run` after the lock was released | 39/39 passed |
+
+Not known yet: why the hook needed more than 10 s on Windows when one
+reset takes 5–6 s there. The Windows rerun with the split hooks will show
+whether it finishes and how long the suite takes.
+
+## 2026-10-18 — WIN: milestone 2, second run on `86da0ef` (code `a1461d6`) — **PASSED** (shared by the author)
+
+| Command | Result |
+|---|---|
+| `git status --short`, `git pull --ff-only`, `git rev-parse HEAD` | Clean; fast-forward `dc312aa..86da0ef`; `86da0ef4e0a03d8accca0a8d2e196306caef8d84` |
+| `Measure-Command { node dist-scripts/reset-demo.js --confirm-reset }` | **6.19 s** for one demo reset (about 2× Linux) |
+| `npx.cmd vitest run test/bins.e2e-spec.ts` | **6/6 passed**; file 5.46 s; `Duration 12.13s` including startup |
+| `npm.cmd test` | **39/39 passed**: demo reset 7 (42.2 s; one reset 5.0–5.5 s, two 9.9–10.6 s), bins 6 (5.85 s), movements 12, constraints 4, generator 10; `Duration 59.26s` |
+| `npm.cmd run build` | API (Prisma generate + `nest build`) and web (`/` and `/bins/[code]` dynamic) OK |
+
+Notes:
+
+- The bins suite now passes with its demo-data hook well inside the 30 s
+  limit. The first run's hook exceeded 10 s although one reset takes about
+  6 s there; that excess was not reproduced and remains unexplained.
+- The first run's test output already showed the **milestone 1 → 2
+  migration** on Windows: the test database (left by the milestone 1 tests
+  with `SAMPLE-BIN-01`) received `20261018120000_warehouse_inventory`.
+- `npm ci` on the branch was not shared; the lockfile is identical to
+  `main`, whose `npm ci` on Windows was recorded (449 packages).
+
+## 2026-10-18 — WIN: milestone 2, running the apps (shared by the author)
+
+Terminal output:
+
+| Command | Result |
+|---|---|
+| `npm.cmd run dev` (API log) | Nest started 4:10:02 p. m. local time; `BinsModule` and `WarehouseModule` initialised; routes `GET /bins/:code` and `GET /warehouse` mapped. No web request lines were included in the shared log |
+| `npm.cmd run db:reset-demo` (no `SEED_NOW`), run while `npm.cmd run dev` was running (dev started 4:09:54 p. m. local; reset reference 20:10:07Z) | Reference = current time; `30 bins (2 empty, 11 never audited), 12 products, 110 pallets (27 depleted), movements: 110 putaway, 257 pick, 63 move, 47 adjustment`; last movement 17:48:26Z, before the reference |
+| Ctrl+C in the `dev` window, `s` | Both processes exited (`exited with code 1`, concurrently stopped the rest) |
+| `npm.cmd run dev:web` with the API stopped | Ready on port 3000; `Request to http://localhost:3001/warehouse failed … ECONNREFUSED ::1:3001 / 127.0.0.1:3001`; `GET / 200` |
+| Ctrl+C, `s` | Web stopped |
+
+Visual confirmation by the author (not terminal output):
+
+- With only the web running, the page showed "Could not load the warehouse".
+- "The demo reset finished correctly" — this confirms the command, not how
+  the pages looked after it; the reload after the reset was not reported.
+
+## 2026-10-18 — WIN: milestone 2, empty-database migration and pages (shared by the author)
+
+Terminal output:
+
+| Command | Result |
+|---|---|
+| `CREATE DATABASE smart_cycle_count_empty`; `$env:DATABASE_URL = …/smart_cycle_count_empty; npm.cmd run db:migrate` | `Applying migration 20261018025235_create_bins`, `Applying migration 20261018120000_warehouse_inventory`, `All migrations have been successfully applied.` |
+| `select migration_name from _prisma_migrations where finished_at is not null` | `20261018025235_create_bins`, `20261018120000_warehouse_inventory`; database dropped afterwards |
+| `npm.cmd run dev` (second session, 4:16 p. m.) | First `GET /` while the API was still compiling: `ECONNREFUSED` (start-up race, page served with its error state); after `Nest application successfully started` with both routes mapped: `GET /`, `GET /bins/A-01-01`, `A-01-02`, `A-01-03`, `C-02-03`, `GET /bins/Z-99-99`, `GET /bins/%20a-01-03%20`, all answered `200` |
+
+The demo reset output in this message is the same run already recorded
+(reference 20:10:07Z). The pages answer `200` in every state (a known
+limitation), so these log lines show that the pages were served, not which
+state they displayed.
+
+Visual confirmation by the author:
+
+- The grid loads, and selecting a bin opens its detail.
+- (Earlier) "Could not load the warehouse" with only the web running.
+
+## 2026-10-18 — WIN: milestone 2, phone width and not-found page (shared by the author)
+
+The reset and empty-database migration outputs in this message repeat the
+runs already recorded (same reference 20:10:07Z; same two migrations
+applied to `smart_cycle_count_empty`, which was dropped afterwards).
+
+Measured by the author in the browser (DevTools device mode, two screenshots
+shared):
+
+| Check | Result |
+|---|---|
+| Grid `/` at 375 × 744, `document.documentElement.scrollWidth - document.documentElement.clientWidth` | `0`: no horizontal overflow; 5 bins per rack row, empty bins dashed |
+| Bin detail `/bins/A-01-03` at 375 × 744, same expression | `0`; location, last audit ("Never audited"), pallets 4, inventory version 11, pallet list with units |
+
+Not-found page (terminal), three requests in a row:
+
+| Command | Result |
+|---|---|
+| `$r = Invoke-WebRequest …/bins/Z-99-99`; `$r.Content -match 'Bin not found'` | `True` |
+| `$r = Invoke-WebRequest …/bins/Z-99-99` | **Failed:** `No es posible conectar con el servidor remoto` (web not reachable); the next `-match` returned `True` but read the previous `$r`, so it is not counted (as the author noted) |
+| `$r = Invoke-WebRequest …/bins/Z-99-99`; `$r.Content -match 'Bin not found'` | **`False`**; the state of the API at that moment is unknown |
+
+**Inconclusive:** the first `True` is a valid fresh response, but the later
+`False` is unexplained on Windows.
+
+CC check of the likely cause: with only the web running, `/bins/Z-99-99`
+contains "Could not load the bin" and not "Bin not found"; with the API up
+(`GET /bins/Z-99-99` → 404) it contains "Bin not found". A `False` is
+therefore expected whenever the API is not reachable (for example during the
+start-up race recorded above), but this has not been shown for the Windows
+run.
+
+## 2026-10-18 — WIN: milestone 2, directed not-found check — **PASSED** (shared by the author)
+
+Fresh variables, `-ErrorAction Stop`, with `npm.cmd run dev` running:
+
+| Command | Result |
+|---|---|
+| `Invoke-WebRequest http://localhost:3001/warehouse` | `200` (API up) |
+| `Invoke-WebRequest http://localhost:3001/bins/Z-99-99` | `404` |
+| `Invoke-WebRequest http://localhost:3000/bins/Z-99-99` | `200` |
+| `$page.Content -match 'Bin not found'` | `True` |
+| `$page.Content -match 'Could not load the bin'` | `False` |
+
+This settles the earlier inconclusive result: with the API up, an unknown
+code shows the not-found state. The earlier `False` is consistent with the
+API not being reachable at that moment (reproduced in CC), but that cause
+was not shown on Windows.
+
+With this, every milestone 2 criterion has passed on Windows on code commit
+`a1461d6` (later commits only change documentation).
+
 ## Pending
 
-Milestone 1:
+Milestone 1: nothing pending (merged as `9622bb6`).
 
-- WIN: bin persistence across `npm.cmd run db:down` / `npm.cmd run db:up`
-  without running the seed (read the row before and after, and through the
-  API). Not shared yet.
+Milestone 2: nothing required pending. Optional, not run on Windows: the
+page for `/bins/%20a-01-03%20` (normalisation covered by the API test) and
+the page reload after a reset while `dev` runs.
 
 Later or optional:
 

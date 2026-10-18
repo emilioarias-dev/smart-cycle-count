@@ -1,10 +1,13 @@
 // Prisma schema for the API. The client is generated into src/generated/prisma
 // (git-ignored); regenerate it with `npm run db:generate`.
+//
+// Some rules cannot be expressed here and live as CHECK constraints in the
+// migrations (code format, quantity rules, movement shapes); see D-006 to D-008.
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "esm"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
   // Relative imports end in .js, as compiled ESM output requires (E-005).
   importFileExtension = "js"
 }
@@ -14,11 +17,80 @@ datasource db {
   provider = "postgresql"
 }
 
-// Milestone 1 keeps the bin minimal. Location (aisle/rack), inventory and the
-// final code format come in later milestones through new migrations.
+// A storage location. The code (A-01-03) is derived from aisle, rack and
+// position (D-006).
 model Bin {
-  id   Int    @id @default(autoincrement())
-  code String @unique
+  id               Int       @id @default(autoincrement())
+  code             String    @unique
+  aisle            String
+  rack             Int
+  position         Int
+  // Incremented once by every movement that touches the bin (D-001, D-008).
+  inventoryVersion Int       @default(0) @map("inventory_version")
+  // Simulated antecedent; no audit records behind it yet (D-009).
+  lastAuditedAt    DateTime? @map("last_audited_at") @db.Timestamptz(3)
 
+  pallets       Pallet[]
+  movementsFrom Movement[] @relation("MovementFromBin")
+  movementsTo   Movement[] @relation("MovementToBin")
+
+  @@unique([aisle, rack, position])
   @@map("bins")
+}
+
+// Quantities of a product are always expressed in its unit (D-007).
+model Product {
+  id   Int    @id @default(autoincrement())
+  sku  String @unique
+  name String
+  unit String
+
+  pallets Pallet[]
+
+  @@map("products")
+}
+
+// One product per pallet (D-003). A pallet with a positive quantity is in a
+// bin; a depleted pallet (quantity 0) has no bin and is kept for history.
+model Pallet {
+  id        Int    @id @default(autoincrement())
+  code      String @unique
+  productId Int    @map("product_id")
+  binId     Int?   @map("bin_id")
+  quantity  Int
+
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  bin       Bin?       @relation(fields: [binId], references: [id], onDelete: Restrict)
+  movements Movement[]
+
+  @@index([binId])
+  @@map("pallets")
+}
+
+enum MovementType {
+  PUTAWAY
+  PICK
+  MOVE
+  ADJUSTMENT
+}
+
+// The movement log. Its id is the application order (D-008).
+model Movement {
+  id             Int          @id @default(autoincrement())
+  type           MovementType
+  palletId       Int          @map("pallet_id")
+  fromBinId      Int?         @map("from_bin_id")
+  toBinId        Int?         @map("to_bin_id")
+  quantityChange Int          @map("quantity_change")
+  occurredAt     DateTime     @map("occurred_at") @db.Timestamptz(3)
+
+  pallet  Pallet @relation(fields: [palletId], references: [id], onDelete: Restrict)
+  fromBin Bin?   @relation("MovementFromBin", fields: [fromBinId], references: [id], onDelete: Restrict)
+  toBin   Bin?   @relation("MovementToBin", fields: [toBinId], references: [id], onDelete: Restrict)
+
+  @@index([palletId])
+  @@index([fromBinId])
+  @@index([toBinId])
+  @@index([occurredAt])
+  @@map("movements")
 }

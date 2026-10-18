@@ -9,8 +9,9 @@ discussion), **Deferred** (to be decided at a later milestone),
 **Superseded**.
 
 Last updated: 2026-10-18 (E-001 re-confirmed; E-002 pin and E-004 to E-009
-accepted by the author). Milestone 1 implements E-002 to E-008; the D-xxx
-business rules are not implemented yet. "Claude's Linux workspace"
+accepted by the author; D-006 to D-009 accepted for milestone 2). Milestone 1
+implements E-002 to E-008; see `PROGRESS.md` for what milestone 2
+implements. "Claude's Linux workspace"
 below means the claude.ai session's cloud workspace where these decisions were
 taken, not the Claude Code environment that continues the work (see
 `HANDOFF.md`).
@@ -27,6 +28,10 @@ in the dated tables kept below).
 | D-003 | Count unit and PASS/FAIL rule | Accepted |
 | D-004 | A count records discrepancies; it never adjusts inventory | Accepted |
 | D-005 | Only the latest score per bin is stored | Accepted |
+| D-006 | Warehouse layout and bin codes | Accepted |
+| D-007 | Products, pallets and locations | Accepted |
+| D-008 | Movements and the movement function | Accepted |
+| D-009 | Demo data: generation, reset and simulated audit history | Accepted |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -277,6 +282,122 @@ observed. Keeping one row per bin keeps the model and queries simple.
 - Evaluating the scoring retrospectively would rely on task copies (D-002)
   and counts, not on a full score history. To be revisited if an optional
   improvement needs history.
+
+---
+
+## D-006 — Warehouse layout and bin codes
+
+**Status:** Accepted (2026-10-18). Milestone 2.
+
+- **Layout:** 3 aisles (`A`, `B`, `C`) × 2 racks × 5 positions = 30 bins, a
+  single level. Aisles and racks have no data of their own, so they are
+  columns of the bin (`aisle`, `rack`, `position`) rather than tables;
+  separate tables can be introduced by a later migration if they gain
+  attributes.
+- **Code:** `A-01-03` = aisle `A`, rack 1, position 3. `rack` and `position`
+  are stored as integers; the leading zeros belong to the code format only.
+  The code is derived from the location when the bin is created.
+- **Uniqueness:** both the code and the location (`aisle`, `rack`,
+  `position`) are unique. PostgreSQL also checks that the code matches the
+  location.
+- **Ordering:** lists and the grid are ordered by the location fields
+  (`aisle`, `rack`, `position`), not by the code text.
+- **Search:** a code typed or scanned by a user is normalised before the
+  lookup: whitespace removed, letters upper-cased (` a-01-03 ` → `A-01-03`).
+
+Limitations: one level per rack; no capacity per bin (see D-007).
+
+## D-007 — Products, pallets and locations
+
+**Status:** Accepted (2026-10-18). Milestone 2.
+
+- **Product:** unique `sku`, `name` and `unit`. The unit says what one
+  counted unit is (for example `case` for "Bottled water 24 × 500 ml"); all
+  quantities of that SKU are in that unit, with no conversions.
+- **Pallet:** unique `code` (its licence plate, `P-0001`), exactly one
+  product (D-003), an integer `quantity` and an optional bin.
+- **Location rule:** a pallet with a positive quantity is always in a bin. A
+  pallet whose quantity reaches zero has no bin and is kept for history. A
+  depleted pallet is never reused: a new arrival creates a new pallet.
+  PostgreSQL enforces `quantity >= 0` and "positive ⇔ located".
+- A bin can hold several pallets, of different products. No capacity rule
+  is enforced (limitation); the demo data keeps at most 4 pallets per bin.
+- **Bin fields added:** `inventoryVersion` (D-001) and `lastAuditedAt`
+  (D-009).
+
+## D-008 — Movements and the movement function
+
+**Status:** Accepted (2026-10-18). Milestone 2.
+
+| Type | Rule | Pallet effect | Logged from → to | Quantity change |
+|---|---|---|---|---|
+| `PUTAWAY` | Creates a **new** pallet with a positive quantity in a bin | New pallet, located | — → bin | `+q` |
+| `PICK` | Removes `q > 0` units, never more than available | `quantity − q`; at zero it leaves its bin | bin → — | `−q` |
+| `MOVE` | Moves the whole pallet to a **different** bin; quantity unchanged | Bin changes | source → destination | `0` |
+| `ADJUSTMENT` | Applies a non-zero delta; the result cannot be negative | `quantity + delta`; at zero it leaves its bin | bin → bin | `delta` |
+
+- For adjustments, "from" and "to" are the same bin as a **logging
+  convention**: it records where the adjustment happened and does not mean a
+  depleted pallet stays located.
+- **One function** (`applyMovement`) performs every inventory change (D-001),
+  including the seed. In one transaction it locks the affected bins
+  (`SELECT … FOR UPDATE`, in id order), then locks and re-reads the pallet,
+  **validates the current state after acquiring the locks**, updates the
+  pallet, records the movement and increments `inventoryVersion` **once per
+  affected bin** (a bin that is both "from" and "to" counts once). Any
+  failure rolls everything back.
+- PostgreSQL also enforces the shape of each movement type (which bins are
+  set, sign of the quantity change, different bins for a move), the
+  relations (no cascading deletes) and uniqueness.
+- The movement log keeps enough data and order (the movement id is the
+  application order) to rebuild every pallet's quantity and location, and
+  every bin's version.
+- Not included: splitting a pallet, multi-pallet operations, creating
+  movements through the API.
+
+## D-009 — Demo data: generation, reset and simulated audit history
+
+**Status:** Accepted (2026-10-18). Milestone 2.
+
+**Reproducibility**
+
+- A seeded pseudo-random generator (implemented in the project, no new
+  dependency). Same **generator version**, **seed** and **reference time**
+  ⇒ the same business data (codes, quantities, locations, dates, movement
+  order). Internal ids are not part of that promise.
+- The reference time is captured **once** per run: `SEED_NOW` if set, which
+  must carry an explicit zone (`2026-10-18T12:00:00Z` or `…-04:00`), else the
+  current time. All dates are stored in UTC.
+- Timeline: opening stock (putaways) between 60 and 30 days before the
+  reference; then 30 days of activity (putaways, picks, moves, adjustments)
+  up to, and never after, the reference. Movements are applied in
+  chronological order with a stable tie-break.
+- Activity is deliberately uneven (busy, normal and quiet bins; a few bins
+  prone to adjustments; some empty bins). Totals are whatever the
+  simulation produces; no artificial events are added to reach a number.
+- `lastAuditedAt` is a **simulated antecedent**: about a third of the bins
+  were never audited, the rest between 2 and 90 days before the reference.
+  There are no audit records or results behind it; the absence of results
+  must not be read as a PASS.
+
+**Reset**
+
+- Loading demo data **replaces** the bins, products, pallets and movements
+  (all of them are deleted and rebuilt). It only runs with explicit
+  authorisation (`--confirm-reset` argument, provided by the
+  `npm run db:reset-demo` script), only against a dedicated project database
+  (name `smart_cycle_count` or `smart_cycle_count_<suffix>`), prints the
+  target without the password, and is never run automatically on start.
+- Deletion and rebuild happen in **one transaction**: if anything fails,
+  the previous data stays as it was.
+- Tables are cleared without `CASCADE`. When plans and counts exist, a
+  reset must either be refused while they exist or explicitly reset them
+  too; **that choice is still open** and no silent cascading delete is
+  introduced meanwhile.
+- The milestone 2 migration deletes the milestone 1 sample bin
+  (`SAMPLE-BIN-01`) and nothing else; if any other bin exists, the
+  migration stops with an error instead of deleting it. Earlier migrations
+  are kept unchanged.
 
 ---
 
@@ -567,10 +688,12 @@ History before 2026-10-18:
 
 To be decided when the corresponding milestone starts:
 
-- Warehouse layout and bin code format.
-- Movement semantics (putaway, pick, move, adjustment).
-- Inventory representation and seed design (determinism, reference date,
-  prior audit history).
 - Scoring factors, weights, window and normalisation.
 - Plan rules (default N, tie-break, bins with pending tasks).
 - Unexpected pallet capture details.
+- Demo reset once plans and counts exist: refuse the reset while they exist,
+  or reset them too with explicit authorisation (D-009).
+
+Decided in milestone 2 (previously deferred): layout and bin codes (D-006),
+inventory representation (D-007), movement semantics (D-008), seed design
+and audit antecedents (D-009).

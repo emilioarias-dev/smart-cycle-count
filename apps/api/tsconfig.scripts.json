@@ -1,0 +1,12 @@
+{
+  // Compiles only the command-line scripts (and what they import) into
+  // dist-scripts/, so they never touch dist/, which `npm run dev` serves from.
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "./dist-scripts",
+    "incremental": false,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["src/reset-demo.ts"]
+}
