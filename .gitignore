@@ -9,6 +9,8 @@ node_modules/
 # Build output
 dist/
 dist-scripts/
+# Seed output of milestone 1; may still exist in older working copies.
+dist-seed/
 .next/
 out/
 *.tsbuildinfo
