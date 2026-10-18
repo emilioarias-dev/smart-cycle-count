@@ -74,19 +74,18 @@ through the API, D-001 concurrency tests (count milestone).
 **Status:** implemented on branch `m2-warehouse-data`; verified in the Claude
 Code environment and, on Windows, tests and builds pass on code commit
 `a1461d6` (a first Windows run failed on a test hook limit and was
-corrected). **Not complete:** Windows evidence for an empty-database
-migration and the visual checks of the pages (except the error state) is
-pending (E-001, E-009).
+corrected). **Not complete:** on Windows, the not-found state of the bin page
+and the phone-width layout are not demonstrated yet (E-001, E-009).
 
 | # | Criterion | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|---|
-| 1 | Migration from milestone 1 and from an empty database; constraints | Migration `warehouse_inventory` in its own transaction: removes only `SAMPLE-BIN-01`, refuses other existing bins; CHECKs, unique keys and non-cascading relations | Yes (M1 database, empty database, refusal with an extra bin; constraint tests) | Partly: milestone 1 → 2 on the test database; empty database pending |
+| 1 | Migration from milestone 1 and from an empty database; constraints | Migration `warehouse_inventory` in its own transaction: removes only `SAMPLE-BIN-01`, refuses other existing bins; CHECKs, unique keys and non-cascading relations | Yes (M1 database, empty database, refusal with an extra bin; constraint tests) | Yes (milestone 1 → 2 on the test database; empty database `smart_cycle_count_empty`) |
 | 2 | Reproducible seed, time coverage, no future events | `generateDemoData` (seeded, `SEED_NOW` with explicit zone, UTC) | Yes (same data twice, compared by SQL and by tests; no event after the reference) | Yes (reset output and data fingerprints identical to Linux; generator tests) |
 | 3 | Four movements, rejections, rollback | `applyMovement` | Yes (12 tests, incl. rollback of quantities, location, log and versions) | Yes (12 tests) |
 | 4 | Independent rebuild; versions = movements per bin | Test replays the log without `applyMovement` | Yes | Yes |
 | 5 | Unauthorised reset refused; rollback on failure | `resetDemoData` + `npm run db:reset-demo` | Yes (no flag, non-dedicated database, invalid `SEED_NOW`, failing rebuild) | Yes (refusal without the flag; reset tests incl. rollback) |
-| 6 | API: warehouse and bin detail, 404 | `GET /warehouse`, `GET /bins/:code` (normalised) | Yes (6 tests + manual) | Yes (6 tests); manual check pending with the pages |
-| 7 | Grid, detail, error/not-found states, mobile width | Pages `/` and `/bins/[code]` | Yes (all states; 375 px viewport without horizontal overflow) | Partly: error state (author's visual confirmation, `ECONNREFUSED` in the log); grid, detail, normalised code, not-found and phone width pending |
+| 6 | API: warehouse and bin detail, 404 | `GET /warehouse`, `GET /bins/:code` (normalised) | Yes (6 tests + manual) | Yes (6 tests; pages served through the API in `npm run dev`) |
+| 7 | Grid, detail, error/not-found states, mobile width | Pages `/` and `/bins/[code]` | Yes (all states; 375 px viewport without horizontal overflow) | Partly: grid and detail (author's visual confirmation; requests in the log), error state (visual + `ECONNREFUSED`); **not-found state and phone width pending** |
 | 8 | Builds, tests, documented start; Windows reproduction | README | Yes (39/39 tests, builds, `npm run dev`, reset while `dev` runs) | Yes on `86da0ef` (39/39, builds; apps start, reset while `dev` runs, Ctrl+C stops both); first run on `dc312aa` **failed** (hook timeout), corrected in `a1461d6` |
 
 ### Where things are
@@ -123,3 +122,6 @@ pending (E-001, E-009).
 - The demo reset replaces all inventory data; its behaviour once plans and
   counts exist is still to be decided (D-009).
 - The pages answer HTTP `200` also in their not-found and error states.
+- `npm run dev` starts the web before the API finishes compiling; a page
+  loaded in those first seconds shows the error state until reloaded
+  (observed on Windows).

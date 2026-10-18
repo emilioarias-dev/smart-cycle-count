@@ -346,18 +346,42 @@ Visual confirmation by the author (not terminal output):
 - "The demo reset finished correctly" — this confirms the command, not how
   the pages looked after it; the reload after the reset was not reported.
 
+## 2026-10-18 — WIN: milestone 2, empty-database migration and pages (shared by the author)
+
+Terminal output:
+
+| Command | Result |
+|---|---|
+| `CREATE DATABASE smart_cycle_count_empty`; `$env:DATABASE_URL = …/smart_cycle_count_empty; npm.cmd run db:migrate` | `Applying migration 20261018025235_create_bins`, `Applying migration 20261018120000_warehouse_inventory`, `All migrations have been successfully applied.` |
+| `select migration_name from _prisma_migrations where finished_at is not null` | `20261018025235_create_bins`, `20261018120000_warehouse_inventory`; database dropped afterwards |
+| `npm.cmd run dev` (second session, 4:16 p. m.) | First `GET /` while the API was still compiling: `ECONNREFUSED` (start-up race, page served with its error state); after `Nest application successfully started` with both routes mapped: `GET /`, `GET /bins/A-01-01`, `A-01-02`, `A-01-03`, `C-02-03`, `GET /bins/Z-99-99`, `GET /bins/%20a-01-03%20`, all answered `200` |
+
+The demo reset output in this message is the same run already recorded
+(reference 20:10:07Z). The pages answer `200` in every state (a known
+limitation), so these log lines show that the pages were served, not which
+state they displayed.
+
+Visual confirmation by the author:
+
+- The grid loads, and selecting a bin opens its detail.
+- (Earlier) "Could not load the warehouse" with only the web running.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
 
-Milestone 2:
+Milestone 2 (required to close):
 
-- WIN: migration of an **empty** database to the current schema (not
-  shared).
-- WIN, visual confirmation pending: grid and bin detail; no horizontal
-  scrolling at about 375 px; `/bins/%20a-01-03%20` opens `A-01-03`;
-  `/bins/Z-99-99` shows "Bin not found"; the page still works after a
-  reset while `dev` runs.
+- WIN: the bin page for an unknown code shows "Bin not found".
+- WIN: no horizontal scrolling at a phone width (about 375 px) on the grid
+  and on a bin detail.
+
+Milestone 2 (optional):
+
+- WIN: `/bins/%20a-01-03%20` displays `A-01-03` (normalisation is already
+  covered on Windows by the API test).
+- WIN: the page after a reset while `dev` runs (regression check from
+  milestone 1; the reset itself succeeded while `dev` was running).
 
 Later or optional:
 
