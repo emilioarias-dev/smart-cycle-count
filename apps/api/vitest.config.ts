@@ -10,7 +10,10 @@ export default defineConfig({
     setupFiles: ['./test/setup-env.ts'],
     // The API tests share one database, so test files run one at a time.
     fileParallelism: false,
-    // Some tests rebuild the whole demo warehouse (a few seconds each).
+    // Some tests and hooks rebuild the whole demo warehouse: about 3 s on
+    // Linux and 5-6 s on the author's Windows PC per rebuild (VERIFICATION.md).
+    // 30 s leaves room for slower machines and still fails if one blocks.
     testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
 });

@@ -15,11 +15,15 @@ describe('Warehouse and bins API (PostgreSQL)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
 
+  // Two hooks, so that a timeout names the slow step.
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     await app.init();
     prisma = app.get(PrismaService);
+  });
+
+  beforeAll(async () => {
     await resetDemoData(prisma, generateDemoData({ reference: FIXED_REFERENCE }), { confirmReset: true });
   });
 
