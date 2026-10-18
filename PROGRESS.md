@@ -30,7 +30,7 @@ same commit on Windows and merges the pull request (E-001, E-009).
 |---|---|---|---|---|
 | 1 | Structure | Root workspace, one lockfile, `.nvmrc`/`.node-version`, `.npmrc`, `.gitattributes`, `.gitignore`, `.env.example` per app, `docker-compose.yml`, docs | Yes | Pending |
 | 2 | Reproducible install | `npm ci` from the committed lockfile; Node/npm enforced by `engines` + `engine-strict` | Yes (Node 22 rejected, Node 24.22.0 OK) | Pending |
-| 3 | Database | Compose service with the pinned image on host port 5433; migration `create_bins` | Yes (from an empty volume; port change with data preserved) | Pending (first attempt hit the native PostgreSQL on 5432) |
+| 3 | Database | Compose service with the pinned image on host port 5433; migration `create_bins` | Yes (from an empty volume; port change with data preserved) | Yes on `a501c55` (healthy on 5433, 16.15, migrations up to date); the first application of the migration was not shown |
 | 4 | Data | `npm run db:seed` upserts `SAMPLE-BIN-01` | Yes (twice → one row) | Partly: seed after a delete → one row, also while `dev` ran; double-seed output not shared |
 | 5 | API | `GET /bins/:code` through `BinsService` → `PrismaService` (adapter-pg); Vitest suite against the test database | Yes (4/4 tests, manual 200/404) | Partly: manual 200/404 yes; `npm test` output not shared |
 | 6 | Web | Server component fetches the bin; bin, not-found and error states | Yes (all three states) | Partly: renders and error path in logs; page content not shared |

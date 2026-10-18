@@ -191,13 +191,21 @@ was applied; the exact commit was not confirmed.
 | Ctrl+C, `s` | Web stopped |
 | `npm.cmd run db:down` | Container and network removed (volume kept) |
 
+## 2026-10-18 — WIN: missing outputs for the port 5433 run (shared by the author)
+
+| Command | Result |
+|---|---|
+| `git rev-parse HEAD` | `a501c55f236268c8000ec464aa660ea0669b7931`: the reproduced commit is confirmed |
+| `npm.cmd run db:up` | Network created, container `Healthy` (2.8 s) |
+| `docker compose ps` | `postgres:16.15@sha256:ca0bd484…b641d`, `Up (healthy)`, `127.0.0.1:5433->5432/tcp`. The pinned image runs on Windows, which also verifies the digest there (E-002) |
+| `select version();` | `PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu …` |
+| `npm.cmd run db:migrate` | Datasource `localhost:5433`; `1 migration found`, `No pending migrations to apply` (it had been applied in the earlier run, whose output was not shared) |
+
 ## Pending
 
 Milestone 1:
 
-- WIN: outputs not yet shared for the port 5433 run: `git rev-parse HEAD`,
-  `npm.cmd run db:up` + `docker compose ps` + `select version()`,
-  `db:migrate`, `npm.cmd test`; and `npm.cmd ci` from the first attempt.
+- WIN: `npm.cmd test` output; `npm.cmd ci` output (first attempt).
 - WIN: what the page showed in its three states (bin, not-found, error),
   as reported by the author.
 - WIN: optional 32-bit `sharp` package skipped by `npm ci` under
