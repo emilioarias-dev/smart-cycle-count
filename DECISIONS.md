@@ -9,8 +9,8 @@ discussion), **Deferred** (to be decided at a later milestone),
 **Superseded**.
 
 Last updated: 2026-10-18 (E-001 re-confirmed; E-002 pin and E-004 to E-009
-accepted by the author).
-Nothing in this file is implemented yet. "Claude's Linux workspace"
+accepted by the author). Milestone 1 implements E-002 to E-008; the D-xxx
+business rules are not implemented yet. "Claude's Linux workspace"
 below means the claude.ai session's cloud workspace where these decisions were
 taken, not the Claude Code environment that continues the work (see
 `HANDOFF.md`).
@@ -352,6 +352,15 @@ The exact pin was accepted by the author on 2026-10-18.
   `--force` or `--legacy-peer-deps`. Dist-tags such as `latest` are never
   used to select a version.
 
+**Implementation note (2026-10-18):** npm 11.19.1 records which dependencies
+may run install scripts in an `allowScripts` field. Unreviewed scripts still
+run, with a notice. After reviewing them, the two Prisma packages that need
+them (`prisma` preinstall: Node version check; `@prisma/engines` postinstall:
+schema engine download) are approved with pinned entries
+(`prisma@7.10.1`, `@prisma/engines@7.10.1`) in the root `package.json`.
+Upgrading Prisma therefore also requires re-approving with
+`npm install-scripts approve prisma @prisma/engines`.
+
 ### E-004 — Runtime and dependency versions
 
 **Status:** Accepted (2026-10-18) as the **initial selection**, pending
@@ -398,7 +407,12 @@ exactly these pins was resolved with
 - The same check with Node 24.14.0 or 22.22.0: 7 dev packages fail
   (`@nestjs/schematics` and `@angular-devkit/*`).
 
-Not executed yet: a real `npm ci`, build, tests or running the apps.
+**Validation (2026-10-18):** in the Claude Code environment, `npm ci`, both
+builds, the API tests and the running apps passed with these exact versions
+(see `VERIFICATION.md`); no version had to change and no Vitest plugin was
+needed. Windows validation is pending. Note: `@types/node` 26.6.5 also
+appears at the root of `node_modules` as an optional peer of the Nest CLI's
+prompt library; the workspaces use their pinned 24.19.2.
 
 Linux Node binary: `nodejs.org` is not reachable from Claude's workspace. The
 Node 24.22.0 binary there comes from the npm package
@@ -430,7 +444,8 @@ not recorded as passed.
 
 Decision: `apps/api` uses `"type": "module"`, relative imports with `.js`
 extensions, the `prisma-client` generator with an explicit
-`moduleFormat = "esm"`, and Vitest for tests. CommonJS-only examples from
+`moduleFormat = "esm"` (and `importFileExtension = "js"`, because the
+generator otherwise emits `.ts` import paths), and Vitest for tests. CommonJS-only examples from
 older tutorials do not apply directly.
 
 ### E-006 — Enforcing Node and npm versions
@@ -447,7 +462,8 @@ The exact version is the reference for both environments. The `engines` range
 rejects older or other major versions without blocking a reviewer on a later
 24.x patch.
 
-**Pending:** verify that `npm ci` with Node 22 fails early.
+**Verified (2026-10-18, Claude Code environment):** `npm ci` with Node 22.22.0
+fails with `EBADENGINE` before installing anything.
 
 ### E-007 — Environment variables
 
@@ -455,8 +471,12 @@ rejects older or other major versions without blocking a reviewer on a later
 
 - `.env` files are git-ignored. A committed `.env.example` documents every
   variable, with local development values only and no secrets.
-- The API loads `.env` with `dotenv`, both in its entry point and in
-  `prisma.config.ts`, because Prisma 7 does not load `.env` automatically.
+- The API loads `apps/api/.env` with `dotenv`, both in its entry point and
+  in `prisma.config.ts`, because Prisma 7 does not load `.env` automatically.
+  `prisma.config.ts` reads `process.env.DATABASE_URL` directly (not Prisma's
+  `env()` helper) so that `prisma generate` works without a `.env` file;
+  commands that need the database fail with a clear message instead.
+- The web app reads `apps/web/.env` (loaded by Next.js itself).
 - The web app reads the API base URL from `API_BASE_URL`, used **only on the
   Next.js server** (server components), so the browser never needs it and it
   is not exposed with a `NEXT_PUBLIC_` prefix.

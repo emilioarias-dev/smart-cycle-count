@@ -33,7 +33,7 @@ listed under "Pending" should be read as passing. Decisions are in
 |---|---|
 | `docker pull postgres:16.15@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d` | Pull complete; `Digest: sha256:ca0bd484…b641d` (digest verified) |
 | `docker run --rm <image> postgres --version` | `postgres (PostgreSQL) 16.15 (Debian 16.15-1.pgdg13+2)` |
-| `ss -ltnp` filtered on port 5432 | Port 5432 free |
+| ~~`ss -ltnp` filtered on port 5432~~ | **Invalid check (corrected the same day):** `ss` is not installed in this container, so the empty output proved nothing. Valid evidence that the port was free: Docker Compose later bound `127.0.0.1:5432` successfully (milestone 1 sections below). |
 | Throwaway container on `127.0.0.1:55432`: `pg_isready -U postgres` | `/var/run/postgresql:5432 - accepting connections` |
 | `psql -h 127.0.0.1 -p 55432 -U postgres -c "select version()"` | `PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit` |
 | `docker rm -f` of the throwaway container | Removed |
@@ -60,8 +60,8 @@ This replaces the third-party Node repackaging used in CAI.
 | `npm pack @nestjs/schematics@12.0.7`, read `application/files/ts-esm` | ESM template: `"type": "module"`, Vitest `^4.1.2`, Vite `^8.0.0`, TypeScript `^6.0.2`, `emitDecoratorMetadata` in `tsconfig.json`, no Vitest plugin |
 | `npm view prisma@7.10.1 dependencies`; `npm view @prisma/engines@7.10.1 scripts.postinstall` | `@prisma/engines` runs `node scripts/postinstall.js` (engine download at install time); `binaries.prisma.sh` answers (HTTP 404 on `/`, i.e. reachable) |
 
-Not executed yet: dependency resolution in this environment, installation,
-compilation or execution.
+At this point nothing had been resolved, installed, compiled or executed;
+that happened later the same day (milestone 1 sections below).
 
 ## 2026-10-18 — WIN: Node.js and npm (output shared directly by the author)
 
@@ -71,18 +71,69 @@ compilation or execution.
 | `npm.cmd --version` | `11.19.1` |
 | `Get-Command node,npm.cmd \| Select-Object Name,Source` | `node.exe` → `C:\Program Files\nodejs\node.exe`; `npm.cmd` → `C:\Program Files\nodejs\npm.cmd` |
 
+## 2026-10-18 — CC: first push to GitHub (E-009)
+
+| Command | Result |
+|---|---|
+| `git push -u origin main` (commit `2175c32`, author Emilio Arias, no-reply address) | `* [new branch] main -> main`, exit 0. A warning `push negotiation failed; proceeding anyway` was printed first (the remote was empty); the push itself succeeded |
+| `git ls-remote origin` | `refs/heads/main` = `2175c322d8f7d023089b701a078faad9d285d216` |
+
+Write access from CC is demonstrated.
+
+## 2026-10-18 — CC: milestone 1 development
+
+Executed in the working copy while building the milestone.
+
+| Command / action | Result |
+|---|---|
+| `npm install -w … <pkg>@<exact>` (API runtime and dev, web runtime and dev, root `concurrently`) | Exit 0. 510 lockfile entries, `lockfileVersion` 3 |
+| npm 11.19.1 notice: Prisma install scripts "not yet covered by allowScripts" | The scripts **did run** (the schema engine was downloaded during install). Approved with `npm install-scripts approve prisma @prisma/engines` (pinned entries); `npm install-scripts ls` → none pending |
+| Lockfile inspection | Contains `@next/swc-win32-x64-msvc`, `@rolldown/binding-win32-x64-msvc`, `lightningcss-win32-x64-msvc`, `@img/sharp-win32-x64`; one copy each of TypeScript 6.0.3, Prisma 7.10.1, React 19.3.1, Next 16.4.2, Vite 8.3.4, Vitest 4.1.12, pg 8.23.1 |
+| `npm ls @types/node` | 26.6.5 at the root, pulled as an **optional peer** (`>=18`) of `@inquirer/*` (Nest CLI); both workspaces get their pinned 24.19.2 nested. Harmless |
+| `prisma generate` without `.env`, with `env('DATABASE_URL')` in `prisma.config.ts` | Failed: `PrismaConfigEnvError`. Switched to `process.env.DATABASE_URL`: generate works without `.env`; `migrate deploy` without it fails with a clear message |
+| `prisma generate` (default) | Generated imports end in `.ts`; set `importFileExtension = "js"` so the compiled ESM output resolves |
+| `prisma migrate dev --name create_bins` on the empty Compose database | Migration `20261018025235_create_bins` created and applied (`bins` table, unique index on `code`) |
+| **Bug:** `npm run db:seed` while `npm run dev` was running | Reproduced: the seed ran `nest build`, which deletes `dist/` (`deleteOutDir`); the dev API crashed with `ERR_MODULE_NOT_FOUND` and the web showed the error state (`ECONNREFUSED`) |
+| Fix: the seed compiles only itself into `dist-seed/` (`tsc -p tsconfig.seed.json`) and does not run `prisma generate` | Same scenario repeated: API still `200`, page still shows the bin, no errors in the dev log |
+| `TEST_DATABASE_URL` set to the development database, then `vitest run` | Refused: `TEST_DATABASE_URL must point to a different database than DATABASE_URL.`; development data untouched |
+| Next 16.4 bundled docs (`node_modules/next/dist/docs`) | `export const dynamic` belongs to the previous caching model; replaced by `await connection()`. `next build` still marks `/` as dynamic (`ƒ`) |
+
+## 2026-10-18 — CC: milestone 1 clean verification (commit `7e26bfd`)
+
+Fresh `git clone` of branch `m1-walking-skeleton` at
+`7e26bfd73a31ee47dba626ba59533944ea6d6628` into an empty directory,
+following the README.
+
+| Command | Result |
+|---|---|
+| `npm ci` with Node 22.22.0 / npm 10.9.4 (E-006) | Fails before installing anything: `EBADENGINE`, `Required: {"node":">=24.22.0 <25","npm":">=11.19.1 <12"}`; no `node_modules` created |
+| `npm ci` with Node 24.22.0 / npm 11.19.1 | `added 450 packages`, exit 0, no install-script notices; Prisma schema engine present; `git status` clean afterwards |
+| `docker compose down -v`, then `npm run db:up` | Volume removed; container `Healthy`, image `postgres:16.15@sha256:ca0bd484…b641d`, port `127.0.0.1:5432` |
+| `select count(*) from information_schema.tables where table_schema='public'` | `0` (empty database) |
+| `npm run db:generate` | `Generated Prisma Client (7.10.1)` |
+| `npm run db:migrate` | `Applying migration 20261018025235_create_bins` … `All migrations have been successfully applied`, exit 0 |
+| `npm run db:seed` twice | Both runs: `Sample bin ready: SAMPLE-BIN-01 (id 1). Bins in database: 1.`; `select id, code from bins` → one row |
+| `npm test` | Test database `smart_cycle_count_test` created and migrated; **4/4 passed**: Prisma service injected into the bins service (Nest DI under Vitest, no plugin), `GET /bins/:code` 200, unknown code 404, seed idempotency |
+| `npm run build` | API: Prisma generate + `nest build` OK. Web: compiled, TypeScript OK, `/` dynamic. Exit 0 |
+| `npm run dev`, then `curl` | `GET /bins/SAMPLE-BIN-01` → `200 {"id":1,"code":"SAMPLE-BIN-01"}`; `GET /bins/UNKNOWN-BIN` → `404 {"message":"Bin UNKNOWN-BIN not found","error":"Not Found","statusCode":404}`; web `/` shows `SAMPLE-BIN-01` and the "Sample data" badge |
+| `delete from bins`, reload the page | "Bin not found" notice with the `npm run db:seed` hint |
+| `npm run db:seed` while `npm run dev` runs (regression check) | API `200` with the re-created bin, page shows it again, no errors in the dev log |
+| SIGINT to the `npm run dev` process group (what Ctrl+C sends) | Both processes exit; ports 3000 and 3001 free; no `nest`/`next`/`concurrently` processes left |
+| API stopped, `npm run dev:web` only, load `/` | "Could not load the bin — The API could not be reached…" with a "Try again" link; server log shows `ECONNREFUSED 127.0.0.1:3001` |
+| `git status` in the clone after all of the above | Clean (no generated file left untracked) |
+
+Screenshots of the three page states were taken with headless Chromium for
+the author; they are not committed.
+
 ## Pending
 
 Milestone 1:
 
-- CC: first push demonstrated (E-009).
-- CC: lockfile generation, `npm ci`, migration from an empty database,
-  client generation, idempotent seed, API read and 404, Next.js page and
-  error state, builds, API test against real PostgreSQL, Nest DI under
-  Vitest, start/stop of the dev servers (E-008).
-- CC: `npm ci` with Node 22 fails early (only if E-006 is accepted).
-- WIN: port 5432 free; pull and run of the pinned image; reproduction of the
-  same milestone commit.
+- WIN: reproduction of the milestone commit following the README (`npm ci`,
+  pull/run of the pinned image, migrate, seed, tests, builds, dev servers,
+  page states).
+- WIN: optional 32-bit `sharp` package skipped by `npm ci` under
+  `engine-strict`.
 
 Later or optional:
 
