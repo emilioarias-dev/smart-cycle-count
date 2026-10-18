@@ -366,15 +366,47 @@ Visual confirmation by the author:
 - The grid loads, and selecting a bin opens its detail.
 - (Earlier) "Could not load the warehouse" with only the web running.
 
+## 2026-10-18 — WIN: milestone 2, phone width and not-found page (shared by the author)
+
+The reset and empty-database migration outputs in this message repeat the
+runs already recorded (same reference 20:10:07Z; same two migrations
+applied to `smart_cycle_count_empty`, which was dropped afterwards).
+
+Measured by the author in the browser (DevTools device mode, two screenshots
+shared):
+
+| Check | Result |
+|---|---|
+| Grid `/` at 375 × 744, `document.documentElement.scrollWidth - document.documentElement.clientWidth` | `0`: no horizontal overflow; 5 bins per rack row, empty bins dashed |
+| Bin detail `/bins/A-01-03` at 375 × 744, same expression | `0`; location, last audit ("Never audited"), pallets 4, inventory version 11, pallet list with units |
+
+Not-found page (terminal), three requests in a row:
+
+| Command | Result |
+|---|---|
+| `$r = Invoke-WebRequest …/bins/Z-99-99`; `$r.Content -match 'Bin not found'` | `True` |
+| `$r = Invoke-WebRequest …/bins/Z-99-99` | **Failed:** `No es posible conectar con el servidor remoto` (web not reachable); the next `-match` returned `True` but read the previous `$r`, so it is not counted (as the author noted) |
+| `$r = Invoke-WebRequest …/bins/Z-99-99`; `$r.Content -match 'Bin not found'` | **`False`**; the state of the API at that moment is unknown |
+
+**Inconclusive:** the first `True` is a valid fresh response, but the later
+`False` is unexplained on Windows.
+
+CC check of the likely cause: with only the web running, `/bins/Z-99-99`
+contains "Could not load the bin" and not "Bin not found"; with the API up
+(`GET /bins/Z-99-99` → 404) it contains "Bin not found". A `False` is
+therefore expected whenever the API is not reachable (for example during the
+start-up race recorded above), but this has not been shown for the Windows
+run.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
 
 Milestone 2 (required to close):
 
-- WIN: the bin page for an unknown code shows "Bin not found".
-- WIN: no horizontal scrolling at a phone width (about 375 px) on the grid
-  and on a bin detail.
+- WIN: one directed check of the not-found page with the API confirmed
+  up (API `GET /bins/Z-99-99` → 404 and the page shows "Bin not found"),
+  to settle the inconsistent `True` / `False` results.
 
 Milestone 2 (optional):
 
