@@ -235,9 +235,57 @@ With this, every milestone 1 check has passed on Windows on commit
 | `npm.cmd run db:up` (no seed), `select id, code from bins` | `2 \| SAMPLE-BIN-01`: same row, same id |
 | `git switch main`, `git pull --ff-only` | `main` up to date with `origin/main` (merge commit `9622bb6`) |
 
+## 2026-10-18 — CC: milestone 2 development
+
+| Command / action | Result |
+|---|---|
+| `prisma migrate dev --create-only` | Refused in a non-interactive environment; SQL generated with `prisma migrate diff --from-config-datasource --to-schema` and completed by hand (guard, `DELETE`, CHECKs) |
+| Throwaway database in the milestone 1 shape with `SAMPLE-BIN-01` **and** `OTHER-BIN`, then `migrate deploy` | `P3018`, `bins contains rows other than the milestone 1 sample bin…`; both bins still present, no `aisle` column, no enum: nothing applied |
+| Probe migration `CREATE TABLE …; SELECT 1/0;` | Failed and **the table remained**: Prisma does not wrap a migration in a transaction |
+| Same probe wrapped in `BEGIN … COMMIT` | Failed and the table did **not** remain; a successful `BEGIN … COMMIT` migration is recorded as applied. The milestone 2 migration was wrapped accordingly |
+| `npm run db:migrate` on the development database (milestone 1 state: `3 \| SAMPLE-BIN-01`) | Migration applied; 0 bins left; 9 CHECK constraints present; `prisma migrate diff --exit-code` → 0 (no drift) |
+| `node dist-scripts/reset-demo.js` without `--confirm-reset` | `Refused: …`, exit 1 |
+| First generator parameters (simulated without database) | 109 of 131 pallets located, 22 bins full: unrealistic. Second attempt: 14 empty bins. Third (version 1): 83 located, 2 empty, varied occupancy |
+| Mutation check: version bump without de-duplication | 2 tests fail (adjustment bumps once; rebuild from the log); code restored |
+| `npm test` | Two reset tests timed out at Vitest's default 5 s (two resets each); `testTimeout` raised to 30 s; then 39/39 |
+| Headless Chrome screenshots at `--window-size=375` | Cropped on the right; measured with a Playwright mobile viewport instead: horizontal overflow 0 px. The cropping came from the tool's minimum window width, not the page |
+| Pages: grid, detail, empty bin, `/bins/%20a-01-03%20`, `/bins/Z-99-99`, `/bins/%25`, no bins, API stopped | Grid and detail render; normalised code found; not-found state; "No bins yet" with the reset hint; "Could not load the warehouse/bin" with the API stopped |
+
+## 2026-10-18 — CC: milestone 2 clean verification (commit `500b76b`)
+
+Fresh `git clone`. Code commits end at `500b76b`; the later documentation
+commit does not change code.
+
+| Command | Result |
+|---|---|
+| Lockfile compared with `main` | Unchanged |
+| At `9622bb6` (milestone 1): `npm ci`, `docker compose down -v`, `db:up`, `db:generate`, `db:migrate`, `db:seed` | `1 \| SAMPLE-BIN-01` |
+| Switch to the branch, `npm ci`, `npm install-scripts ls` | 450 packages; no unreviewed install scripts |
+| `git status` after switching | `apps/api/dist-seed/` untracked (milestone 1 output no longer ignored). **Fixed** by ignoring it again (`9709360`); clean afterwards |
+| `npm run db:migrate` (from milestone 1) | `Applying migration 20261018120000_warehouse_inventory`; 0 bins; both migrations finished; 9 CHECKs; no schema drift |
+| `SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo` twice | Target `scc@localhost:5433/smart_cycle_count`; generator v1, seed 20261018; `30 bins (2 empty, 11 never audited), 12 products, 110 pallets (27 depleted), movements: 110 putaway, 257 pick, 63 move, 47 adjustment`; SQL dump of business data (629 rows, ordered, no ids) **identical** |
+| SQL checks on that data | 0 movements at or after the reference; only `PUTAWAY` (57) before the last 30 days; 420 movements of all four types inside them |
+| Direct run without `--confirm-reset` | Refused, exit 1 |
+| `SEED_NOW=2026-10-18T12:00:00` (no zone) | Refused with the explicit-zone message (stack trace removed in `500b76b`) |
+| `DATABASE_URL=…/postgres … --confirm-reset` | `Refusing to reset "postgres": only dedicated project databases…`, exit 1; development data untouched (477 movements) |
+| `npm run db:reset-demo` without `SEED_NOW` at 16:23:27Z | Reference 16:23:30Z (current time); same totals; latest movement 14:01:49Z; 0 movements after `now()` |
+| `vitest run` (verbose) | Test database created and both migrations applied from empty; **39/39 passed** (12 movement, 7 reset, 6 API, 10 generator, 4 constraint tests) |
+| `npm run build` | API and web OK; `/` and `/bins/[code]` dynamic |
+| `npm run dev`, `curl` | `GET /warehouse` 200; `GET /bins/%20b-02-04%20` 200 with `B-02-04`; `GET /bins/Z-99-99` 404; grid with aisles A–C and 30 bin links; detail page with last audit and inventory version |
+| `npm run db:reset-demo` while `npm run dev` runs | API and web still 200 afterwards; no errors in the dev log |
+| SIGINT to `npm run dev` | Ports 3000 and 3001 free |
+| `docker compose down -v`, `db:up`, `db:migrate`, `db:reset-demo` | 0 tables → both migrations applied → demo data loaded with the same totals |
+| `git status` in the clone | Clean |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
+
+Milestone 2:
+
+- WIN: reproduction of the milestone 2 commit (update from `main`,
+  migration from the milestone 1 database, demo reset, tests, builds,
+  pages at phone width).
 
 Later or optional:
 

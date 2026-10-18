@@ -62,3 +62,61 @@ environments, Claude Code (Linux) and the author's Windows PC, on code commit
 - `npm run db:seed` compiles the seed separately (`dist-seed/`) so that it
   can run while `npm run dev` is running.
 - Developer setup needs Docker; there is no native PostgreSQL path.
+
+## Milestone 2 — warehouse data
+
+**Scope (agreed 2026-10-18):** warehouse data (D-006, D-007), the movement
+function (D-008), reproducible demo data with an explicit reset (D-009),
+read endpoints and a neutral grid with a mobile-friendly bin detail. Out of
+scope: scoring and risk colors, audit plans, counts, creating movements
+through the API, D-001 concurrency tests (count milestone).
+
+**Status:** implemented on branch `m2-warehouse-data` and verified in the
+Claude Code environment. **Not complete** until the author reproduces the
+same commit on Windows and merges the pull request (E-001, E-009).
+
+| # | Criterion | Implementation | Verified in CC | Verified on WIN |
+|---|---|---|---|---|
+| 1 | Migration from milestone 1 and from an empty database; constraints | Migration `warehouse_inventory` in its own transaction: removes only `SAMPLE-BIN-01`, refuses other existing bins; CHECKs, unique keys and non-cascading relations | Yes (M1 database, empty database, refusal with an extra bin; constraint tests) | Pending |
+| 2 | Reproducible seed, time coverage, no future events | `generateDemoData` (seeded, `SEED_NOW` with explicit zone, UTC) | Yes (same data twice, compared by SQL and by tests; no event after the reference) | Pending |
+| 3 | Four movements, rejections, rollback | `applyMovement` | Yes (12 tests, incl. rollback of quantities, location, log and versions) | Pending |
+| 4 | Independent rebuild; versions = movements per bin | Test replays the log without `applyMovement` | Yes | Pending |
+| 5 | Unauthorised reset refused; rollback on failure | `resetDemoData` + `npm run db:reset-demo` | Yes (no flag, non-dedicated database, invalid `SEED_NOW`, failing rebuild) | Pending |
+| 6 | API: warehouse and bin detail, 404 | `GET /warehouse`, `GET /bins/:code` (normalised) | Yes (6 tests + manual) | Pending |
+| 7 | Grid, detail, error/not-found states, mobile width | Pages `/` and `/bins/[code]` | Yes (all states; 375 px viewport without horizontal overflow) | Pending |
+| 8 | Builds, tests, documented start; Windows reproduction | README | Yes (39/39 tests, builds, `npm run dev`, reset while `dev` runs) | Pending |
+
+### Where things are
+
+| Path | Role |
+|---|---|
+| `apps/api/prisma/migrations/20261018120000_warehouse_inventory/` | Milestone 2 schema, data guard and CHECK constraints |
+| `apps/api/src/inventory/movements.ts` | `applyMovement`: the only way inventory changes |
+| `apps/api/src/inventory/bin-code.ts` | Bin code format and normalisation |
+| `apps/api/src/demo-data/` | Seeded generator, catalog, reference time and the transactional reset |
+| `apps/api/src/reset-demo.ts` | The `db:reset-demo` command |
+| `apps/api/src/warehouse/`, `src/bins/` | `GET /warehouse`, `GET /bins/:code` |
+| `apps/api/test/` | Movement, constraint, generator, reset and API tests |
+| `apps/web/app/page.tsx`, `app/bins/[code]/page.tsx` | Grid and bin detail |
+
+### Implementation notes
+
+- **Prisma does not run a migration in a transaction** (verified with a
+  failing test migration). The milestone 2 migration therefore wraps itself
+  in `BEGIN … COMMIT`, so a failure applies nothing.
+- **Generator parameters** were tuned once before fixing version 1: the
+  first attempt left 22 of 30 bins full, a second one left 14 empty. Version
+  1 ends with 83 located pallets, 2 empty bins and varied occupancy. Any
+  later change to the generator needs a new version and new test fixtures.
+- **Locking order:** bins in id order, then the pallet; the state is
+  validated after the locks. A pallet that changes bin between the first
+  read and the lock is rejected (`CONCURRENT_CHANGE`); the D-001
+  concurrency tests come with the count milestone.
+
+### Known limitations
+
+- No bin capacity rule (the demo data keeps at most 4 pallets per bin).
+- `lastAuditedAt` is simulated; there are no audit records or results yet.
+- The demo reset replaces all inventory data; its behaviour once plans and
+  counts exist is still to be decided (D-009).
+- The pages answer HTTP `200` also in their not-found and error states.
