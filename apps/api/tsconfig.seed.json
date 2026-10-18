@@ -1,0 +1,12 @@
+{
+  // Compiles only the seed script (and what it imports) into dist-seed/, so
+  // seeding never touches dist/, which a running `npm run dev` serves from.
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "./dist-seed",
+    "incremental": false,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["src/seed.ts"]
+}
