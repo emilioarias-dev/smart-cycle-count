@@ -7,7 +7,7 @@
   "scripts": {
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsc -p tsconfig.seed.json && node dist-seed/seed.js",
+    "db:reset-demo": "tsc -p tsconfig.scripts.json && node dist-scripts/reset-demo.js --confirm-reset",
     "build": "prisma generate && nest build",
     "dev": "prisma generate && nest start --watch",
     "start": "node dist/main.js",

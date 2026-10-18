@@ -8,7 +8,7 @@ node_modules/
 
 # Build output
 dist/
-dist-seed/
+dist-scripts/
 .next/
 out/
 *.tsbuildinfo
