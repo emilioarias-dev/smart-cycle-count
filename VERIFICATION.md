@@ -418,6 +418,33 @@ was not shown on Windows.
 With this, every milestone 2 criterion has passed on Windows on code commit
 `a1461d6` (later commits only change documentation).
 
+## 2026-10-18 — CC: milestone 3 development and clean verification
+
+Development (working copy):
+
+| Command / action | Result |
+|---|---|
+| Formula in SQL on the demo (`SEED_NOW=2026-10-18T12:00:00Z`), before writing code | Examples `B-02-03` 91, `A-01-04` 44, `C-01-04` 18; caps reached: age 11 bins (all never audited), activity 0, adjustments 2; bands 5 high, 13 medium, 12 low |
+| Migration `bin_scores` on the milestone 2 development database; drift check | Applied; `prisma migrate diff --exit-code` → 0 |
+| `npm run db:reset-demo` with the same `SEED_NOW` | `Scores computed for 30 bins at the same reference: 5 high, 13 medium, 12 low`; stored scores equal the SQL computation for all 30 bins; one reference, formula v1 |
+| Mutation checks (temporary): window start included; each contribution rounded; save outside the transaction | 1, 4 and 1 tests fail respectively; code restored |
+| Playwright at 375 px | Grid overflow 0, 5/13/12 cells by band; `B-02-03` shows "91 High"; detail overflow 0, breakdown 37.35 + 33.25 + 20.00 = 90.60 → 91; the button returned "Recomputed 30 bins…" and "Scores as of" changed to the current time (one reference in the database) |
+| `npm test`, `npm run build` | 54/54; both builds OK |
+
+Clean verification (fresh clone, code commit `bcc11ca`):
+
+| Command | Result |
+|---|---|
+| At `6d07421` (milestone 2): `npm ci`, `docker compose down -v`, `db:up`, `db:migrate`, `db:reset-demo` | Milestone 2 demo data loaded |
+| Switch to the branch, `npm ci`, `db:migrate` | `Applying migration 20261018180000_bin_scores`; 30 bins, 0 scores |
+| `npm run dev`; API and pages before any recompute | 30 bins with `"score": null`; grid "Not scored yet: recompute the scores."; detail "Not scored yet" |
+| `POST /scores/recompute` | `{"reference":"2026-10-18T22:16:53.970Z",…,"bins":30,"byPriority":{"low":12,"medium":13,"high":5}}`; no unscored bins left |
+| `db:reset-demo` while `dev` runs | Scores at the reset reference; grid "Scores as of 2026-10-18 12:00 UTC"; no errors in the dev log |
+| SIGINT | Ports 3000 and 3001 free |
+| Test database dropped, `vitest run` | Created and migrated from empty (3 migrations); **54/54 passed** |
+| `npm run build` | API and web OK; `git status` clean |
+| Fingerprint of stored scores with breakdowns (fixed `SEED_NOW`) | `scores a92a0717cad18100d2a0384c06e7e49c` |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -425,6 +452,12 @@ Milestone 1: nothing pending (merged as `9622bb6`).
 Milestone 2: nothing required pending. Optional, not run on Windows: the
 page for `/bins/%20a-01-03%20` (normalisation covered by the API test) and
 the page reload after a reset while `dev` runs.
+
+Milestone 3:
+
+- WIN: reproduction of the milestone 3 commit (migration from milestone 2,
+  scores after the demo reset and their fingerprint, tests, builds, grid and
+  detail, recompute button).
 
 Later or optional:
 
