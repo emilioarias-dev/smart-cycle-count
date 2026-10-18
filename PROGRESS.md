@@ -78,13 +78,13 @@ same commit on Windows and merges the pull request (E-001, E-009).
 | # | Criterion | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|---|
 | 1 | Migration from milestone 1 and from an empty database; constraints | Migration `warehouse_inventory` in its own transaction: removes only `SAMPLE-BIN-01`, refuses other existing bins; CHECKs, unique keys and non-cascading relations | Yes (M1 database, empty database, refusal with an extra bin; constraint tests) | Pending |
-| 2 | Reproducible seed, time coverage, no future events | `generateDemoData` (seeded, `SEED_NOW` with explicit zone, UTC) | Yes (same data twice, compared by SQL and by tests; no event after the reference) | Pending |
+| 2 | Reproducible seed, time coverage, no future events | `generateDemoData` (seeded, `SEED_NOW` with explicit zone, UTC) | Yes (same data twice, compared by SQL and by tests; no event after the reference) | Reset output and fingerprints identical to Linux; tests pending |
 | 3 | Four movements, rejections, rollback | `applyMovement` | Yes (12 tests, incl. rollback of quantities, location, log and versions) | Pending |
 | 4 | Independent rebuild; versions = movements per bin | Test replays the log without `applyMovement` | Yes | Pending |
 | 5 | Unauthorised reset refused; rollback on failure | `resetDemoData` + `npm run db:reset-demo` | Yes (no flag, non-dedicated database, invalid `SEED_NOW`, failing rebuild) | Pending |
 | 6 | API: warehouse and bin detail, 404 | `GET /warehouse`, `GET /bins/:code` (normalised) | Yes (6 tests + manual) | Pending |
 | 7 | Grid, detail, error/not-found states, mobile width | Pages `/` and `/bins/[code]` | Yes (all states; 375 px viewport without horizontal overflow) | Pending |
-| 8 | Builds, tests, documented start; Windows reproduction | README | Yes (39/39 tests, builds, `npm run dev`, reset while `dev` runs) | Pending |
+| 8 | Builds, tests, documented start; Windows reproduction | README | Yes (39/39 tests, builds, `npm run dev`, reset while `dev` runs) | **Failed** on `dc312aa` (bins suite hook timeout, 33 passed / 6 skipped); fix pending verification |
 
 ### Where things are
 

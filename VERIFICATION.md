@@ -277,15 +277,47 @@ commit does not change code.
 | `docker compose down -v`, `db:up`, `db:migrate`, `db:reset-demo` | 0 tables → both migrations applied → demo data loaded with the same totals |
 | `git status` in the clone | Clean |
 
+## 2026-10-18 — WIN: milestone 2, first run of `dc312aa` — **FAILED** (shared by the author)
+
+The author shared the output from the demo reset onwards. Blocks 1–2 (branch
+switch, `npm ci`, migration of the development database) and the build were
+not shared, so they are not recorded as passed.
+
+| Command | Result |
+|---|---|
+| `$env:SEED_NOW = "2026-10-18T12:00:00Z"; npm.cmd run db:reset-demo` | Target `scc@localhost:5433/smart_cycle_count`; generator v1, seed 20261018; `30 bins (2 empty, 11 never audited), 12 products, 110 pallets (27 depleted), movements: 110 putaway, 257 pick, 63 move, 47 adjustment (2026-08-19T21:31:32.000Z → 2026-10-18T09:38:19.000Z)` — same as Linux |
+| Business-data fingerprints (`md5` over ordered movements and bins) | `movements b26c5b3117e09117efa3e9d99933d0f3`, `bins 4f1f12749a292fe7e26c80518b05831d` — **identical to Linux**: the demo data is reproducible across operating systems |
+| `node dist-scripts/reset-demo.js` without `--confirm-reset` | `Refused: …` |
+| `npm.cmd test` | Test database migrated (`warehouse_inventory` applied). **Failed:** `test/bins.e2e-spec.ts` → `Hook timed out in 10000ms` in `beforeAll`; 6 tests skipped. Other files passed: movements 12 (2.1 s), demo reset 7 (45.2 s; one reset 5.3–6.2 s, two resets 10.2–11.6 s), generator 10, constraints 4. **33 passed, 6 skipped** |
+
+## 2026-10-18 — CC: diagnosis and fix of the Windows hook timeout
+
+| Command / action | Result |
+|---|---|
+| Configuration review | `testTimeout` had been raised to 30 s, but `hookTimeout` was Vitest's default **10 s**; the bins suite's `beforeAll` starts Nest **and** rebuilds the whole demo |
+| Temporary timing test (not committed), 3 runs | Nest start 109–123 ms; data generation 5–6 ms; **demo reset 2.84–2.90 s** (477 movements, ~6 ms each); close 3–7 ms. The reset is ~95 % of the hook |
+| Full suite while sampling `pg_stat_activity` every 0.3 s | No session waiting on a lock; only the reset's own transaction between statements ("idle in transaction"). No block on Linux |
+| Fix | `beforeAll` split into "start Nest" and "load demo data", so a timeout names the slow step; `hookTimeout: 30_000` (same as `testTimeout`; ~5× one Windows reset) |
+| `vitest run test/bins.e2e-spec.ts` | 6/6 passed (4.8 s) |
+| `vitest run` | 39/39 passed |
+| Block check: `LOCK TABLE bins IN ACCESS EXCLUSIVE MODE` held for 45 s in the test database while running the bins suite | `Hook timed out in 30000ms` at `bins.e2e-spec.ts:26` (the demo-data hook); vitest exited with code 1 after 44 s: a real block still fails and points to the step |
+| `vitest run` after the lock was released | 39/39 passed |
+
+Not known yet: why the hook needed more than 10 s on Windows when one
+reset takes 5–6 s there. The Windows rerun with the split hooks will show
+whether it finishes and how long the suite takes.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
 
 Milestone 2:
 
-- WIN: reproduction of the milestone 2 commit (update from `main`,
-  migration from the milestone 1 database, demo reset, tests, builds,
-  pages at phone width).
+- WIN: **the first run failed** (bins suite hook timeout, see above). Rerun
+  the bins suite and then all 39 tests with the fix.
+- WIN: outputs not shared yet: branch switch and `npm ci`, migration of the
+  development database from milestone 1, `npm.cmd run build`, pages
+  (grid, detail, normalised code, not-found, error, phone width).
 
 Later or optional:
 
