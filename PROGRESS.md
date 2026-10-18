@@ -18,7 +18,9 @@ proposed in `HANDOFF.md` §12, with these adjustments:
 - `GET /bins/:code` returns the bin, or `404` when the code does not exist.
 - The API test runs against a separate test database in the same PostgreSQL
   container.
-- Ports: API `3001`, web `3000`.
+- Ports: API `3001`, web `3000`. PostgreSQL container on host port `5433`
+  (added 2026-10-18 after the first Windows run: the author's PC runs a
+  native PostgreSQL on 5432).
 
 **Status:** implemented on branch `m1-walking-skeleton` and verified in the
 Claude Code environment. **Not complete** until the author reproduces the
@@ -28,12 +30,12 @@ same commit on Windows and merges the pull request (E-001, E-009).
 |---|---|---|---|---|
 | 1 | Structure | Root workspace, one lockfile, `.nvmrc`/`.node-version`, `.npmrc`, `.gitattributes`, `.gitignore`, `.env.example` per app, `docker-compose.yml`, docs | Yes | Pending |
 | 2 | Reproducible install | `npm ci` from the committed lockfile; Node/npm enforced by `engines` + `engine-strict` | Yes (Node 22 rejected, Node 24.22.0 OK) | Pending |
-| 3 | Database | Compose service with the pinned image; migration `create_bins` | Yes (from an empty volume) | Pending |
+| 3 | Database | Compose service with the pinned image on host port 5433; migration `create_bins` | Yes (from an empty volume; port change with data preserved) | Pending (first attempt hit the native PostgreSQL on 5432) |
 | 4 | Data | `npm run db:seed` upserts `SAMPLE-BIN-01` | Yes (twice → one row) | Pending |
 | 5 | API | `GET /bins/:code` through `BinsService` → `PrismaService` (adapter-pg); Vitest suite against the test database | Yes (4/4 tests, manual 200/404) | Pending |
 | 6 | Web | Server component fetches the bin; bin, not-found and error states | Yes (all three states) | Pending |
 | 7 | Dev workflow | `npm run dev` starts both apps; Ctrl+C stops both | Yes (Linux) | Pending |
-| 8 | Builds | `npm run build` type-checks and builds both apps | Yes | Pending |
+| 8 | Builds | `npm run build` type-checks and builds both apps | Yes | Yes (first attempt, `1874d44`) |
 | 9 | Repository | Small commits, no secrets or generated files; push demonstrated | Yes | — |
 | 10 | Evidence | `VERIFICATION.md`, per environment | CC recorded | Pending |
 

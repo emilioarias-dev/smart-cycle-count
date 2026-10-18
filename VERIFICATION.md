@@ -125,13 +125,54 @@ following the README.
 Screenshots of the three page states were taken with headless Chromium for
 the author; they are not committed.
 
+## 2026-10-18 — WIN: first reproduction attempt of `1874d44` (output shared by the author)
+
+The author shared the output from `npm run db:migrate` onwards. The output of
+clone, `npm ci`, `.env` creation and `npm run db:up` was not shared, so those
+steps are not recorded as passed.
+
+| Command | Result |
+|---|---|
+| `npm.cmd run db:migrate` | **Failed:** `P1000: Authentication failed` against `localhost:5432` |
+| `npm.cmd run db:seed` (twice) | **Failed:** `P1000`, PostgreSQL code `28P01`, message in Spanish from the server: password authentication failed for user `scc` |
+| `docker compose exec -T db psql … "select id, code from bins;"` | `service "db" is not running` |
+| `npm.cmd test` | **Failed** in the global setup (`prisma migrate deploy`): `P1000` against `localhost:5432` |
+| `npm.cmd run build` | API: Prisma generate + `nest build` OK. Web: compiled, TypeScript OK, `/` dynamic |
+| `git status --short` | Clean |
+| `Get-NetTCPConnection -LocalPort 5432 -State Listen` + `Get-Process` | `0.0.0.0:5432` and `[::]:5432` owned by PID 8488, `postgres`: a **native PostgreSQL** installed on the PC |
+| `docker ps` | No containers running |
+| `Get-NetTCPConnection -LocalPort 5433 -State Listen` | Nothing: port 5433 free |
+
+Cause: the connection strings pointed to `localhost:5432`, which on this PC is
+the native PostgreSQL, not the project container. The author chose to keep the
+native installation and publish the container on host port 5433 (E-002).
+
+## 2026-10-18 — CC: port 5433 change (reproducing the Windows situation)
+
+| Command / action | Result |
+|---|---|
+| Before the change: `select id, code from bins` in the running container (volume `smart-cycle-count_db-data`, created 02:58:05Z) | `3 \| SAMPLE-BIN-01`; databases `smart_cycle_count`, `smart_cycle_count_test` |
+| `docker compose stop`; a native PostgreSQL 16.15 started on `*:5432` with different credentials (simulation of the Windows PC) | Running; `scc` gets `password authentication failed`, like on Windows |
+| Old config: `npm run db:migrate` with the previous `.env` (`localhost:5432`) | `P1000: Authentication failed` — same error as on Windows |
+| Old config: `docker compose up` with the previous `127.0.0.1:5432` mapping | `failed to bind host port 127.0.0.1:5432/tcp: address already in use`; container `Exited (128)` |
+| New config: `cp apps/api/.env.example apps/api/.env` (URLs on `localhost:5433`), `npm run db:up` | Container recreated, `healthy`, `127.0.0.1:5433->5432/tcp`; same volume (same creation time) |
+| Data after the change | `3 \| SAMPLE-BIN-01` and both databases still present: **data preserved** |
+| Native PostgreSQL on 5432 after the change | Still answering (`nativeadmin`, port 5432); no `smart%` databases created in it |
+| `npm run db:generate`, `npm run db:migrate` | Datasource `localhost:5433`; `No pending migrations to apply` |
+| `npm run db:seed` twice | `id 3`, one bin |
+| `vitest run` (verbose) | Datasource `smart_cycle_count_test` at `localhost:5433`; **4/4 passed** |
+| `npm run build` | API and web OK |
+| `npm run dev` | `GET /bins/SAMPLE-BIN-01` → 200 `{"id":3,…}`; unknown → 404; page shows the bin; SIGINT → ports 3000/3001 free, no errors in the log |
+| Simulated native PostgreSQL | Stopped and removed |
+
 ## Pending
 
 Milestone 1:
 
-- WIN: reproduction of the milestone commit following the README (`npm ci`,
-  pull/run of the pinned image, migrate, seed, tests, builds, dev servers,
-  page states).
+- WIN: reproduction of the milestone commit with host port 5433, from
+  `npm run db:up` onwards (pull/run of the pinned image, migrate, seed,
+  tests, dev servers, page states), plus the earlier steps whose output was
+  not shared (`npm ci`).
 - WIN: optional 32-bit `sharp` package skipped by `npm ci` under
   `engine-strict`.
 
