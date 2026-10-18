@@ -5,8 +5,9 @@
   --muted: #5b6676;
   --border: #dde2e8;
   --accent: #1f6feb;
-  --badge-bg: #eef2ff;
-  --badge-text: #3949ab;
+  --cell: #eef1f5;
+  --cell-hover: #e2e8f0;
+  --cell-empty: #f8f9fb;
   --notice: #b7791f;
   --error: #c62828;
   --error-bg: #fdecec;
@@ -20,8 +21,9 @@
     --muted: #9aa5b4;
     --border: #2c3542;
     --accent: #6ea8fe;
-    --badge-bg: #252d4a;
-    --badge-text: #b4c0ff;
+    --cell: #232a35;
+    --cell-hover: #2c3542;
+    --cell-empty: #171c24;
     --notice: #e2b04a;
     --error: #ff8a80;
     --error-bg: #3a1f22;
@@ -40,15 +42,21 @@ body {
   line-height: 1.5;
 }
 
-code {
+code,
+.bin-cell-code,
+.bin-title,
+.pallet-code {
   font-family: ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+}
+
+code {
   font-size: 0.9em;
 }
 
 .page {
-  max-width: 40rem;
+  max-width: 52rem;
   margin: 0 auto;
-  padding: 3rem 1rem;
+  padding: 2rem 1rem 3rem;
 }
 
 .eyebrow {
@@ -66,59 +74,117 @@ h1 {
 }
 
 .lead {
-  margin: 0 0 2rem;
+  margin: 0 0 1.5rem;
   color: var(--muted);
 }
+
+.muted {
+  color: var(--muted);
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Warehouse grid */
+
+.aisle {
+  margin-bottom: 1.75rem;
+}
+
+.aisle h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.rack {
+  margin-bottom: 0.75rem;
+}
+
+.rack-label {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.bin-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bin-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-height: 4rem;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--cell);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.bin-cell:hover,
+.bin-cell:focus-visible {
+  background: var(--cell-hover);
+  border-color: var(--accent);
+}
+
+.bin-cell.empty {
+  background: var(--cell-empty);
+  border-style: dashed;
+}
+
+.bin-cell-code {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.bin-cell-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 30rem) {
+  .bin-row {
+    gap: 0.3rem;
+  }
+
+  .bin-cell {
+    padding: 0.45rem 0.3rem;
+  }
+
+  .bin-cell-code {
+    font-size: 0.72rem;
+  }
+
+  .bin-cell-meta {
+    font-size: 0.68rem;
+  }
+}
+
+/* Cards and states */
 
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .card h2 {
   margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.bin-code {
-  font-family: ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
-}
-
-.badge {
-  background: var(--badge-bg);
-  color: var(--badge-text);
-  border-radius: 999px;
-  padding: 0.2rem 0.7rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 1rem;
-  margin: 0;
-}
-
-.fields dt {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.fields dd {
-  margin: 0;
-  font-weight: 600;
+  font-size: 1.2rem;
 }
 
 .notice {
@@ -134,9 +200,77 @@ h1 {
   color: var(--error);
 }
 
-.retry {
+.action {
   display: inline-block;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
   color: var(--accent);
   font-weight: 600;
+}
+
+/* Bin detail */
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.fields dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.fields dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.footnote {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.pallets h2 {
+  font-size: 1.2rem;
+  margin: 0 0 0.75rem;
+}
+
+.pallet-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.pallet {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.pallet + .pallet {
+  border-top: 1px solid var(--border);
+}
+
+.pallet p {
+  margin: 0;
+}
+
+.pallet-code {
+  font-weight: 600;
+}
+
+.pallet-product {
+  font-size: 0.9rem;
+}
+
+.pallet-quantity {
+  font-weight: 600;
+  white-space: nowrap;
 }
