@@ -663,6 +663,14 @@ These are recorded as the author's visual confirmation. Together with the
 terminal log on `00cfa69` and the two screenshots, every milestone 5 check
 now has Windows evidence. The commit hash of this last run was not shared.
 
+## 2026-10-19 — Milestone 5 merged (author's report and CC check)
+
+| Check | Result |
+|---|---|
+| WIN: main updated after merging PR #5 | Reported by the author; no output shared |
+| CC: `git fetch origin main`; merge commit parents; tree comparison | `690db87` merges `0f6d2be` and `bd718a8` (PR #5 head); its tree equals `bd718a8`'s (`4c37e40`) |
+| CC: `pg` DeprecationWarning seen in the Windows test log | Reproduced on Linux (`vitest run` of the counts and demo reset tests: "Calling client.query() when the client is already executing a query is deprecated…"); tests pass. Not yet traced to its call site; candidates are the `Promise.all` calls inside transactions (`src/demo-data/reset.ts`, `src/counting/sheet.ts`) |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -675,7 +683,7 @@ Milestone 3: nothing pending (merged as `2933e00`).
 
 Milestone 4: nothing pending (merged as `0f6d2be`).
 
-Milestone 5: nothing pending; PR #5 ready to merge.
+Milestone 5: nothing pending (merged as `690db87`).
 
 Later or optional:
 

@@ -234,7 +234,7 @@ camera scanning, reconciling inventory after a FAIL, optional improvements.
 (`c892ecf`, web only) verified in CC. On Windows: terminal checks on
 `00cfa69`, two screenshots, and the author's report that the web build after
 the theme toggle exited 0 and that the theme and phone-width checks passed.
-Ready to merge. Commit `eb4cf0a` is a
+Merged into `main` as `690db87`. Commit `eb4cf0a` is a
 checkpoint of incomplete work saved before a pause; the commits after it
 complete and verify it.
 
