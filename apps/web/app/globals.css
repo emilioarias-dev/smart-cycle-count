@@ -377,7 +377,8 @@ h1 {
   gap: 0.5rem;
 }
 
-.recompute button {
+.recompute button,
+.create-plan button {
   padding: 0.45rem 0.9rem;
   border: 1px solid var(--accent);
   border-radius: 8px;
@@ -388,17 +389,19 @@ h1 {
   cursor: pointer;
 }
 
-.recompute button:disabled {
+.recompute button:disabled,
+.create-plan button:disabled {
   opacity: 0.6;
   cursor: progress;
 }
 
-.recompute-result {
+.action-result {
+  flex-basis: 100%;
   margin: 0;
   font-size: 0.85rem;
 }
 
-.recompute-result.error {
+.action-result.error {
   color: var(--error);
 }
 
@@ -459,4 +462,106 @@ h1 {
 .breakdown tfoot td {
   border-bottom: none;
   font-weight: 700;
+}
+
+/* Navigation */
+
+.site-nav {
+  display: flex;
+  gap: 1rem;
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 0;
+}
+
+.site-nav a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Create plan (D-011) */
+
+.create-plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.create-plan label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.create-plan input {
+  width: 4.5rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+/* Tasks */
+
+.plan h2 {
+  margin-bottom: 0.25rem;
+}
+
+.plan-meta {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+}
+
+.tasks {
+  width: 100%;
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tasks th,
+.tasks td {
+  padding: 0.5rem 0.6rem 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.tasks thead th {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.tasks .status-col {
+  padding-right: 0;
+  text-align: right;
+}
+
+.bin-link {
+  color: var(--accent);
+  font-family: ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  font-weight: 600;
+}
+
+.score-chip {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.status {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--cell);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
