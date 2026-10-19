@@ -649,6 +649,20 @@ Development server, Playwright (Chromium).
 | Browser console during all checks | No errors or warnings (no hydration warnings) |
 | `npm run build -w apps/web` | OK |
 
+## 2026-10-19 — WIN: milestone 5, theme toggle and phone width (reported by the author)
+
+The author reported, without sharing output or screenshots:
+
+- `npm.cmd run build` after the theme toggle: exit code 0.
+- Theme toggle: present and working, the choice kept after a reload and
+  across pages; links (including visited ones) and keyboard focus visible.
+- At 375 px: an identical retry from a second tab showed "Recovered"; the
+  bin page showed the "Last count result" row.
+
+These are recorded as the author's visual confirmation. Together with the
+terminal log on `00cfa69` and the two screenshots, every milestone 5 check
+now has Windows evidence. The commit hash of this last run was not shared.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -661,9 +675,11 @@ Milestone 3: nothing pending (merged as `2933e00`).
 
 Milestone 4: nothing pending (merged as `0f6d2be`).
 
-Milestone 5: on Windows, after the theme toggle, `npm.cmd run build` and the theme checks (toggle on every page, remembered after a reload, visited links and keyboard focus readable in both themes, desktop and phone width); the count flow at 375 px (an identical retry recovered from a second tab; the bin page "Last count result" row). Done: terminal log on `00cfa69` (fingerprint identical, 98/98, builds, reset with counts) and screenshots of a FAIL by an unexpected pallet and of Tasks.
+Milestone 5: nothing pending; PR #5 ready to merge.
 
 Later or optional:
+
+- Next step (agreed 2026-10-19): additional synthetic scenarios and the redesign.
 
 - WIN: SHA-256 of the Node MSI against `SHASUMS256.txt` (the official
   checksum for `node-v24.22.0-x64.msi` is `97ebad47ad35da4b59182a5fbe9fad2b1a1836f1042b4833ff5b4b9571175088`).

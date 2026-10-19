@@ -232,25 +232,26 @@ camera scanning, reconciling inventory after a FAIL, optional improvements.
 
 **Status:** count flow verified in CC on code `54cf1c1`; the theme toggle
 (`c892ecf`, web only) verified in CC. On Windows: terminal checks on
-`00cfa69` and two screenshots; the theme toggle and the count flow at phone
-width are still to be confirmed there. Commit `eb4cf0a` is a
+`00cfa69`, two screenshots, and the author's report that the web build after
+the theme toggle exited 0 and that the theme and phone-width checks passed.
+Ready to merge. Commit `eb4cf0a` is a
 checkpoint of incomplete work saved before a pause; the commits after it
 complete and verify it.
 
 | Check | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|
 | Only a bin with a pending task; the count is bound to that task | `GET /bins/:code/count-sheet` (one REPEATABLE READ snapshot); `POST /audit-tasks/:taskId/count`; `counts` → (`task_id`, `bin_id`) foreign key | Yes (404 / 409 `NO_PENDING_TASK`; a later task of the same bin stays pending after a retry on the earlier one) | Yes (tests) |
-| PASS/FAIL (D-003): exact quantities, 0 for missing, any unexpected pallet → FAIL; empty bin | `deriveResult`; result re-derived from the stored rows in the transaction | Yes (API tests; browser: PASS, FAIL with −1 and two unexpected pallets) | Partly: author's screenshot of `B-01-05` FAIL caused only by an unexpected pallet (P-0107 88 expected, 88 counted, variance 0); Tasks screenshot with Done · PASS and Done · FAIL |
-| Unexpected pallets: code normalised, quantity ≥ 1, catalog product optional; unknown product keeps declared units; no inventory created | `parseSubmission`; `count_unexpected_pallets` CHECKs | Yes (tests; browser labels "Quantity (bag)" / "units declared, product unknown") | Partly: screenshot "UNEXPECTED-TEST-01: 12 units declared, product unknown (catalog unit not identified)" |
+| PASS/FAIL (D-003): exact quantities, 0 for missing, any unexpected pallet → FAIL; empty bin | `deriveResult`; result re-derived from the stored rows in the transaction | Yes (API tests; browser: PASS, FAIL with −1 and two unexpected pallets) | Yes (author's screenshot of `B-01-05` FAIL caused only by an unexpected pallet (P-0107 88 expected, 88 counted, variance 0); Tasks screenshot with Done · PASS and Done · FAIL; tests) |
+| Unexpected pallets: code normalised, quantity ≥ 1, catalog product optional; unknown product keeps declared units; no inventory created | `parseSubmission`; `count_unexpected_pallets` CHECKs | Yes (tests; browser labels "Quantity (bag)" / "units declared, product unknown") | Yes (screenshot "UNEXPECTED-TEST-01: 12 units declared, product unknown (catalog unit not identified)"; tests) |
 | Validation: types, negatives, decimals, missing / extra / repeated lines, repeated or expected codes, unknown SKU, more than 10 | `parseSubmission` and checks under the bin lock | Yes (13 cases → 400, nothing stored) | Yes (tests) |
-| Identical retry → stored count "recovered", no repeated effects, also after an inventory change; other content → rejected with the stored result | Comparison of the normalised content under the bin lock | Yes (tests; browser: second tab identical → recovered, third tab different → "not saved"; HTTP in the clean clone) | Partly: tests; not yet confirmed in the interface |
+| Identical retry → stored count "recovered", no repeated effects, also after an inventory change; other content → rejected with the stored result | Comparison of the normalised content under the bin lock | Yes (tests; browser: second tab identical → recovered, third tab different → "not saved"; HTTP in the clean clone) | Yes (tests; author's visual confirmation of "Recovered" at 375 px) |
 | One count per task, also simultaneous | Scores lock + bin lock; unique `counts.task_id` | Yes (two simultaneous identical → saved + recovered; different → saved + rejected) | Yes (tests) |
 | D-001: movement between open and submit; movement first; submission first | Version compared after the bin lock; changes from the movement log | Yes (the three tests; browser: conflict → draft with changes, recount starts empty, then saved) | Yes (tests) |
 | One transaction: count, lines, unexpected, task DONE, audit date, every bin rescored at the count time; rollback if the recompute fails | `submitCount` | Yes (simulated recompute failure → nothing kept) | Yes (tests) |
 | Formula v2: 30 / 25 / 20 / 25, last result (FAIL on, later PASS off, unknown ≠ PASS) | `formula.ts`, `recompute.ts` (one statement reads all inputs) | Yes (10 unit tests; recompute tests incl. counts after the reference; formula in SQL equal on the demo and after counts) | Yes (tests; score fingerprint after the reset identical to Linux) |
 | Recomputes take turns (button, reset, counts); plans read while no count runs | `scoring/lock.ts` (advisory lock 4100012, shared for plans) | Yes (plan creation waits while the lock is held) | Yes (tests) |
 | Reset deletes counts, lines and unexpected pallets, reports them; a failed reset keeps them | `resetDemoData` | Yes (tests; clean clone: `Deleted 1 counts (0 PASS, 1 FAIL) with 4 count lines and 1 unexpected pallets.`) | Yes (`Deleted 3 counts (1 PASS, 2 FAIL) with 9 count lines and 1 unexpected pallets.`; tests) |
-| Web | `/count`, Tasks (Count link, Done · PASS/FAIL), bin page "Last count result" | Yes (browser flows; 320 / 375 / 414 / 1100 px without overflow; "could not confirm" when the API stops, then the same count is saved) | Partly: screenshots of `/count` and `/tasks` at desktop width; phone width not shown |
+| Web | `/count`, Tasks (Count link, Done · PASS/FAIL), bin page "Last count result" | Yes (browser flows; 320 / 375 / 414 / 1100 px without overflow; "could not confirm" when the API stops, then the same count is saved) | Yes (screenshots at desktop width; author's visual confirmation at 375 px: "Recovered", "Last count result" row) |
 | Migration from milestone 4 and from empty | `20261019180000_counts` | Yes (M4 database with a plan: bins, v1 scores, plan and tasks kept; empty test database: 5 migrations; no drift) | Yes (development and test databases: 5 migrations, none pending; the `Applying …` output itself was not captured) |
 | Tests and builds | — | Yes (98/98; builds) | Yes (98/98; builds) |
 
