@@ -230,9 +230,10 @@ expected pallets, record unexpected pallets, derive PASS/FAIL, close that
 task and recompute every score with the result, on a phone. Out of scope:
 camera scanning, reconciling inventory after a FAIL, optional improvements.
 
-**Status:** verified in CC on code `54cf1c1` (later commits only change
-documentation); on Windows, terminal checks on `00cfa69` and two screenshots;
-the count flow at phone width is still to be confirmed there. Commit `eb4cf0a` is a
+**Status:** count flow verified in CC on code `54cf1c1`; the theme toggle
+(`c892ecf`, web only) verified in CC. On Windows: terminal checks on
+`00cfa69` and two screenshots; the theme toggle and the count flow at phone
+width are still to be confirmed there. Commit `eb4cf0a` is a
 checkpoint of incomplete work saved before a pause; the commits after it
 complete and verify it.
 
