@@ -38,7 +38,7 @@ export function scoresInSql(prisma: PrismaClient, reference: Date) {
 // Business data only (codes, quantities, locations, dates, movement order),
 // never internal ids (D-009).
 export async function businessSnapshot(prisma: PrismaClient) {
-  const [bins, products, pallets, movements, scores, plans] = await Promise.all([
+  const [bins, products, pallets, movements, scores, plans, counts] = await Promise.all([
     prisma.bin.findMany({
       orderBy: [{ aisle: 'asc' }, { rack: 'asc' }, { position: 'asc' }],
       select: { code: true, aisle: true, rack: true, position: true, inventoryVersion: true, lastAuditedAt: true },
@@ -87,6 +87,17 @@ export async function businessSnapshot(prisma: PrismaClient) {
         },
       },
     }),
+    prisma.count.findMany({
+      orderBy: { id: 'asc' },
+      select: {
+        result: true,
+        inventoryVersion: true,
+        countedAt: true,
+        bin: { select: { code: true } },
+        lines: { orderBy: { pallet: { code: 'asc' } }, select: { expectedQuantity: true, countedQuantity: true, variance: true, pallet: { select: { code: true } } } },
+        unexpected: { orderBy: { code: 'asc' }, select: { code: true, quantity: true, product: { select: { sku: true } } } },
+      },
+    }),
   ]);
   return {
     bins,
@@ -108,5 +119,6 @@ export async function businessSnapshot(prisma: PrismaClient) {
       breakdown: s.breakdown,
     })),
     plans,
+    counts,
   };
 }
