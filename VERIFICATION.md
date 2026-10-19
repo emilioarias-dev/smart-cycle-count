@@ -559,6 +559,40 @@ Windows evidence.
 | WIN: `git switch main`, `git pull --ff-only`, `git status` | Fast-forward `6d07421..0f6d2be`; clean, up to date with `origin/main` |
 | CC: `git fetch origin main`; merge commit parents; tree comparison | `0f6d2be` merges `2933e00` and `b555148` (PR #4 head); its tree equals `b555148`'s (`e4dba28`) |
 
+## 2026-10-19 — CC: milestone 5 development
+
+| Command / action | Result |
+|---|---|
+| Formula v2 computed in SQL on the demo (`SEED_NOW=2026-10-18T12:00:00Z`) before implementing | 0 high, 9 medium, 21 low; `B-02-03` 68, `A-01-04` 33, `C-01-04` 14 |
+| Migration `counts` on the milestone 4 development database; drift check | Applied; "No difference detected." |
+| Work paused: uncommitted changes checked after the restart | All present; `prisma generate` + `tsc` OK; saved as checkpoint `eb4cf0a` (incomplete, marked WIP) |
+| `npm test` | 98/98: counts 17 (new), scoring 10, scores 5, plus the earlier files updated to v2 |
+| Mutation checks (temporary): no version check; no recovered retry; recompute failure swallowed; no scores lock in the count; oldest count as last result; no audit date | 2, 2, 1, 1, 2 and 1 tests fail respectively; code restored |
+| Playwright at 375 px, demo plan of 6 | Search " b-02-03 " finds `B-02-03`; quantities start empty; exact quantities → PASS, "Bin score now: 35 Low priority"; a second tab opened earlier with the same values → "Recovered…"; a third tab with other values → "…The new quantities were not saved." with the stored PASS; 1 count in the database |
+| Conflict on `C-01-01` (a pick recorded in SQL with the movement function's effects after the page was opened) | "The inventory changed"; draft with the entered values and "P-0068: changed (was 15, now 14 bags)"; 0 counts; "Start updated recount" → 4 empty inputs, draft still shown; recount → PASS |
+| `B-01-05`: −1 and two unexpected pallets (`x-77`, product unknown, 12; `P-9000`, SKU-004, 3) | Labels "Quantity (units declared, product unknown)" / "Quantity (bag)"; FAIL with "X-77: 12 units declared, product unknown (catalog unit not identified)"; bin page row "Last count result (25) FAIL … 25.00"; Tasks "Done · PASS / PASS / FAIL" and "Count" links |
+| API stopped after opening `A-02-01`, then submit | "The API did not answer. It is not known whether the count was saved. Send the same count again…"; button "Send the same count again"; API restarted → PASS |
+| Layout at 320, 375, 414 and 1100 px (`/count` with two unexpected rows, a result with a 31-character code, `/tasks`, `/bins/B-01-05`), measuring every table, input, button and text against its card | Page overflow 0; nothing outside its container. The same measurement flags a table forced to 400 px at 320 px |
+| `npm run build` | API and web OK |
+
+## 2026-10-19 — CC: milestone 5 clean verification (code `54cf1c1`)
+
+Fresh clone from GitHub; `docker compose down -v` first.
+
+| Command | Result |
+|---|---|
+| At `0f6d2be` (milestone 4): `npm ci`, `db:up`, `db:generate`, `db:migrate`, `db:reset-demo` (`SEED_NOW=2026-10-18T12:00:00Z`), plan of 3 through the milestone 4 API | 4 migrations; 5 / 13 / 12 (formula v1); plan 1 with 3 tasks |
+| Switch to `m5-count-flow` (`02af95c`), `npm ci`, `db:generate`, `db:migrate` | `Applying migration 20261019180000_counts`; 30 bins, 30 scores (version 1), 1 plan, 3 pending tasks, 0 counts |
+| `npm run dev`; bin page of `B-02-03` with its version 1 score | Shows "Formula version 1" without a last-result row |
+| Count of task 1 (`B-02-03`) by HTTP: −1 on one pallet and `" x-1 "` (product unknown, 12) | `201`, FAIL, variances −1/0/0/0, unexpected `X-1` with product null; all 30 scores version 2 at one reference; `lastResult` FAIL +25; task DONE; its copy still 91 (version 1) |
+| Identical retry; then other content | `200` recovered, same count id; `409` `TASK_ALREADY_COUNTED` "…The new quantities were not saved." |
+| `db:reset-demo` while `dev` runs | `Deleted 1 audit plans and 3 tasks…`; `Deleted 1 counts (0 PASS, 1 FAIL) with 4 count lines and 1 unexpected pallets.`; 0 / 9 / 21; `/count` and `/tasks` 200 |
+| Reference fingerprint of the reset scores | `scores 9209366078931a97aa2eab4d674d0573`; `A-01-04` 33, `B-02-03` 68, `C-01-04` 14 |
+| SIGINT | Ports 3000 and 3001 free |
+| Test database dropped, `npm test` | Created and migrated from empty (5 migrations); **98/98 passed** |
+| `npm run build`; `git status` | API and web OK; clean |
+| `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | "No difference detected." |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -571,8 +605,9 @@ Milestone 3: nothing pending (merged as `2933e00`).
 
 Milestone 4: nothing pending (merged as `0f6d2be`).
 
+Milestone 5: Windows reproduction of the PR commit (migration from milestone 4, score fingerprint, tests, builds, count flow on a phone width).
+
 Later or optional:
 
 - WIN: SHA-256 of the Node MSI against `SHASUMS256.txt` (the official
   checksum for `node-v24.22.0-x64.msi` is `97ebad47ad35da4b59182a5fbe9fad2b1a1836f1042b4833ff5b4b9571175088`).
-- D-001 concurrency tests (count milestone).
