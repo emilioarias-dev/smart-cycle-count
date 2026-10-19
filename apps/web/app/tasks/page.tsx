@@ -80,7 +80,13 @@ function PlanSection({ tasks }: { tasks: AuditTask[] }) {
                 </span>
               </td>
               <td className="status-col">
-                <span className={`status status-${task.status.toLowerCase()}`}>{task.status === 'PENDING' ? 'Pending' : 'Done'}</span>
+                {task.status === 'PENDING' ? (
+                  <Link className="status status-pending" href={`/count?bin=${task.bin.code}`}>
+                    Count
+                  </Link>
+                ) : (
+                  <span className={`status status-done result-${task.count?.result.toLowerCase() ?? 'unknown'}`}>Done · {task.count?.result ?? '?'}</span>
+                )}
               </td>
             </tr>
           ))}

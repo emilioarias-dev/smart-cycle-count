@@ -11,7 +11,9 @@ discussion), **Deferred** (to be decided at a later milestone),
 Last updated: 2026-10-18 (E-001 re-confirmed; E-002 pin and E-004 to E-009
 accepted by the author; D-006 to D-009 accepted for milestone 2; D-010 for
 milestone 3; E-004 and E-009 table statuses brought up to date; D-011 and
-the D-009 reset scope for plans accepted for milestone 4). Milestone 1
+the D-009 reset scope for plans accepted for milestone 4; 2026-10-19: D-012,
+D-010 formula v2 and the D-009 reset scope for counts accepted for
+milestone 5). Milestone 1
 implements E-002 to E-008; see `PROGRESS.md` for what milestone 2
 implements. "Claude's Linux workspace"
 below means the claude.ai session's cloud workspace where these decisions were
@@ -36,6 +38,7 @@ in the dated tables kept below).
 | D-009 | Demo data: generation, reset and simulated audit history | Accepted |
 | D-010 | Risk score: factors, caps, window and stored breakdown | Accepted |
 | D-011 | Audit plans (Top N) and tasks | Accepted |
+| D-012 | Count flow: access, unexpected pallets, retries, conflicts and results | Accepted |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -232,9 +235,8 @@ wrong even when all expected quantities match, so it cannot be a PASS.
 - Zero tolerance treats every unit difference as a failure; there is no
   threshold for low-value or high-volume items.
 - Mixed-SKU pallets are not modelled.
-- The information captured for an unexpected pallet (identifier, product,
-  quantity) is to be defined with the count flow; in the MVP it records a
-  discrepancy only and does not create inventory (D-004).
+- The information captured for an unexpected pallet is defined in D-012;
+  it records a discrepancy only and does not create inventory (D-004).
 
 ---
 
@@ -399,12 +401,102 @@ Limitations: one level per rack; no capacity per bin (see D-007).
   also deletes audit plans and tasks, naming those tables, reporting how
   many it deletes and staying in the same transaction. Their historical
   selection explanations (D-002 copies) are lost with them.
-- **Counts:** the policy for a reset once counts exist is **still open**; no
-  silent cascading delete is introduced meanwhile.
+- **Counts (accepted 2026-10-19, milestone 5):** the explicit reset also
+  deletes counts, their lines and unexpected pallets, naming those tables,
+  reporting how many counts (with how many PASS and FAIL), lines and
+  unexpected pallets it deletes, in the same transaction and with the same
+  protections. The PASS/FAIL history is lost with them.
 - The milestone 2 migration deletes the milestone 1 sample bin
   (`SAMPLE-BIN-01`) and nothing else; if any other bin exists, the
   migration stops with an error instead of deleting it. Earlier migrations
   are kept unchanged.
+
+---
+
+## D-012 — Count flow: access, unexpected pallets, retries, conflicts and results
+
+**Status:** Accepted (2026-10-19). Milestone 5. Builds on D-001, D-003 and
+D-004, which stay as they are.
+
+**Access (N1)**
+
+- Only a bin with a `PENDING` task can be counted. The operator searches
+  the bin code (D-006 normalisation; keyboard-wedge scanners type into the
+  same field).
+- A submission is bound to that **specific task**. A form opened for an
+  earlier task never completes a later task of the same bin.
+
+**Unexpected pallets (N2)**
+
+- Each one: a **code** (required, normalised like bin codes), an observed
+  **quantity** (integer ≥ 1) and an optional **product** from the catalog.
+- Known product: its catalog unit is shown. Unknown product: the quantity
+  is stored as "units declared, product unknown"; the catalog unit is
+  recorded as not identified. No SKU or unit is invented.
+- An unknown product never blocks the form. Any unexpected pallet makes the
+  count FAIL (D-003), whether or not its product is known.
+- Rejected: two unexpected pallets with the same code in one count; an
+  unexpected code equal to a pallet expected in that bin (it is counted on
+  its own line). At most 10 per count.
+- These observations never create or change inventory (D-004).
+
+**Retries and simultaneous submissions (N3)**
+
+- One count per task, guaranteed by PostgreSQL, also under simultaneous
+  submissions.
+- A retry with the **same normalised content** (version, lines and
+  unexpected pallets) returns the existing count, marked as **recovered**,
+  with no repeated effects, even if the inventory changed afterwards.
+- Different content for a task already counted is **rejected**: the answer
+  shows the stored result and says that the new quantities were not saved.
+
+**Inventory conflicts (N4)** (D-001)
+
+- Nothing is stored. The previous attempt stays visible as a **draft**,
+  with the changes since it was opened.
+- Starting the updated recount gives an active form with **empty**
+  quantities and no unexpected pallets: everything is entered again. Old
+  quantities are never copied or resubmitted automatically; the new
+  version only goes with a submission the operator makes.
+- Opening a count reads the expected lines and the bin's version
+  consistently (one snapshot).
+
+**Results and scoring (N5)**
+
+- Formula **v2** (D-010): age 30, activity 25, adjustments 20, last result
+  25. The first three keep their caps (90 days, 40 movements,
+  5 adjustments) and the 30-day window.
+- **Last result:** the latest count up to the reference time. FAIL
+  activates the factor (25 points); a later PASS deactivates it. With no
+  count the result is **unknown**: it contributes 0 and is shown as
+  unknown, never as PASS. No expiry for now.
+- The breakdown stores the result used and its date, with the formula
+  version and the inputs needed to reproduce the score.
+- Any count sets `lastAuditedAt` to the server's time of the count.
+- One transaction stores the count, its lines and unexpected pallets, marks
+  the task `DONE`, sets the audit date and recomputes **every** bin with a
+  common reference (the count's time). If anything fails, everything is
+  rolled back.
+- A connection failure is not presented as proof that nothing was saved:
+  the operator can send the identical count again and gets the stored
+  result if it had been saved.
+- Task copies keep their own formula version and scores (D-002). v2 does
+  not have to reproduce v1's numbers, and a FAIL does not have to exceed
+  the previous score.
+- Demo consequence (computed in SQL before implementing): with no counts,
+  the demo with `SEED_NOW=2026-10-18T12:00:00Z` scores 0 high, 9 medium,
+  21 low (`B-02-03` 68, `A-01-04` 33, `C-01-04` 14). A bin reaches the high
+  band mainly through a FAIL.
+
+**Demo reset (N6)** — see D-009: counts, their lines and unexpected pallets
+are deleted explicitly and reported.
+
+**Out of scope (N7):** camera scanning.
+
+**Rules kept in the database vs in the transaction:** CHECK constraints
+protect each row (quantities, variance = counted − expected, normalised
+codes); the count's PASS/FAIL is derived from its lines and validated
+inside the same transaction, without triggers.
 
 ---
 
@@ -480,6 +572,12 @@ with real count results.
   weights, caps and each factor's contribution.
 - PASS/FAIL history is not a factor yet; it comes with the count milestone
   (D-003, D-009: no results must not be read as PASS).
+
+**Formula v2 (accepted 2026-10-19, milestone 5, D-012):** weights age 30,
+activity 25, adjustments 20 and **last result 25** (1 if the latest count
+up to the reference is FAIL; 0 if PASS or if there is no count, shown as
+unknown). Caps, window, rounding and bands are unchanged. Stored scores and
+task copies keep their formula version.
 
 ---
 
@@ -771,10 +869,10 @@ History before 2026-10-18:
 
 To be decided when the corresponding milestone starts:
 
-- Unexpected pallet capture details.
-- Demo reset once counts exist: refuse the reset while they exist, or
-  reset them too with explicit authorisation (D-009; plans and tasks were
-  decided in milestone 4).
+Nothing deferred at the moment.
+
+Decided in milestone 5: unexpected pallet capture, retries, conflicts and
+results in scoring (D-012, D-010 v2); demo reset with counts (D-009).
 
 Decided in milestone 4: plan rules (N limits and default, tie-break, bins
 with pending tasks or without a score) in D-011; demo reset with plans in

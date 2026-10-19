@@ -32,9 +32,9 @@ describe('Audit plans (PostgreSQL)', () => {
         },
       });
       if (row.score !== null) {
-        const breakdown = { ...computeScore({ lastAuditedAt: daysAgo(row.breakdownAudit), activity: 0, adjustments: 0 }, R), score: row.score };
+        const breakdown = { ...computeScore({ lastAuditedAt: daysAgo(row.breakdownAudit), activity: 0, adjustments: 0, lastCount: null }, R), score: row.score };
         await prisma.binScore.create({
-          data: { binId: bin.id, score: row.score, formulaVersion: 1, referenceAt: R, computedAt: new Date(R.getTime() + i), breakdown },
+          data: { binId: bin.id, score: row.score, formulaVersion: breakdown.formulaVersion, referenceAt: R, computedAt: new Date(R.getTime() + i), breakdown },
         });
       }
     }
@@ -252,7 +252,7 @@ describe('Audit plans (PostgreSQL)', () => {
     await createPlan(prisma, 5);
     await createPlan(prisma, 3);
     const summary = await resetDemoData(prisma, data, { confirmReset: true });
-    expect(summary.deleted).toEqual({ plans: 2, tasks: 8 });
+    expect(summary.deleted).toEqual({ plans: 2, tasks: 8, counts: { total: 0, pass: 0, fail: 0, lines: 0, unexpectedPallets: 0 } });
     expect(await prisma.auditPlan.count()).toBe(0);
     expect(await prisma.auditTask.count()).toBe(0);
     expect(await prisma.binScore.count()).toBe(30);

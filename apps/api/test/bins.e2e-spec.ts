@@ -89,10 +89,10 @@ describe('Warehouse and bins API (PostgreSQL)', () => {
         quantity: p.quantity,
         product: { sku: p.product.sku, name: p.product.name, unit: p.product.unit },
       })),
-      score: expect.objectContaining({ reference: FIXED_REFERENCE.toISOString(), formulaVersion: 1 }),
+      score: expect.objectContaining({ reference: FIXED_REFERENCE.toISOString(), formulaVersion: 2 }),
     });
     expect(body.score.breakdown.score).toBe(body.score.value);
-    expect(Object.keys(body.score.breakdown.factors)).toEqual(['age', 'activity', 'adjustments']);
+    expect(Object.keys(body.score.breakdown.factors).sort()).toEqual(['activity', 'adjustments', 'age', 'lastResult']);
     expect(body.pallets.length).toBeGreaterThan(0);
     expect(body.pallets.every((p: { quantity: number }) => p.quantity > 0)).toBe(true);
   });

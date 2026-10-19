@@ -4,17 +4,26 @@
   --text: #1c2430;
   --muted: #5b6676;
   --border: #dde2e8;
-  --accent: #1f6feb;
+  --accent: #1a5fd0;
   --cell: #eef1f5;
   --cell-hover: #e2e8f0;
   --cell-empty: #f8f9fb;
   --notice: #b7791f;
   --error: #c62828;
   --error-bg: #fdecec;
+  --link: #1a5fd0;
+  --link-visited: #6b3fb3;
+  --focus: #0b57d0;
+  --on-accent: #ffffff;
+  color-scheme: light;
 }
 
+/* Dark theme: the system preference unless the user chose a theme with the
+   toggle (data-theme on <html>, remembered in the browser). The same values
+   are listed twice because CSS cannot share them between the two selectors. */
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #11151b;
     --surface: #1a2029;
     --text: #e6eaf0;
@@ -27,7 +36,67 @@
     --notice: #e2b04a;
     --error: #ff8a80;
     --error-bg: #3a1f22;
+    --link: #8cbcff;
+    --link-visited: #d0b3ff;
+    --focus: #ffd166;
+    --on-accent: #0b1220;
+    --high-bg: #4a1f22;
+    --high-border: #e06666;
+    --high-text: #ffb4b4;
+    --medium-bg: #46391a;
+    --medium-border: #e0b030;
+    --medium-text: #ffe08a;
+    --low-bg: #1d3a26;
+    --low-border: #5fb37a;
+    --low-text: #a8e2b8;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #11151b;
+  --surface: #1a2029;
+  --text: #e6eaf0;
+  --muted: #9aa5b4;
+  --border: #2c3542;
+  --accent: #6ea8fe;
+  --cell: #232a35;
+  --cell-hover: #2c3542;
+  --cell-empty: #171c24;
+  --notice: #e2b04a;
+  --error: #ff8a80;
+  --error-bg: #3a1f22;
+  --link: #8cbcff;
+  --link-visited: #d0b3ff;
+  --focus: #ffd166;
+  --on-accent: #0b1220;
+  --high-bg: #4a1f22;
+  --high-border: #e06666;
+  --high-text: #ffb4b4;
+  --medium-bg: #46391a;
+  --medium-border: #e0b030;
+  --medium-text: #ffe08a;
+  --low-bg: #1d3a26;
+  --low-border: #5fb37a;
+  --low-text: #a8e2b8;
+  color-scheme: dark;
+}
+
+/* Links and keyboard focus, readable in both themes. Plain links show a
+   visited color; links styled as navigation, cells or buttons keep their own
+   color (:where adds no specificity). */
+
+:where(a) {
+  color: var(--link);
+}
+
+:where(a:visited) {
+  color: var(--link-visited);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 * {
@@ -289,20 +358,6 @@ h1 {
   --low-text: #1e6b34;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --high-bg: #4a1f22;
-    --high-border: #e06666;
-    --high-text: #ffb4b4;
-    --medium-bg: #46391a;
-    --medium-border: #e0b030;
-    --medium-text: #ffe08a;
-    --low-bg: #1d3a26;
-    --low-border: #5fb37a;
-    --low-text: #a8e2b8;
-  }
-}
-
 .priority-high {
   background: var(--high-bg);
   border-color: var(--high-border);
@@ -383,7 +438,7 @@ h1 {
   border: 1px solid var(--accent);
   border-radius: 8px;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -468,7 +523,9 @@ h1 {
 
 .site-nav {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
   max-width: 52rem;
   margin: 0 auto;
   padding: 1rem 1rem 0;
@@ -564,4 +621,213 @@ h1 {
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* Count flow (D-012) */
+
+.primary,
+.secondary {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.link-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.bin-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.bin-search label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+.bin-search input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+/* 16px avoids the automatic zoom on phones. */
+.bin-search input,
+.count-form input,
+.count-form select {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.count-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.count-form h2 {
+  margin-bottom: 0.5rem;
+}
+
+.count-lines {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.count-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.count-line p {
+  margin: 0;
+}
+
+.count-line label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.count-line input[type='number'] {
+  width: 7rem;
+}
+
+.unexpected-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.unexpected-row input,
+.unexpected-row select {
+  width: 100%;
+}
+
+.unexpected-row input[type='number'] {
+  width: 7rem;
+}
+
+.draft summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.draft h3,
+.count-result h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 1rem;
+}
+
+.changes {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.count-table {
+  width: 100%;
+  margin: 0.75rem 0;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.count-table th,
+.count-table td {
+  padding: 0.4rem 0.5rem 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.count-table .variance {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.result-badge {
+  display: inline-block;
+  margin: 0 0 0.5rem;
+  padding: 0.2rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.result-pass .result-badge,
+.status.result-pass {
+  background: var(--low-bg);
+  color: var(--low-text);
+}
+
+.result-fail .result-badge,
+.status.result-fail {
+  background: var(--high-bg);
+  color: var(--high-text);
+}
+
+.result-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+a.status-pending {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* Theme toggle */
+
+.theme-toggle {
+  margin-left: auto;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
 }

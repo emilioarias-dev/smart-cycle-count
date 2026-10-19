@@ -43,6 +43,10 @@ try {
   console.log(
     `Deleted ${summary.deleted.plans} audit plans and ${summary.deleted.tasks} tasks, with their selection explanations.`,
   );
+  const counts = summary.deleted.counts;
+  console.log(
+    `Deleted ${counts.total} counts (${counts.pass} PASS, ${counts.fail} FAIL) with ${counts.lines} count lines and ${counts.unexpectedPallets} unexpected pallets.`,
+  );
   const p = summary.scores.byPriority;
   console.log(
     `Scores computed for ${summary.scores.bins} bins at the same reference: ${p.high} high, ${p.medium} medium, ${p.low} low priority.`,

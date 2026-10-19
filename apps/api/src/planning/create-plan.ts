@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '../generated/prisma/client.js';
 import { PRIORITY_LABEL, type ScoreBreakdown, priorityFor } from '../scoring/formula.js';
+import { lockScores } from '../scoring/lock.js';
 import { type PlanSelection, parsePlanSize, selectForPlan } from './selection.js';
 
 // Creates a Top N plan and its tasks in one transaction (D-011).
@@ -33,6 +34,8 @@ export async function createPlan(prisma: PrismaClient, requestedSize: unknown): 
   return prisma.$transaction(
     async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${PLAN_LOCK_KEY}::bigint)`;
+      // Scores and pending tasks are read while no count is changing them.
+      await lockScores(tx, 'shared');
 
       const bins = await tx.bin.findMany({
         orderBy: { id: 'asc' },

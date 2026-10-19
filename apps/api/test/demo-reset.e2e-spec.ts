@@ -4,7 +4,7 @@ import { ACTIVITY_DAYS, type DemoData, generateDemoData } from '../src/demo-data
 import { resetDemoData } from '../src/demo-data/reset.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import type { ScoreBreakdown } from '../src/scoring/formula.js';
-import { FIXED_REFERENCE, businessSnapshot, clearInventory } from './support.js';
+import { FIXED_REFERENCE, businessSnapshot, clearInventory, scoresInSql } from './support.js';
 
 // The demo reset against the real PostgreSQL test database (D-009).
 describe('Demo data reset (PostgreSQL)', () => {
@@ -29,8 +29,8 @@ describe('Demo data reset (PostgreSQL)', () => {
       movements: { PUTAWAY: 110, PICK: 257, MOVE: 63, ADJUSTMENT: 47 },
       firstMovementAt: expect.any(Date),
       lastMovementAt: expect.any(Date),
-      scores: { reference: FIXED_REFERENCE, computedAt: expect.any(Date), bins: 30, byPriority: { high: 5, medium: 13, low: 12 } },
-      deleted: { plans: 0, tasks: 0 },
+      scores: { reference: FIXED_REFERENCE, computedAt: expect.any(Date), bins: 30, byPriority: { high: 0, medium: 9, low: 21 } },
+      deleted: { plans: 0, tasks: 0, counts: { total: 0, pass: 0, fail: 0, lines: 0, unexpectedPallets: 0 } },
     });
     expect(summary.lastMovementAt!.getTime()).toBeLessThan(FIXED_REFERENCE.getTime());
   });
@@ -51,32 +51,20 @@ describe('Demo data reset (PostgreSQL)', () => {
     expect(await prisma.movement.count({ where: { occurredAt: { gte: activityStart } } })).toBeGreaterThan(0);
   });
 
-  // Independent of the scoring code: the D-010 formula written directly in SQL.
+  // Independent of the scoring code: formula v2 written directly in SQL.
   it('scores every bin with the reset reference, matching the formula computed in SQL', async () => {
     await resetDemoData(prisma, data, { confirmReset: true });
-    const expected = await prisma.$queryRaw<{ code: string; score: number }[]>`
-      WITH touch AS (
-        SELECT m.id, m.type, b.bin_id
-        FROM movements m,
-             LATERAL (SELECT DISTINCT x FROM unnest(ARRAY[m.from_bin_id, m.to_bin_id]) x WHERE x IS NOT NULL) b(bin_id)
-        WHERE m.occurred_at > ${FIXED_REFERENCE}::timestamptz - interval '30 days' AND m.occurred_at <= ${FIXED_REFERENCE}::timestamptz),
-      f AS (
-        SELECT b.code,
-               CASE WHEN b.last_audited_at IS NULL THEN 1
-                    ELSE least(extract(epoch FROM (${FIXED_REFERENCE}::timestamptz - b.last_audited_at)) / 86400.0 / 90, 1) END AS f_age,
-               least(count(t.id) FILTER (WHERE t.type IN ('PUTAWAY', 'PICK', 'MOVE')) / 40.0, 1) AS f_act,
-               least(count(t.id) FILTER (WHERE t.type = 'ADJUSTMENT') / 5.0, 1) AS f_adj
-        FROM bins b LEFT JOIN touch t ON t.bin_id = b.id
-        GROUP BY b.id, b.code, b.last_audited_at)
-      SELECT code, round(40 * f_age + 35 * f_act + 25 * f_adj)::int AS score FROM f ORDER BY code`;
+    const expected = await scoresInSql(prisma, FIXED_REFERENCE);
     const stored = await prisma.binScore.findMany({ include: { bin: true }, orderBy: { bin: { code: 'asc' } } });
 
     expect(stored.map((s) => ({ code: s.bin.code, score: s.score }))).toEqual(expected);
-    expect(stored.every((s) => s.referenceAt.getTime() === FIXED_REFERENCE.getTime() && s.formulaVersion === 1)).toBe(true);
+    expect(stored.every((s) => s.referenceAt.getTime() === FIXED_REFERENCE.getTime() && s.formulaVersion === 2)).toBe(true);
 
     // The three worked examples and how many bins reach each cap.
     const byCode = new Map(stored.map((s) => [s.bin.code, s]));
-    expect(['B-02-03', 'A-01-04', 'C-01-04'].map((code) => byCode.get(code)!.score)).toEqual([91, 44, 18]);
+    expect(['B-02-03', 'A-01-04', 'C-01-04'].map((code) => byCode.get(code)!.score)).toEqual([68, 33, 14]);
+    // No count yet: the last result is unknown and adds nothing.
+    expect(stored.every((s) => (s.breakdown as unknown as ScoreBreakdown).factors.lastResult?.result === null)).toBe(true);
     const breakdowns = stored.map((s) => s.breakdown as unknown as ScoreBreakdown);
     expect(breakdowns.filter((b) => b.factors.age.factor === 1)).toHaveLength(11);
     expect(breakdowns.filter((b) => b.factors.age.factor === 1 && !b.factors.age.neverAudited)).toHaveLength(0);

@@ -1,7 +1,7 @@
 'use server';
 
 import { refresh } from 'next/cache';
-import { createPlan, recomputeScores } from '../lib/api';
+import { type CountOutcome, type CountPayload, createPlan, recomputeScores, submitCount } from '../lib/api';
 
 export type RecomputeState = { status: 'idle' } | { status: 'ok'; message: string } | { status: 'error'; message: string };
 
@@ -51,4 +51,10 @@ export async function createPlanAction(_previous: CreatePlanState, formData: For
       `Plan #${plan.id}: ${plan.createdCount} of ${plan.requestedCount} requested tasks created.` +
       (skipped.length > 0 ? ` Skipped: ${skipped.join(', ')}.` : ''),
   };
+}
+
+// Submits a count for its task (D-012). The page is not refreshed: the form
+// shows the outcome, and the task is no longer pending once saved.
+export async function submitCountAction(taskId: number, payload: CountPayload): Promise<CountOutcome> {
+  return submitCount(taskId, payload);
 }

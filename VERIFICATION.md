@@ -552,6 +552,117 @@ With the earlier entry (default plan and fingerprint identical to Linux;
 interface confirmed visually by the author), every milestone 4 check has
 Windows evidence.
 
+## 2026-10-19 — Milestone 4 merged (author's Windows output and CC check)
+
+| Command / check | Result |
+|---|---|
+| WIN: `git switch main`, `git pull --ff-only`, `git status` | Fast-forward `6d07421..0f6d2be`; clean, up to date with `origin/main` |
+| CC: `git fetch origin main`; merge commit parents; tree comparison | `0f6d2be` merges `2933e00` and `b555148` (PR #4 head); its tree equals `b555148`'s (`e4dba28`) |
+
+## 2026-10-19 — CC: milestone 5 development
+
+| Command / action | Result |
+|---|---|
+| Formula v2 computed in SQL on the demo (`SEED_NOW=2026-10-18T12:00:00Z`) before implementing | 0 high, 9 medium, 21 low; `B-02-03` 68, `A-01-04` 33, `C-01-04` 14 |
+| Migration `counts` on the milestone 4 development database; drift check | Applied; "No difference detected." |
+| Work paused: uncommitted changes checked after the restart | All present; `prisma generate` + `tsc` OK; saved as checkpoint `eb4cf0a` (incomplete, marked WIP) |
+| `npm test` | 98/98: counts 17 (new), scoring 10, scores 5, plus the earlier files updated to v2 |
+| Mutation checks (temporary): no version check; no recovered retry; recompute failure swallowed; no scores lock in the count; oldest count as last result; no audit date | 2, 2, 1, 1, 2 and 1 tests fail respectively; code restored |
+| Playwright at 375 px, demo plan of 6 | Search " b-02-03 " finds `B-02-03`; quantities start empty; exact quantities → PASS, "Bin score now: 35 Low priority"; a second tab opened earlier with the same values → "Recovered…"; a third tab with other values → "…The new quantities were not saved." with the stored PASS; 1 count in the database |
+| Conflict on `C-01-01` (a pick recorded in SQL with the movement function's effects after the page was opened) | "The inventory changed"; draft with the entered values and "P-0068: changed (was 15, now 14 bags)"; 0 counts; "Start updated recount" → 4 empty inputs, draft still shown; recount → PASS |
+| `B-01-05`: −1 and two unexpected pallets (`x-77`, product unknown, 12; `P-9000`, SKU-004, 3) | Labels "Quantity (units declared, product unknown)" / "Quantity (bag)"; FAIL with "X-77: 12 units declared, product unknown (catalog unit not identified)"; bin page row "Last count result (25) FAIL … 25.00"; Tasks "Done · PASS / PASS / FAIL" and "Count" links |
+| API stopped after opening `A-02-01`, then submit | "The API did not answer. It is not known whether the count was saved. Send the same count again…"; button "Send the same count again"; API restarted → PASS |
+| Layout at 320, 375, 414 and 1100 px (`/count` with two unexpected rows, a result with a 31-character code, `/tasks`, `/bins/B-01-05`), measuring every table, input, button and text against its card | Page overflow 0; nothing outside its container. The same measurement flags a table forced to 400 px at 320 px |
+| `npm run build` | API and web OK |
+
+## 2026-10-19 — CC: milestone 5 clean verification (code `54cf1c1`)
+
+Fresh clone from GitHub; `docker compose down -v` first.
+
+| Command | Result |
+|---|---|
+| At `0f6d2be` (milestone 4): `npm ci`, `db:up`, `db:generate`, `db:migrate`, `db:reset-demo` (`SEED_NOW=2026-10-18T12:00:00Z`), plan of 3 through the milestone 4 API | 4 migrations; 5 / 13 / 12 (formula v1); plan 1 with 3 tasks |
+| Switch to `m5-count-flow` (`02af95c`), `npm ci`, `db:generate`, `db:migrate` | `Applying migration 20261019180000_counts`; 30 bins, 30 scores (version 1), 1 plan, 3 pending tasks, 0 counts |
+| `npm run dev`; bin page of `B-02-03` with its version 1 score | Shows "Formula version 1" without a last-result row |
+| Count of task 1 (`B-02-03`) by HTTP: −1 on one pallet and `" x-1 "` (product unknown, 12) | `201`, FAIL, variances −1/0/0/0, unexpected `X-1` with product null; all 30 scores version 2 at one reference; `lastResult` FAIL +25; task DONE; its copy still 91 (version 1) |
+| Identical retry; then other content | `200` recovered, same count id; `409` `TASK_ALREADY_COUNTED` "…The new quantities were not saved." |
+| `db:reset-demo` while `dev` runs | `Deleted 1 audit plans and 3 tasks…`; `Deleted 1 counts (0 PASS, 1 FAIL) with 4 count lines and 1 unexpected pallets.`; 0 / 9 / 21; `/count` and `/tasks` 200 |
+| Reference fingerprint of the reset scores | `scores 9209366078931a97aa2eab4d674d0573`; `A-01-04` 33, `B-02-03` 68, `C-01-04` 14 |
+| SIGINT | Ports 3000 and 3001 free |
+| Test database dropped, `npm test` | Created and migrated from empty (5 migrations); **98/98 passed** |
+| `npm run build`; `git status` | API and web OK; clean |
+| `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | "No difference detected." |
+
+## 2026-10-19 — WIN: milestone 5, two screenshots (shared by the author)
+
+Screenshots, desktop width, dark theme. No terminal output was shared for
+this milestone.
+
+| Screenshot | What it shows |
+|---|---|
+| `/count`, bin `B-01-05` (plan #1, task 4), counted 2026-10-19 19:04 UTC | **FAIL caused only by the unexpected pallet**: the expected pallet P-0107 has 88 expected, 88 counted, variance 0; unexpected `UNEXPECTED-TEST-01`: "12 units declared, product unknown (catalog unit not identified)"; "Bin score now: 51 Medium priority" |
+| `/tasks`, plan #1 (5 of 5, created 18:50 UTC, "Scores as of 2026-10-19 18:46 UTC") | `B-02-03` 63 Done · PASS; `C-01-01` 62 Done · FAIL; `A-02-01` 57 Count; `B-01-05` 56 Done · FAIL; `A-01-05` 54 Count |
+
+The plan's scores are as of 18:46 UTC, not the fixed reference
+`2026-10-18T12:00:00Z` (with it the plan would show 68, 64, 57, 57, 54), so
+these scores were computed for the current time and cannot be compared with
+the Linux fingerprint.
+
+Visual confirmations without a screenshot: none reported for this
+milestone.
+
+## 2026-10-19 — WIN: milestone 5 on `00cfa69` (code `54cf1c1`) — terminal log with exit codes (shared by the author)
+
+| Command | Result |
+|---|---|
+| `git fetch`, `git switch`, `git pull --ff-only`, `git rev-parse HEAD` | Fast-forward `5b89a51..00cfa69` (documentation only); `00cfa6971791fd831bb436f3387b06e4ddeca450`; exit 0 |
+| `npm.cmd ci` | 449 packages; 0 vulnerabilities; exit 0 |
+| `npm.cmd run db:up`, `db:generate` | Container healthy; Prisma Client 7.10.1 generated; exit 0 |
+| `npm.cmd run db:migrate` | `5 migrations found`; `No pending migrations to apply.` (the run that applied `20261019180000_counts` was not captured); exit 0 |
+| `npm.cmd run db:reset-demo` | `reference 2026-10-18T12:00:00.000Z (from SEED_NOW)`; same demo totals as Linux; `Deleted 1 audit plans and 5 tasks…`; **`Deleted 3 counts (1 PASS, 2 FAIL) with 9 count lines and 1 unexpected pallets.`**; `0 high, 9 medium, 21 low`; exit 0 |
+| Score fingerprint | `scores 9209366078931a97aa2eab4d674d0573` — **identical to Linux**; exit 0 |
+| `npm.cmd test` | Test database: 5 migrations, none pending; **98/98 passed** (counts 17, plans 12, movements 12, scores 5, demo reset 8, bins 8, scoring 10, demo data 10, audit 4, planning 8, constraints 4); exit 0. The `ERROR [ExceptionsHandler] … simulated failure while recomputing` in the log is the rollback test's simulated failure (that test passed). The output also shows a `pg` DeprecationWarning (`client.query()` while a query is running), not a failure |
+| `npm.cmd run build` | API and web OK; routes `/`, `/bins/[code]`, `/count`, `/tasks`; exit 0 |
+| `git status --short` | Empty (clean tree); exit 0 |
+
+The deleted counts match the earlier screenshots: three counts (`B-02-03`
+PASS, `C-01-01` FAIL, `B-01-05` FAIL), 4 + 4 + 1 = 9 lines, and one
+unexpected pallet (`UNEXPECTED-TEST-01`).
+
+Not shown by this log or the screenshots: the count flow at 375 px, an
+identical retry recovered in the interface, the bin page "Last count
+result" row.
+
+## 2026-10-19 — CC: theme toggle (code `c892ecf`)
+
+Development server, Playwright (Chromium).
+
+| Check | Result |
+|---|---|
+| System light, no choice → toggle → reload of another page | `data-theme` absent and light background; after the toggle `dark`, stored `scc-theme=dark`; on the next page `data-theme=dark` already at DOMContentLoaded (before hydration); back to light, reloaded → light |
+| System dark, no choice | Dark background without `data-theme`; button "Light theme"; choosing light → light, stored |
+| Token contrast, light / dark (text, muted, links, visited links, accent, text on accent, error, priority chips) | All text pairs ≥ 4.5:1 after the fix (light accent on the page background was 4.32:1 before it); focus outline ≥ 5.96:1 (light) and ≥ 11.36:1 (dark) |
+| Every text element against its background on `/`, `/tasks`, `/bins/B-01-05`, `/count` (not countable, form with an unexpected row, result) | Light minimum 5.13:1; dark minimum 4.52:1; nothing below 4.5:1 |
+| Keyboard: Tab through the count page in both themes | Navigation links, toggle, inputs and buttons show a 3 px solid outline |
+| Visited links | The rendered visited state could not be reproduced in headless Chromium (links visited by clicking still render as unvisited there), so it is checked only through the token contrast above |
+| 320 and 375 px | Page overflow 0; the toggle stays inside the viewport (at 320 px it moves to its own line); a tap switches the theme |
+| Browser console during all checks | No errors or warnings (no hydration warnings) |
+| `npm run build -w apps/web` | OK |
+
+## 2026-10-19 — WIN: milestone 5, theme toggle and phone width (reported by the author)
+
+The author reported, without sharing output or screenshots:
+
+- `npm.cmd run build` after the theme toggle: exit code 0.
+- Theme toggle: present and working, the choice kept after a reload and
+  across pages; links (including visited ones) and keyboard focus visible.
+- At 375 px: an identical retry from a second tab showed "Recovered"; the
+  bin page showed the "Last count result" row.
+
+These are recorded as the author's visual confirmation. Together with the
+terminal log on `00cfa69` and the two screenshots, every milestone 5 check
+now has Windows evidence. The commit hash of this last run was not shared.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -562,10 +673,13 @@ the page reload after a reset while `dev` runs.
 
 Milestone 3: nothing pending (merged as `2933e00`).
 
-Milestone 4: nothing pending; PR #4 ready to merge.
+Milestone 4: nothing pending (merged as `0f6d2be`).
+
+Milestone 5: nothing pending; PR #5 ready to merge.
 
 Later or optional:
 
+- Next step (agreed 2026-10-19): additional synthetic scenarios and the redesign.
+
 - WIN: SHA-256 of the Node MSI against `SHASUMS256.txt` (the official
   checksum for `node-v24.22.0-x64.msi` is `97ebad47ad35da4b59182a5fbe9fad2b1a1836f1042b4833ff5b4b9571175088`).
-- D-001 concurrency tests (count milestone).
