@@ -517,6 +517,27 @@ Fresh clone from GitHub; `docker compose down -v` first.
 | `npm run build`; `git status` | API and web OK; clean |
 | `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | "No difference detected." |
 
+## 2026-10-19 — WIN: milestone 4, default plan and interface (shared by the author)
+
+| Command / action | Result |
+|---|---|
+| `npm.cmd run dev` | API maps `POST /audit-plans` and `GET /audit-tasks`; `AuditModule` initialised; no errors |
+| `Invoke-RestMethod -Method Post http://localhost:3001/audit-plans -Body '{}'` | Plan 1, 5 of 5, `excluded` 0 / 0: `B-02-03` 91, `C-01-01` 86, `B-01-05` 77, `A-02-01` 77, `A-01-05` 70, all "High priority", reference `2026-10-18T12:00:00.000Z` — identical to Linux |
+| Plan fingerprint (same query, passed with `psql -c`) | `plan 608aeba1e3a2f05fe763bbb7e0b44a9f` — **identical to Linux** |
+| Dev log during the interface check | Two `createPlanAction` calls; the second shows the result of the first: `Plan #2: 25 of 30 requested tasks created. Skipped: 5 with a pending task.`; then `GET /tasks 200` |
+| Ctrl+C, answering `S` | Both apps stopped |
+
+Interface at 375 px, **visual confirmation by the author, no screenshots**:
+N = 30 created 25 tasks; the next attempt with N = 5 said that no bins were
+available; Tasks showed both plans without overflow.
+
+Not shared for this milestone: the commit hash (`git rev-parse HEAD`), the
+`db:migrate` output (milestone 3 → 4), the `db:reset-demo` output, `npm.cmd
+test` and `npm.cmd run build`. The reset reference is consistent with the
+plan (reference `2026-10-18T12:00:00.000Z`, fingerprint equal to Linux), and
+the running API shows the new routes, so the migration was applied; the
+outputs themselves were not shared.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -527,7 +548,7 @@ the page reload after a reset while `dev` runs.
 
 Milestone 3: nothing pending (merged as `2933e00`).
 
-Milestone 4: Windows reproduction of the PR commit (migration from milestone 3, plan fingerprint, tests, builds, interface).
+Milestone 4: on Windows, the outputs of `git rev-parse HEAD`, `db:migrate`, `db:reset-demo`, `npm.cmd test` and `npm.cmd run build` for the PR commit. Plan fingerprint and interface done.
 
 Later or optional:
 
