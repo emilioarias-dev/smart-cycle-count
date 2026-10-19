@@ -469,6 +469,12 @@ column of the score breakdown sits too close to the card's edge.
 | Same measurement at 320, 375, 414 and 1100 px, on `B-02-03` and `A-01-03` (never audited) | Page overflow 0; table inside the card's content; last column 21 px from the border (card padding + border) at every width |
 | `npm run build` | API and web OK |
 
+## 2026-10-19 — WIN: milestone 3, author's review of the table fix
+
+The author accepted the breakdown table fix (`b1a0cc5`). No new command
+output or interface check was shared, so the Windows interface checks after
+the fix remain pending.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
