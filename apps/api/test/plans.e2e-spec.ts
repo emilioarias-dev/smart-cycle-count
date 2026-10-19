@@ -252,7 +252,7 @@ describe('Audit plans (PostgreSQL)', () => {
     await createPlan(prisma, 5);
     await createPlan(prisma, 3);
     const summary = await resetDemoData(prisma, data, { confirmReset: true });
-    expect(summary.deleted).toEqual({ plans: 2, tasks: 8 });
+    expect(summary.deleted).toEqual({ plans: 2, tasks: 8, counts: { total: 0, pass: 0, fail: 0, lines: 0, unexpectedPallets: 0 } });
     expect(await prisma.auditPlan.count()).toBe(0);
     expect(await prisma.auditTask.count()).toBe(0);
     expect(await prisma.binScore.count()).toBe(30);

@@ -2,7 +2,7 @@ import { applyMovement } from '../src/inventory/movements.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import type { ScoreBreakdown } from '../src/scoring/formula.js';
 import { recomputeScores } from '../src/scoring/recompute.js';
-import { businessSnapshot, clearInventory } from './support.js';
+import { businessSnapshot, clearInventory, scoresInSql } from './support.js';
 
 // Score inputs and storage against the real PostgreSQL test database (D-010).
 describe('Score recompute (PostgreSQL)', () => {
@@ -53,14 +53,74 @@ describe('Score recompute (PostgreSQL)', () => {
     const first = await breakdownOf('A-01-01');
     expect(first.factors.activity.input).toBe(2);
     expect(first.factors.adjustments.input).toBe(0);
-    expect(first.factors.age).toMatchObject({ input: 45, neverAudited: false, contribution: 20 });
+    expect(first.factors.age).toMatchObject({ input: 45, neverAudited: false, contribution: 15 });
 
     const second = await breakdownOf('A-01-02');
     expect(second.factors.activity.input).toBe(2);
     expect(second.factors.adjustments.input).toBe(1);
-    expect(second.factors.age).toMatchObject({ neverAudited: true, contribution: 40 });
-    // 40 + 35 × 2/40 + 25 × 1/5 = 46.75 → 47
-    expect(second).toMatchObject({ total: 46.75, score: 47 });
+    expect(second.factors.age).toMatchObject({ neverAudited: true, contribution: 30 });
+    // 30 + 25 × 2/40 + 20 × 1/5 + 0 (never counted) = 35.25 → 35
+    expect(second).toMatchObject({ total: 35.25, score: 35 });
+  });
+
+  // A count stored directly, with its own DONE task: these tests are about
+  // how recompute reads results, not about the count flow.
+  const storeCount = async (code: string, result: 'PASS' | 'FAIL', countedAt: Date) => {
+    const bin = await prisma.bin.findUniqueOrThrow({ where: { code } });
+    const plan = await prisma.auditPlan.create({ data: { requestedCount: 1, excludedPending: 0, excludedUnscored: 0 } });
+    const task = await prisma.auditTask.create({
+      data: {
+        planId: plan.id,
+        binId: bin.id,
+        rank: 1,
+        status: 'DONE',
+        completedAt: countedAt,
+        score: 0,
+        priority: 'low',
+        formulaVersion: 2,
+        scoreReferenceAt: R,
+        scoreComputedAt: R,
+        breakdown: {},
+      },
+    });
+    await prisma.count.create({ data: { taskId: task.id, binId: bin.id, result, inventoryVersion: bin.inventoryVersion, countedAt } });
+  };
+
+  it('the last result: unknown without counts, FAIL adds 25, a later PASS removes it', async () => {
+    await recomputeScores(prisma, R);
+    expect((await breakdownOf('A-01-01')).factors.lastResult).toEqual({ weight: 25, result: null, countedAt: null, factor: 0, contribution: 0 });
+    const unknownScore = (await breakdownOf('A-01-01')).score;
+
+    await storeCount('A-01-01', 'FAIL', at(-5 * DAY));
+    await recomputeScores(prisma, R);
+    expect((await breakdownOf('A-01-01')).factors.lastResult).toEqual({
+      weight: 25,
+      result: 'FAIL',
+      countedAt: at(-5 * DAY).toISOString(),
+      factor: 1,
+      contribution: 25,
+    });
+    expect((await breakdownOf('A-01-01')).score).toBe(unknownScore + 25);
+
+    await storeCount('A-01-01', 'PASS', at(-2 * DAY));
+    await recomputeScores(prisma, R);
+    expect((await breakdownOf('A-01-01')).factors.lastResult).toMatchObject({ result: 'PASS', countedAt: at(-2 * DAY).toISOString(), contribution: 0 });
+
+    // PASS then FAIL: the FAIL is the latest, so the factor is active again.
+    await storeCount('A-01-01', 'FAIL', at(-DAY));
+    await recomputeScores(prisma, R);
+    expect((await breakdownOf('A-01-01')).factors.lastResult).toMatchObject({ result: 'FAIL', contribution: 25 });
+  });
+
+  it('ignores counts after the reference and matches formula v2 computed in SQL', async () => {
+    await storeCount('A-01-01', 'PASS', at(-3 * DAY));
+    await storeCount('A-01-01', 'FAIL', at(1));
+    await storeCount('A-01-02', 'FAIL', R);
+    await recomputeScores(prisma, R);
+    expect((await breakdownOf('A-01-01')).factors.lastResult).toMatchObject({ result: 'PASS', contribution: 0 });
+    expect((await breakdownOf('A-01-02')).factors.lastResult).toMatchObject({ result: 'FAIL', contribution: 25 });
+    const stored = await prisma.binScore.findMany({ include: { bin: true }, orderBy: { bin: { code: 'asc' } } });
+    expect(stored.map((s) => ({ code: s.bin.code, score: s.score }))).toEqual(await scoresInSql(prisma, R));
   });
 
   it('replaces every score with one reference and keeps one score per bin', async () => {

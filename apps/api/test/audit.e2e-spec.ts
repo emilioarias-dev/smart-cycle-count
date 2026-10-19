@@ -33,11 +33,11 @@ describe('Audit plans API (PostgreSQL)', () => {
     const { body } = await post({}).expect(201);
     expect(body.plan).toMatchObject({ requestedCount: 5, createdCount: 5, excluded: { pendingTask: 0, noScore: 0 } });
     expect(body.tasks.map((t: any) => [t.rank, t.binCode, t.score.value, t.score.label])).toEqual([
-      [1, 'B-02-03', 91, 'High priority'],
-      [2, 'C-01-01', 86, 'High priority'],
-      [3, 'B-01-05', 77, 'High priority'],
-      [4, 'A-02-01', 77, 'High priority'],
-      [5, 'A-01-05', 70, 'High priority'],
+      [1, 'B-02-03', 68, 'Medium priority'],
+      [2, 'C-01-01', 64, 'Medium priority'],
+      [3, 'B-01-05', 57, 'Medium priority'],
+      [4, 'A-02-01', 57, 'Medium priority'],
+      [5, 'A-01-05', 54, 'Medium priority'],
     ]);
     expect(body.tasks.every((t: any) => t.score.reference === FIXED_REFERENCE.toISOString())).toBe(true);
   });
@@ -76,7 +76,7 @@ describe('Audit plans API (PostgreSQL)', () => {
       [1, 2, 'C-01-01', 'PENDING'],
     ]);
     expect(body[0].plan).toMatchObject({ requestedCount: 3, createdCount: 3, excluded: { pendingTask: 2, noScore: 0 } });
-    expect(body[0].score).toMatchObject({ value: 77, priority: 'high', label: 'High priority', reference: FIXED_REFERENCE.toISOString(), formulaVersion: 1 });
+    expect(body[0].score).toMatchObject({ value: 57, priority: 'medium', label: 'Medium priority', reference: FIXED_REFERENCE.toISOString(), formulaVersion: 2 });
     expect(body[0].completedAt).toBeNull();
   });
 });
