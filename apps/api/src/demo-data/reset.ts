@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { applyMovementInTransaction } from '../inventory/movements.js';
+import { type RecomputeSummary, recomputeScoresInTransaction } from '../scoring/recompute.js';
 import type { DemoData } from './generate.js';
 
 // Replaces the demo data (D-009): bins, products, pallets and movements are
@@ -26,6 +27,7 @@ export type DemoSummary = {
   movements: Record<'PUTAWAY' | 'PICK' | 'MOVE' | 'ADJUSTMENT', number>;
   firstMovementAt: Date | null;
   lastMovementAt: Date | null;
+  scores: RecomputeSummary;
 };
 
 // user@host:port/database, never the password.
@@ -58,14 +60,17 @@ export async function resetDemoData(
       }
 
       // No CASCADE: if another table ever references these (plans, counts),
-      // the reset fails loudly instead of deleting that data silently.
-      await tx.$executeRaw`TRUNCATE movements, pallets, products, bins RESTART IDENTITY`;
+      // the reset fails loudly instead of deleting that data silently. Scores
+      // are derived data and are recomputed below.
+      await tx.$executeRaw`TRUNCATE bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
 
       await tx.product.createMany({ data: data.products });
       await tx.bin.createMany({ data: data.bins });
       for (const movement of data.movements) {
         await applyMovementInTransaction(tx, movement);
       }
+      // Scored with the reset's own reference time (D-010).
+      const scores = await recomputeScoresInTransaction(tx, data.reference);
 
       const [bins, emptyBins, neverAuditedBins, products, pallets, depletedPallets, byType, range] = await Promise.all([
         tx.bin.count(),
@@ -91,6 +96,7 @@ export async function resetDemoData(
         movements,
         firstMovementAt: range._min.occurredAt,
         lastMovementAt: range._max.occurredAt,
+        scores,
       };
     },
     { maxWait: 10_000, timeout: 120_000 },

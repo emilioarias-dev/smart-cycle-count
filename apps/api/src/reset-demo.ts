@@ -40,6 +40,10 @@ try {
       `movements: ${m.PUTAWAY} putaway, ${m.PICK} pick, ${m.MOVE} move, ${m.ADJUSTMENT} adjustment ` +
       `(${summary.firstMovementAt?.toISOString()} → ${summary.lastMovementAt?.toISOString()}).`,
   );
+  const p = summary.scores.byPriority;
+  console.log(
+    `Scores computed for ${summary.scores.bins} bins at the same reference: ${p.high} high, ${p.medium} medium, ${p.low} low priority.`,
+  );
 } catch (error) {
   console.error(`Reset failed; the previous data was left unchanged. ${error instanceof Error ? error.message : error}`);
   process.exitCode = 1;

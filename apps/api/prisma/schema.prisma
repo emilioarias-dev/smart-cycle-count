@@ -33,6 +33,7 @@ model Bin {
   pallets       Pallet[]
   movementsFrom Movement[] @relation("MovementFromBin")
   movementsTo   Movement[] @relation("MovementToBin")
+  score         BinScore?
 
   @@unique([aisle, rack, position])
   @@map("bins")
@@ -93,4 +94,21 @@ model Movement {
   @@index([toBinId])
   @@index([occurredAt])
   @@map("movements")
+}
+
+// The latest risk score of a bin (D-005, D-010), replaced on every
+// recompute. The breakdown holds everything needed to reproduce it.
+model BinScore {
+  binId          Int      @id @map("bin_id")
+  score          Int
+  formulaVersion Int      @map("formula_version")
+  // The "now" the score was computed for (the window ends here).
+  referenceAt    DateTime @map("reference_at") @db.Timestamptz(3)
+  // When the computation actually ran.
+  computedAt     DateTime @map("computed_at") @db.Timestamptz(3)
+  breakdown      Json
+
+  bin Bin @relation(fields: [binId], references: [id], onDelete: Restrict)
+
+  @@map("bin_scores")
 }

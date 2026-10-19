@@ -12,6 +12,15 @@ export function auditLabel(lastAuditedAt: string | null, now: Date = new Date())
   return `${date.toISOString().slice(0, 10)} (${ago})`;
 }
 
+// Full UTC date and time, as stored (D-009, D-010).
+export function utcDateTime(iso: string): string {
+  return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
+}
+
+export function twoDecimals(value: number): string {
+  return value.toFixed(2);
+}
+
 export function twoDigits(value: number): string {
   return String(value).padStart(2, '0');
 }

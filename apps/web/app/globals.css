@@ -274,3 +274,189 @@ h1 {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Audit priority (D-010): color always comes with the number and a label. */
+
+:root {
+  --high-bg: #fde8e8;
+  --high-border: #e06666;
+  --high-text: #9b1c1c;
+  --medium-bg: #fff4d6;
+  --medium-border: #e0b030;
+  --medium-text: #7a5300;
+  --low-bg: #e6f4ea;
+  --low-border: #5fb37a;
+  --low-text: #1e6b34;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --high-bg: #4a1f22;
+    --high-border: #e06666;
+    --high-text: #ffb4b4;
+    --medium-bg: #46391a;
+    --medium-border: #e0b030;
+    --medium-text: #ffe08a;
+    --low-bg: #1d3a26;
+    --low-border: #5fb37a;
+    --low-text: #a8e2b8;
+  }
+}
+
+.priority-high {
+  background: var(--high-bg);
+  border-color: var(--high-border);
+}
+
+.priority-medium {
+  background: var(--medium-bg);
+  border-color: var(--medium-border);
+}
+
+.priority-low {
+  background: var(--low-bg);
+  border-color: var(--low-border);
+}
+
+.bin-cell.priority-high .bin-cell-score,
+.score-card.priority-high .score-label {
+  color: var(--high-text);
+}
+
+.bin-cell.priority-medium .bin-cell-score,
+.score-card.priority-medium .score-label {
+  color: var(--medium-text);
+}
+
+.bin-cell.priority-low .bin-cell-score,
+.score-card.priority-low .score-label {
+  color: var(--low-text);
+}
+
+.bin-cell.unscored {
+  border-style: dashed;
+}
+
+.bin-cell-score {
+  font-size: 0.8rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend-item {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+.scores-as-of {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.recompute {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recompute button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recompute button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.recompute-result {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.recompute-result.error {
+  color: var(--error);
+}
+
+.score-headline {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.score-headline p {
+  margin: 0;
+}
+
+.score-value {
+  font-size: 2.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.score-label {
+  font-weight: 700;
+}
+
+.breakdown {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.breakdown th,
+.breakdown td {
+  padding: 0.45rem 0.6rem 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+/* Numbers line up on the right, inside the card's padding. */
+.breakdown .points {
+  padding-right: 0;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown thead th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.breakdown tbody th {
+  font-weight: 600;
+}
+
+.breakdown tfoot th,
+.breakdown tfoot td {
+  border-bottom: none;
+  font-weight: 700;
+}

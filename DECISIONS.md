@@ -9,7 +9,8 @@ discussion), **Deferred** (to be decided at a later milestone),
 **Superseded**.
 
 Last updated: 2026-10-18 (E-001 re-confirmed; E-002 pin and E-004 to E-009
-accepted by the author; D-006 to D-009 accepted for milestone 2). Milestone 1
+accepted by the author; D-006 to D-009 accepted for milestone 2; D-010 for
+milestone 3; E-004 and E-009 table statuses brought up to date). Milestone 1
 implements E-002 to E-008; see `PROGRESS.md` for what milestone 2
 implements. "Claude's Linux workspace"
 below means the claude.ai session's cloud workspace where these decisions were
@@ -32,15 +33,16 @@ in the dated tables kept below).
 | D-007 | Products, pallets and locations | Accepted |
 | D-008 | Movements and the movement function | Accepted |
 | D-009 | Demo data: generation, reset and simulated audit history | Accepted |
+| D-010 | Risk score: factors, caps, window and stored breakdown | Accepted |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
-| E-004 | Runtime and dependency versions | Accepted as initial selection; pending validation |
+| E-004 | Runtime and dependency versions | Accepted; validated in both environments |
 | E-005 | API module system: ESM with Vitest | Accepted |
 | E-006 | Enforcing Node and npm versions | Accepted |
 | E-007 | Environment variables | Accepted |
 | E-008 | Cross-platform scripts and files | Accepted with adjustments |
-| E-009 | Repository workflow and push | Accepted; push not yet demonstrated |
+| E-009 | Repository workflow and push | Accepted; push demonstrated |
 
 ---
 
@@ -401,6 +403,39 @@ Limitations: one level per rack; no capacity per bin (see D-007).
 
 ---
 
+## D-010 — Risk score: factors, caps, window and stored breakdown
+
+**Status:** Accepted (2026-10-18). Milestone 3.
+
+A heuristic, explainable priority for audits. The score is **not** a
+probability of error; weights and caps are initial values to be revisited
+with real count results.
+
+| Factor | Weight | Input | Cap (factor = 1) |
+|---|---|---|---|
+| Age | 40 | Days since `lastAuditedAt` at the reference time; **never audited = maximum** | 90 days |
+| Activity | 35 | `PUTAWAY`, `PICK` and `MOVE` movements in the window | 40 movements |
+| Adjustments | 25 | `ADJUSTMENT` movements in the window | 5 adjustments |
+
+- Each factor = `min(input / cap, 1)`; score =
+  `40·age + 35·activity + 25·adjustments`, **rounded once at the end** to an
+  integer 0–100.
+- **Window:** `(reference − 30 days, reference]`, in UTC. A movement counts
+  **once per affected bin** (a move counts for its source and its
+  destination; an adjustment once).
+- **Reference time:** after a demo reset, the reset's reference; the
+  recompute button uses the current time.
+- **Pallet count** is shown as context only; it is not a factor.
+- **Bands:** 0–39 low priority (green), 40–69 medium (yellow), 70–100 high
+  (red), always shown with the number and the label.
+- **Stored per bin (D-005, latest only):** the score and a breakdown
+  sufficient to reproduce it: reference time, formula version, inputs,
+  weights, caps and each factor's contribution.
+- PASS/FAIL history is not a factor yet; it comes with the count milestone
+  (D-003, D-009: no results must not be read as PASS).
+
+---
+
 ## Environment decisions
 
 Verification labels used below:
@@ -488,8 +523,9 @@ Upgrading Prisma therefore also requires re-approving with
 
 ### E-004 — Runtime and dependency versions
 
-**Status:** Accepted (2026-10-18) as the **initial selection**, pending
-validation through installation, compilation and execution. A version that
+**Status:** Accepted (2026-10-18) as the initial selection; **validated**
+through installation, compilation and execution in both environments
+(milestones 1 and 2, see `VERIFICATION.md`). A version that
 fails validation is replaced explicitly and recorded here. Originally proposed
 2026-10-17; supersedes the earlier proposal (Node 22 minimum, TypeScript
 `~6.0`).
@@ -688,11 +724,13 @@ History before 2026-10-18:
 
 To be decided when the corresponding milestone starts:
 
-- Scoring factors, weights, window and normalisation.
 - Plan rules (default N, tie-break, bins with pending tasks).
 - Unexpected pallet capture details.
 - Demo reset once plans and counts exist: refuse the reset while they exist,
   or reset them too with explicit authorisation (D-009).
+
+Decided in milestone 3: scoring factors, weights, window and normalisation
+(D-010).
 
 Decided in milestone 2 (previously deferred): layout and bin codes (D-006),
 inventory representation (D-007), movement semantics (D-008), seed design

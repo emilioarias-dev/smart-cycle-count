@@ -12,10 +12,12 @@ workspaces monorepo.
 - **Milestone 1 (walking skeleton):** PostgreSQL → Prisma → NestJS → Next.js.
 - **Milestone 2 (warehouse data):** a demo warehouse of 30 bins with
   products, pallets and a month of simulated activity, all changes made by a
-  single movement function; a neutral warehouse grid and a bin detail page.
+  single movement function; a warehouse grid and a bin detail page.
+- **Milestone 3 (risk scoring):** a 0–100 audit priority per bin with its
+  breakdown, a color-coded grid and a recompute button.
 
-Scoring and risk colors, audit plans and the count flow come in later
-milestones. See [`PROGRESS.md`](PROGRESS.md).
+Audit plans and the count flow come in later milestones. See
+[`PROGRESS.md`](PROGRESS.md).
 
 ## Requirements
 
@@ -71,7 +73,8 @@ PowerShell except where two variants are shown.
    npm run db:reset-demo
    ```
 
-   `db:reset-demo` **replaces** the demo data; see [Demo data](#demo-data).
+   `db:reset-demo` **replaces** the demo data and scores every bin; see
+   [Demo data](#demo-data) and [Risk score](#risk-score).
 
 5. Start the API and the web app together (Ctrl+C stops both):
 
@@ -131,6 +134,51 @@ $env:SEED_NOW = "2026-10-18T12:00:00Z"; npm.cmd run db:reset-demo; Remove-Item E
 sample bin (`SAMPLE-BIN-01`). If the database contains any other bin, the
 migration stops without changing anything.
 
+## Risk score
+
+Each bin gets a 0–100 **audit priority** (decision D-010). It is a heuristic
+to decide what to count first, **not** a probability of error; the weights
+and caps are initial values.
+
+| Factor | Weight | Input | Cap |
+|---|---|---|---|
+| Time since last audit | 40 | Days since the last audit; a bin never audited counts as the maximum | 90 days |
+| Activity | 35 | Putaway, pick and move movements in the window | 40 movements |
+| Adjustments | 25 | Adjustment movements in the window | 5 adjustments |
+
+How they are combined:
+
+1. Each factor = `min(input ÷ cap, 1)`.
+2. Score = `40 × age + 35 × activity + 25 × adjustments`, **rounded once**
+   at the end (half up).
+3. The window is the 30 days up to the reference time:
+   `(reference − 30 days, reference]`, in UTC. A movement counts once for
+   every bin it touches (a move counts for its source and its destination).
+
+Example (`B-02-03` in the demo with `SEED_NOW=2026-10-18T12:00:00Z`):
+84.03 days since the last audit → 37.35; 38 movements → 33.25;
+4 adjustments → 20.00; total 90.60 → **91**.
+
+Priority bands, always shown with the number and a label: **0–39 low**
+(green), **40–69 medium** (yellow), **70–100 high** (red). The number of
+pallets is shown as context but is not a factor, so an empty bin can still
+need an audit.
+
+**When scores are computed.** `npm run db:reset-demo` scores every bin with
+its own reference time. The **Recompute scores** button (or
+`POST /scores/recompute`) scores every bin for the current time. Either way
+all inputs are read and all scores replaced in one transaction: every bin
+gets its new score, or none does. Only the latest score is kept, with a
+breakdown that reproduces it (reference time, formula version, inputs,
+weights, caps and contributions); the bin page shows it under "Why this
+score".
+
+Note: with an old `SEED_NOW`, recomputing for the current time makes the
+audits look older and moves the 30-day window past the demo activity.
+
+**Coming from milestone 2.** After `npm run db:migrate`, bins have no score
+until you press **Recompute scores** or run `npm run db:reset-demo`.
+
 ## Other commands
 
 | Command | What it does |
@@ -144,14 +192,16 @@ migration stops without changing anything.
 
 ```
 PostgreSQL (Docker)  ←  Prisma client  ←  NestJS API :3001     ←  Next.js server :3000  ←  browser
-bins, products,          PrismaService      GET /warehouse          / (grid)
-pallets, movements                          GET /bins/:code         /bins/[code] (detail)
+bins, products,          PrismaService      GET /warehouse          / (grid + recompute button)
+pallets, movements,                         GET /bins/:code         /bins/[code] (detail)
+bin_scores                                  POST /scores/recompute
 ```
 
 - `apps/api` owns the database: the Prisma schema, migrations, the movement
-  function (`src/inventory/movements.ts`) and the demo data generator
-  (`src/demo-data/`) live there, and it is the only app that connects to
-  PostgreSQL.
+  function (`src/inventory/movements.ts`), the score formula
+  (`src/scoring/formula.ts`, the only implementation) and the demo data
+  generator (`src/demo-data/`) live there, and it is the only app that
+  connects to PostgreSQL.
 - `apps/web` asks the API for data from the Next.js server; the browser never
   calls the API or sees its URL (`API_BASE_URL`).
 
@@ -159,8 +209,9 @@ pallets, movements                          GET /bins/:code         /bins/[code]
 
 | Method and path | Response |
 |---|---|
-| `GET /warehouse` | `200` with aisles → racks → bins (in location order), each bin with `code`, `position`, `palletCount` and `lastAuditedAt` |
-| `GET /bins/:code` | `200` with the bin's location, `inventoryVersion`, `lastAuditedAt` and its current pallets (code, quantity, product SKU, name and unit), or `404`. The code is normalised: ` a-01-03 ` finds `A-01-03` |
+| `GET /warehouse` | `200` with aisles → racks → bins (in location order), each bin with `code`, `position`, `palletCount`, `lastAuditedAt` and `score` (`value`, `priority`, `label`, `reference`, or `null` if not scored) |
+| `GET /bins/:code` | `200` with the bin's location, `inventoryVersion`, `lastAuditedAt`, its current pallets (code, quantity, product SKU, name and unit) and `score` with its `breakdown`, or `404`. The code is normalised: ` a-01-03 ` finds `A-01-03` |
+| `POST /scores/recompute` | `200` with the reference time, the number of bins scored and how many fall in each priority band. All scores or none are saved |
 
 ## Project documents
 

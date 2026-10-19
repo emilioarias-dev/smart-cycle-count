@@ -2,14 +2,49 @@
 // sees API_BASE_URL (E-007). Every call returns one of three outcomes, so
 // pages can show the data, a not-found state or an error state.
 
+export type Priority = 'low' | 'medium' | 'high';
+
+// Score, band and label all come from the API (D-010); the web only shows them.
+export type ScoreSummary = { value: number; priority: Priority; label: string; reference: string };
+
+type Factor = { weight: number; cap: number; input: number; factor: number; contribution: number };
+
+export type ScoreDetail = ScoreSummary & {
+  computedAt: string;
+  formulaVersion: number;
+  breakdown: {
+    window: { from: string; to: string };
+    factors: {
+      age: Factor & { lastAuditedAt: string | null; neverAudited: boolean };
+      activity: Factor;
+      adjustments: Factor;
+    };
+    total: number;
+    score: number;
+  };
+};
+
 export type WarehouseLayout = {
   aisles: {
     aisle: string;
     racks: {
       rack: number;
-      bins: { code: string; position: number; palletCount: number; lastAuditedAt: string | null }[];
+      bins: {
+        code: string;
+        position: number;
+        palletCount: number;
+        lastAuditedAt: string | null;
+        score: ScoreSummary | null;
+      }[];
     }[];
   }[];
+};
+
+export type RecomputeSummary = {
+  reference: string;
+  computedAt: string;
+  bins: number;
+  byPriority: Record<Priority, number>;
 };
 
 export type BinDetail = {
@@ -20,6 +55,7 @@ export type BinDetail = {
   inventoryVersion: number;
   lastAuditedAt: string | null;
   pallets: { code: string; quantity: number; product: { sku: string; name: string; unit: string } }[];
+  score: ScoreDetail | null;
 };
 
 export type ApiResult<T> = { status: 'ok'; data: T } | { status: 'not-found' } | { status: 'error'; reason: string };
@@ -32,7 +68,11 @@ export function getBin(code: string): Promise<ApiResult<BinDetail>> {
   return getJson<BinDetail>(`/bins/${encodeURIComponent(code)}`);
 }
 
-async function getJson<T>(path: string): Promise<ApiResult<T>> {
+export function recomputeScores(): Promise<ApiResult<RecomputeSummary>> {
+  return getJson<RecomputeSummary>('/scores/recompute', 'POST');
+}
+
+async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise<ApiResult<T>> {
   const baseUrl = process.env.API_BASE_URL;
   if (!baseUrl) {
     return { status: 'error', reason: 'API_BASE_URL is not set. Copy apps/web/.env.example to apps/web/.env.' };
@@ -41,7 +81,7 @@ async function getJson<T>(path: string): Promise<ApiResult<T>> {
   const url = new URL(path, baseUrl);
   let response: Response;
   try {
-    response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    response = await fetch(url, { method, cache: 'no-store', signal: AbortSignal.timeout(method === 'POST' ? 30_000 : 5000) });
   } catch (error) {
     console.error(`Request to ${url.href} failed:`, error);
     return {

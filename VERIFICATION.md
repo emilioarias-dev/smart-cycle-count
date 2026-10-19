@@ -418,6 +418,63 @@ was not shown on Windows.
 With this, every milestone 2 criterion has passed on Windows on code commit
 `a1461d6` (later commits only change documentation).
 
+## 2026-10-18 — CC: milestone 3 development and clean verification
+
+Development (working copy):
+
+| Command / action | Result |
+|---|---|
+| Formula in SQL on the demo (`SEED_NOW=2026-10-18T12:00:00Z`), before writing code | Examples `B-02-03` 91, `A-01-04` 44, `C-01-04` 18; caps reached: age 11 bins (all never audited), activity 0, adjustments 2; bands 5 high, 13 medium, 12 low |
+| Migration `bin_scores` on the milestone 2 development database; drift check | Applied; `prisma migrate diff --exit-code` → 0 |
+| `npm run db:reset-demo` with the same `SEED_NOW` | `Scores computed for 30 bins at the same reference: 5 high, 13 medium, 12 low`; stored scores equal the SQL computation for all 30 bins; one reference, formula v1 |
+| Mutation checks (temporary): window start included; each contribution rounded; save outside the transaction | 1, 4 and 1 tests fail respectively; code restored |
+| Playwright at 375 px | Grid overflow 0, 5/13/12 cells by band; `B-02-03` shows "91 High"; detail overflow 0, breakdown 37.35 + 33.25 + 20.00 = 90.60 → 91; the button returned "Recomputed 30 bins…" and "Scores as of" changed to the current time (one reference in the database) |
+| `npm test`, `npm run build` | 54/54; both builds OK |
+
+Clean verification (fresh clone, code commit `bcc11ca`):
+
+| Command | Result |
+|---|---|
+| At `6d07421` (milestone 2): `npm ci`, `docker compose down -v`, `db:up`, `db:migrate`, `db:reset-demo` | Milestone 2 demo data loaded |
+| Switch to the branch, `npm ci`, `db:migrate` | `Applying migration 20261018180000_bin_scores`; 30 bins, 0 scores |
+| `npm run dev`; API and pages before any recompute | 30 bins with `"score": null`; grid "Not scored yet: recompute the scores."; detail "Not scored yet" |
+| `POST /scores/recompute` | `{"reference":"2026-10-18T22:16:53.970Z",…,"bins":30,"byPriority":{"low":12,"medium":13,"high":5}}`; no unscored bins left |
+| `db:reset-demo` while `dev` runs | Scores at the reset reference; grid "Scores as of 2026-10-18 12:00 UTC"; no errors in the dev log |
+| SIGINT | Ports 3000 and 3001 free |
+| Test database dropped, `vitest run` | Created and migrated from empty (3 migrations); **54/54 passed** |
+| `npm run build` | API and web OK; `git status` clean |
+| Fingerprint of stored scores with breakdowns (fixed `SEED_NOW`) | `scores a92a0717cad18100d2a0384c06e7e49c` |
+
+## 2026-10-19 — WIN: milestone 3 on `287cef6` (code `bcc11ca`) (shared by the author)
+
+| Command | Result |
+|---|---|
+| `git fetch`, `git switch m3-risk-scoring`, `git rev-parse HEAD` | Clean tree; `287cef6918b35629301e66ddf756ed5c09b71044` |
+| `db:up`, `db:generate`, `db:migrate` (database in the milestone 2 state) | `Applying migration 20261018180000_bin_scores` — milestone 2 → 3 migration passed |
+| `$env:SEED_NOW = "2026-10-18T12:00:00Z"; npm.cmd run db:reset-demo` | Same demo totals as Linux; `Scores computed for 30 bins at the same reference: 5 high, 13 medium, 12 low priority.` |
+| Fingerprint of stored scores with breakdowns | `scores a92a0717cad18100d2a0384c06e7e49c` — **identical to Linux** |
+| `npm.cmd test` | Test database migrated (`bin_scores`); **54/54 passed** (scoring 9, scores 3, demo reset 8, bins 8, movements 12, constraints 4, generator 10) |
+| `npm.cmd run build` | API and web OK |
+
+Interface (block 4): the author reported having run it. The individual
+results were not shared, except one observation: at 375 px the "Points"
+column of the score breakdown sits too close to the card's edge.
+
+## 2026-10-19 — CC: breakdown table fixed for phone widths (code `b1a0cc5`)
+
+| Command / action | Result |
+|---|---|
+| Playwright, bin detail, measuring the table against the card (not only the page) | **Before:** at 375 px the table ran 26.3 px past the card's content and the last column 5.3 px past its border; at 320 px the page overflowed by 44 px. 414 px and desktop were fine. The earlier "overflow 0 at 375 px" check only measured the page and missed this |
+| Fix: three columns (factor with weight, input of cap, points right-aligned) | Scoring unchanged; only the bin page and its CSS |
+| Same measurement at 320, 375, 414 and 1100 px, on `B-02-03` and `A-01-03` (never audited) | Page overflow 0; table inside the card's content; last column 21 px from the border (card padding + border) at every width |
+| `npm run build` | API and web OK |
+
+## 2026-10-19 — WIN: milestone 3, author's review of the table fix
+
+The author accepted the breakdown table fix (`b1a0cc5`). No new command
+output or interface check was shared, so the Windows interface checks after
+the fix remain pending.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -425,6 +482,13 @@ Milestone 1: nothing pending (merged as `9622bb6`).
 Milestone 2: nothing required pending. Optional, not run on Windows: the
 page for `/bins/%20a-01-03%20` (normalisation covered by the API test) and
 the page reload after a reset while `dev` runs.
+
+Milestone 3:
+
+- WIN: with the presentation fix (`b1a0cc5`): rebuild the web app and check
+  the interface at 375 px (grid, detail of a high and a never-audited bin,
+  recompute button). Data, scores, tests and the API are already verified
+  on Windows and did not change.
 
 Later or optional:
 
