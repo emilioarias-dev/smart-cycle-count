@@ -1,28 +1,33 @@
 # Smart Cycle Count Scoring
 
-A small app that helps warehouse teams decide which bins to audit first: each
-bin gets a 0–100 risk score with an explanation, shown on a color-coded
-heatmap, and audits feed back into the score.
+A small app that helps warehouse teams decide which bins to audit first.
+Every bin gets a 0–100 risk score with an explanation, shown on a
+color-coded warehouse heatmap. A supervisor creates an audit plan with the
+riskiest bins, an operator counts them on a phone, and each result (PASS or
+FAIL) feeds back into the scores.
 
 Stack: Next.js (web) + NestJS (API) + Prisma + PostgreSQL, in an npm
 workspaces monorepo.
 
-## Status
+**All data is synthetic.** The warehouse, products, pallets, movements and
+the "last audit" dates come from a demo generator; the last audit dates are
+simulated antecedents with no audit results behind them. Only counts entered
+in the app are real records of this app.
 
-- **Milestone 1 (walking skeleton):** PostgreSQL → Prisma → NestJS → Next.js.
-- **Milestone 2 (warehouse data):** a demo warehouse of 30 bins with
-  products, pallets and a month of simulated activity, all changes made by a
-  single movement function; a warehouse grid and a bin detail page.
-- **Milestone 3 (risk scoring):** a 0–100 audit priority per bin with its
-  breakdown, a color-coded grid and a recompute button.
-- **Milestone 4 (audit plans):** "Create plan → Top N" from the warehouse
-  page and a tasks page; each task keeps the score that selected it.
-- **Milestone 5 (count flow):** a phone-friendly count page: find a bin with
-  a pending task, count its pallets, record unexpected pallets, get
-  PASS/FAIL; the task is closed and every score is recomputed with the
-  result.
+## What you can do
 
-See [`PROGRESS.md`](PROGRESS.md).
+- **Dashboard** (`/`): a heatmap of the 30 bins by aisle and rack, colored
+  by audit priority (green low, yellow medium, red high).
+- **Bin detail** (`/bins/A-01-03`): the score and why it got it, the last
+  audit date and the pallets stored in the bin.
+- **Create plan → Top N** (on the dashboard): saves the riskiest bins as
+  audit tasks, `PENDING` until counted. **Tasks** (`/tasks`) lists them.
+- **Count** (`/count`, made for a phone): find a bin with a pending task,
+  enter the counted quantity of each expected pallet, record unexpected
+  pallets and get PASS or FAIL. The task becomes `DONE` and every score is
+  recomputed with the result.
+- **Recompute scores** (on the dashboard): scores every bin for the current
+  time; the heatmap updates.
 
 ## Requirements
 
@@ -30,108 +35,93 @@ See [`PROGRESS.md`](PROGRESS.md).
   release). Any later 24.x works; other major versions are rejected by
   `npm ci` (`engine-strict`).
 - Docker with Docker Compose (for PostgreSQL 16.15).
-- Free local ports: `5433` (PostgreSQL container), `3001` (API), `3000`
+- Free local ports: `5433` (PostgreSQL container), `3001` (API) and `3000`
   (web). The container uses host port 5433 so it does not collide with a
   PostgreSQL already installed on the machine (usually on 5432), which is
   left untouched.
 
-## Getting started
+## Install and run
 
-Run every command from the repository root. Commands are the same in bash and
-PowerShell except where two variants are shown.
+Run every command from the repository root. Commands are the same in bash
+and PowerShell except where two variants are shown (in PowerShell,
+`npm.cmd` can be used instead of `npm`).
 
-1. Install the exact dependency tree from the lockfile:
+### 1. Install the dependencies
 
-   ```
-   npm ci
-   ```
+Installs the exact dependency tree from the lockfile:
 
-2. Create the local environment files from the templates (local development
-   values only, no secrets):
+```
+npm ci
+```
 
-   ```bash
-   # bash
-   cp apps/api/.env.example apps/api/.env
-   cp apps/web/.env.example apps/web/.env
-   ```
+### 2. Configure
 
-   ```powershell
-   # PowerShell
-   Copy-Item apps/api/.env.example apps/api/.env
-   Copy-Item apps/web/.env.example apps/web/.env
-   ```
+Create the local environment files from the templates. They hold local
+development values only, no secrets:
 
-3. Start PostgreSQL and wait until it is healthy:
+```bash
+# bash
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+```
 
-   ```
-   npm run db:up
-   ```
+```powershell
+# PowerShell
+Copy-Item apps/api/.env.example apps/api/.env
+Copy-Item apps/web/.env.example apps/web/.env
+```
 
-   `docker compose ps` should show the `db` service as `healthy` with
-   `127.0.0.1:5433->5432/tcp`.
+- `apps/api/.env`: `DATABASE_URL` (the development database),
+  `TEST_DATABASE_URL` (a separate database for the tests), `PORT` (3001)
+  and, optionally, `SEED_NOW` (see [Demo data](#demo-data)).
+- `apps/web/.env`: `API_BASE_URL`, read only on the Next.js server; the
+  browser never calls the API directly.
 
-4. Generate the Prisma client, apply the migrations and load the demo data:
+### 3. Start PostgreSQL
 
-   ```
-   npm run db:generate
-   npm run db:migrate
-   npm run db:reset-demo
-   ```
+```
+npm run db:up
+```
 
-   `db:reset-demo` **replaces** the demo data, deletes any audit plans and
-   scores every bin; see [Demo data](#demo-data) and [Risk score](#risk-score).
+It waits until the database is healthy. `docker compose ps` should show the
+`db` service as `healthy` with `127.0.0.1:5433->5432/tcp`.
 
-5. Start the API and the web app together (Ctrl+C stops both):
+### 4. Create the database schema
 
-   ```
-   npm run dev
-   ```
+Generate the Prisma client and apply the migrations:
 
-   - Web: <http://localhost:3000> (warehouse grid; select a bin for its
-     detail), <http://localhost:3000/tasks> (audit tasks) and
-     <http://localhost:3000/count> (count a bin)
-   - API: <http://localhost:3001/warehouse> and
-     <http://localhost:3001/bins/A-01-03>
+```
+npm run db:generate
+npm run db:migrate
+```
 
-   The **Dark theme / Light theme** button in the top bar switches the
-   colors on every page; without a choice the app follows the system
-   setting, and the choice is remembered in that browser.
+### 5. Load the demo data
 
-   On Windows, Ctrl+C makes `cmd.exe` ask `Terminate batch job (Y/N)?`
-   (`¿Desea terminar el trabajo por lotes (S/N)?` in Spanish) once per
-   process; answer `Y` / `S` and both apps stop.
+> **Warning: this deletes data.** `npm run db:reset-demo` deletes **all**
+> bins, products, pallets, movements and scores, and **all audit plans,
+> tasks and counts with their PASS/FAIL history**, in the database of
+> `DATABASE_URL`, and rebuilds the demo warehouse. Deleted plans and counts
+> cannot be recovered. It only runs on a database named `smart_cycle_count`
+> or `smart_cycle_count_<suffix>`, prints the target database before
+> starting, and keeps the previous data if anything fails.
 
-## Demo data
+`db:reset-demo` is the project's seed command:
 
-`npm run db:reset-demo` builds the demo warehouse:
+```
+npm run db:reset-demo
+```
 
-- 3 aisles (`A`–`C`) × 2 racks × 5 positions = **30 bins**, coded like
-  `A-01-03` (aisle A, rack 1, position 3);
-- 12 products, each counted in its own unit (case, bag, can, pack, box);
-- opening stock put away 60 to 30 days before the reference time, then
-  **30 days of activity**: putaways, picks, moves between bins and
-  adjustments, unevenly spread over busy, normal and quiet bins;
-- a simulated **last audit date** per bin (about a third never audited).
-  It is only an antecedent: there are no audit records or results behind it.
+It ends by printing what it built and what it deleted, for example:
 
-Every change goes through the movement function, so the movement log can
-rebuild every pallet and every bin's `inventoryVersion`.
+```
+Demo data replaced: 30 bins (2 empty, 11 never audited), 12 products, 110 pallets (27 depleted), movements: …
+Deleted 0 audit plans and 0 tasks, with their selection explanations.
+Deleted 0 counts (0 PASS, 0 FAIL) with 0 count lines and 0 unexpected pallets.
+Scores computed for 30 bins at the same reference: …
+```
 
-**What it deletes.** It replaces **all** bins, products, pallets, movements
-and scores in the target database and deletes **all audit plans, tasks and
-counts** (with their count lines and unexpected pallets), in one
-transaction (if anything fails, the previous data is kept). It prints how
-many plans, tasks and counts it deleted, and how many counts were PASS and
-FAIL: the copied scores that explained each selection and the PASS/FAIL
-history are lost with them. It prints the target database (without the
-password), only runs on a dedicated project database
-(`smart_cycle_count` or `smart_cycle_count_<suffix>`) and is never run
-automatically. Running the compiled script directly without
-`--confirm-reset` is refused.
-
-**Reproducible data.** The reference time ("now" of the demo) is the current
-time unless `SEED_NOW` is set, with an explicit zone. The same generator
-version, seed and `SEED_NOW` always produce the same business data:
+To get exactly the data used in the examples of this README, set the
+reference time (see [Demo data](#demo-data)):
 
 ```bash
 # bash
@@ -143,11 +133,79 @@ SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo
 $env:SEED_NOW = "2026-10-18T12:00:00Z"; npm.cmd run db:reset-demo; Remove-Item Env:SEED_NOW
 ```
 
-`SEED_NOW` can also be set in `apps/api/.env` (see `.env.example`).
+### 6. Start the app
 
-**Coming from milestone 1.** `npm run db:migrate` removes the milestone 1
-sample bin (`SAMPLE-BIN-01`). If the database contains any other bin, the
-migration stops without changing anything.
+Starts the API and the web app together:
+
+```
+npm run dev
+```
+
+- Web: <http://localhost:3000>
+- API: <http://localhost:3001/warehouse> (see [API](#api))
+
+Ctrl+C stops both. On Windows, `cmd.exe` asks `Terminate batch job (Y/N)?`
+(`¿Desea terminar el trabajo por lotes (S/N)?` in Spanish) once per
+process; answer `Y` / `S`.
+
+To stop PostgreSQL: `npm run db:down` (the data is kept in a Docker volume).
+
+## Walkthrough
+
+With the demo data loaded and `npm run dev` running:
+
+1. **Dashboard** — open <http://localhost:3000>. Each bin shows its score,
+   its priority label and its pallets, colored by band. "Scores as of"
+   gives the reference time of the scores.
+2. **Why a score** — select a bin. Its page shows the score with a table of
+   the factors (input, cap, weight, points), the last audit date and the
+   pallets in the bin.
+3. **Plan** — back on the dashboard, set **Top N** (5 by default) and press
+   **Create plan**. The message says how many tasks were created; **Tasks**
+   lists them with the score that selected each bin.
+4. **Count** — open **Count** (on a phone or a narrow window), type a code
+   from the plan, enter each counted quantity (`0` for a missing pallet),
+   optionally add an unexpected pallet, and submit. The page shows PASS or
+   FAIL, the variances and the bin's new score; **Tasks** shows the task as
+   `Done · PASS` or `Done · FAIL`.
+5. **Recompute** — on the dashboard, press **Recompute scores**: every bin
+   is scored for the current time and the heatmap updates. A counted bin's
+   age is back to 0, and a FAIL adds 25 points.
+
+The **Dark theme / Light theme** button in the top bar switches the colors
+on every page; without a choice the app follows the system setting, and the
+choice is remembered in that browser.
+
+## Demo data
+
+`npm run db:reset-demo` builds the demo warehouse (decision D-009):
+
+- 3 aisles (`A`–`C`) × 2 racks × 5 positions = **30 bins**, coded like
+  `A-01-03` (aisle A, rack 1, position 3);
+- 12 products, each counted in its own unit (case, bag, can, pack, box);
+- opening stock put away 60 to 30 days before the reference time, then
+  **30 days of activity**: putaways, picks, moves between bins and
+  adjustments, unevenly spread over busy, normal and quiet bins;
+- a simulated **last audit date** per bin (about a third never audited).
+  It is only an antecedent: there are no audit records or results behind
+  it, and it must not be read as a PASS.
+
+Every inventory change goes through one movement function, so the movement
+log can rebuild every pallet and every bin's `inventoryVersion`.
+
+**Reproducible data.** The reference time ("now" of the demo) is the
+current time unless `SEED_NOW` is set, with an explicit zone. The same
+generator version, seed and `SEED_NOW` always produce the same business
+data. `SEED_NOW` can also be set in `apps/api/.env` (see `.env.example`).
+
+**Protections.** The reset runs in one transaction (if anything fails, the
+previous data is kept), deletes each table by name without cascading
+deletes, refuses any database that is not a dedicated project database,
+and is never run automatically. Running the compiled script directly
+without `--confirm-reset` is refused. It reports how many plans, tasks and
+counts it deleted (with how many counts were PASS and FAIL); the copied
+scores that explained each selection and the PASS/FAIL history are lost
+with them.
 
 ## Risk score
 
@@ -190,26 +248,19 @@ its own reference time. The **Recompute scores** button (or
 `POST /scores/recompute`) scores every bin for the current time, and so does
 every saved count, for the count's time. Each time all inputs are read and
 all scores replaced in one transaction: every bin gets its new score, or
-none does. Recomputes take turns, so one never overwrites another's
-result. Only the latest score is kept, with a
-breakdown that reproduces it (reference time, formula version, inputs,
-weights, caps and contributions); the bin page shows it under "Why this
-score".
+none does. Recomputes take turns, so one never overwrites another's result.
+Only the latest score is kept, with a breakdown that reproduces it
+(reference time, formula version, inputs, weights, caps and contributions);
+the bin page shows it under "Why this score".
 
 Note: with an old `SEED_NOW`, recomputing for the current time (the button
 or a count) makes the audits look older and moves the 30-day window past
 the demo activity.
 
-Scores stored by milestones 3 and 4 are formula version 1 until the next
-recompute; task copies keep the version they were made with.
-
-**Coming from milestone 2.** After `npm run db:migrate`, bins have no score
-until you press **Recompute scores** or run `npm run db:reset-demo`.
-
 ## Audit plans
 
-**Create plan** on the warehouse page (or `POST /audit-plans`) creates a
-plan with the **Top N** bins to audit (decision D-011):
+**Create plan** on the dashboard (or `POST /audit-plans`) creates a plan
+with the **Top N** bins to audit (decision D-011):
 
 - `N` is a whole number from 1 to 30; 5 by default. Anything else is
   rejected with a message and no plan is created.
@@ -232,17 +283,14 @@ Two requests at the same time take turns: the second one waits for the
 first and then selects from the bins still available, so a bin never gets
 two pending tasks.
 
-The **Tasks** page (<http://localhost:3000/tasks>) lists the plans, newest
-first, with each task's position, bin, score at selection and status: a
-**Count** link while pending, then **Done · PASS** or **Done · FAIL**.
-
-**Coming from milestone 3.** `npm run db:migrate` adds the plan tables; the
-bins and scores are kept.
+The **Tasks** page lists the plans, newest first, with each task's
+position, bin, score at selection and status: a **Count** link while
+pending, then **Done · PASS** or **Done · FAIL**.
 
 ## Count flow
 
-The **Count** page (<http://localhost:3000/count>), made for a phone
-(decisions D-001, D-003, D-004 and D-012):
+The **Count** page, made for a phone (decisions D-001, D-003, D-004 and
+D-012):
 
 1. Type or scan the bin code (a scanner that types like a keyboard works;
    there is no camera scanning). Only a bin with a **pending task** can be
@@ -255,7 +303,8 @@ The **Count** page (<http://localhost:3000/count>), made for a phone
    is unknown, the quantity is kept as "units declared, product unknown",
    without inventing a SKU or unit. At most 10.
 4. Submit. **PASS** only if every quantity matches exactly and there is no
-   unexpected pallet; otherwise **FAIL**. The page shows the variances and
+   unexpected pallet; otherwise **FAIL**. The result is derived from the
+   numbers, not chosen by the operator. The page shows the variances and
    the bin's new score.
 
 Saving a count stores the expected and counted quantities, closes **that**
@@ -273,17 +322,48 @@ transaction. A count never changes the inventory.
 - **Different quantities for a task already counted** are rejected: the
   page shows the saved result and says the new quantities were not saved.
 
-**Coming from milestone 4.** `npm run db:migrate` adds the count tables;
-bins, scores, plans and tasks are kept.
+## Known limitations
+
+- The data is synthetic, and the last audit dates before the first count
+  are simulated (see [Demo data](#demo-data)).
+- There is no way to record movements from the app: movements only come
+  from the demo generator, so the "inventory changed" path of the count is
+  exercised by the tests rather than by normal use.
+- A FAIL does not correct the inventory (decision D-004): the next count of
+  that bin fails again until someone adjusts it, and the app has no
+  reconciliation workflow.
+- Weights and caps are initial heuristics, not calibrated with real count
+  results.
+- With an old `SEED_NOW`, a recompute (button or count) moves every score to
+  the current time and the 30-day window past the demo activity.
+- Counts take turns, because each one recomputes every bin: fine for this
+  warehouse, not for a large one.
+- Rejected and conflicting submissions are not stored; reloading the count
+  page after a count shows "no pending task".
+- No camera scanning, no user accounts or authentication.
+- `npm run build` while `npm run dev` runs replaces the API's `dist/` folder
+  and stops the development API: stop `dev` first.
 
 ## Other commands
 
 | Command | What it does |
 |---|---|
 | `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data). Needs `npm run db:up`. |
-| `npm run build` | Type-checks and builds the API and the web app. Stop `npm run dev` first: the build replaces the API's `dist/` folder, which stops the development API |
+| `npm run build` | Type-checks and builds the API and the web app. Stop `npm run dev` first (see [Known limitations](#known-limitations)) |
 | `npm run db:down` | Stops PostgreSQL (data is kept in a Docker volume) |
 | `docker compose down -v` | Stops PostgreSQL and **deletes** its data |
+
+## Updating an existing database
+
+`npm run db:migrate` applies only the migrations a database does not have
+yet. What each step does to data that already exists:
+
+| Coming from | What `npm run db:migrate` does |
+|---|---|
+| Milestone 1 | Removes the sample bin `SAMPLE-BIN-01`. If the database contains any other bin, the migration stops without changing anything |
+| Milestone 2 | Adds the scores table. Bins have no score until you press **Recompute scores** or run `npm run db:reset-demo` |
+| Milestone 3 | Adds the plan and task tables; bins and scores are kept |
+| Milestone 4 | Adds the count tables; bins, scores, plans and tasks are kept. Stored scores stay formula version 1 until the next recompute; task copies keep the version they were made with |
 
 ## How the pieces fit
 
@@ -300,12 +380,12 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
 
 - `apps/api` owns the database: the Prisma schema, migrations, the movement
   function (`src/inventory/movements.ts`), the score formula
-  (`src/scoring/formula.ts`, the only implementation) and the demo data
-  generator (`src/demo-data/`), plan creation (`src/planning/`) and the count
-  (`src/counting/`) live there, and it is the only app that
-  connects to PostgreSQL.
-- `apps/web` asks the API for data from the Next.js server; the browser never
-  calls the API or sees its URL (`API_BASE_URL`).
+  (`src/scoring/formula.ts`, the only implementation), the demo data
+  generator (`src/demo-data/`), plan creation (`src/planning/`) and the
+  count (`src/counting/`) live there, and it is the only app that connects
+  to PostgreSQL.
+- `apps/web` asks the API for data from the Next.js server; the browser
+  never calls the API or sees its URL (`API_BASE_URL`).
 
 ## API
 
