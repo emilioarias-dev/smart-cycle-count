@@ -445,6 +445,30 @@ Clean verification (fresh clone, code commit `bcc11ca`):
 | `npm run build` | API and web OK; `git status` clean |
 | Fingerprint of stored scores with breakdowns (fixed `SEED_NOW`) | `scores a92a0717cad18100d2a0384c06e7e49c` |
 
+## 2026-10-19 — WIN: milestone 3 on `287cef6` (code `bcc11ca`) (shared by the author)
+
+| Command | Result |
+|---|---|
+| `git fetch`, `git switch m3-risk-scoring`, `git rev-parse HEAD` | Clean tree; `287cef6918b35629301e66ddf756ed5c09b71044` |
+| `db:up`, `db:generate`, `db:migrate` (database in the milestone 2 state) | `Applying migration 20261018180000_bin_scores` — milestone 2 → 3 migration passed |
+| `$env:SEED_NOW = "2026-10-18T12:00:00Z"; npm.cmd run db:reset-demo` | Same demo totals as Linux; `Scores computed for 30 bins at the same reference: 5 high, 13 medium, 12 low priority.` |
+| Fingerprint of stored scores with breakdowns | `scores a92a0717cad18100d2a0384c06e7e49c` — **identical to Linux** |
+| `npm.cmd test` | Test database migrated (`bin_scores`); **54/54 passed** (scoring 9, scores 3, demo reset 8, bins 8, movements 12, constraints 4, generator 10) |
+| `npm.cmd run build` | API and web OK |
+
+Interface (block 4): the author reported having run it. The individual
+results were not shared, except one observation: at 375 px the "Points"
+column of the score breakdown sits too close to the card's edge.
+
+## 2026-10-19 — CC: breakdown table fixed for phone widths (code `b1a0cc5`)
+
+| Command / action | Result |
+|---|---|
+| Playwright, bin detail, measuring the table against the card (not only the page) | **Before:** at 375 px the table ran 26.3 px past the card's content and the last column 5.3 px past its border; at 320 px the page overflowed by 44 px. 414 px and desktop were fine. The earlier "overflow 0 at 375 px" check only measured the page and missed this |
+| Fix: three columns (factor with weight, input of cap, points right-aligned) | Scoring unchanged; only the bin page and its CSS |
+| Same measurement at 320, 375, 414 and 1100 px, on `B-02-03` and `A-01-03` (never audited) | Page overflow 0; table inside the card's content; last column 21 px from the border (card padding + border) at every width |
+| `npm run build` | API and web OK |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -455,9 +479,10 @@ the page reload after a reset while `dev` runs.
 
 Milestone 3:
 
-- WIN: reproduction of the milestone 3 commit (migration from milestone 2,
-  scores after the demo reset and their fingerprint, tests, builds, grid and
-  detail, recompute button).
+- WIN: with the presentation fix (`b1a0cc5`): rebuild the web app and check
+  the interface at 375 px (grid, detail of a high and a never-audited bin,
+  recompute button). Data, scores, tests and the API are already verified
+  on Windows and did not change.
 
 Later or optional:
 

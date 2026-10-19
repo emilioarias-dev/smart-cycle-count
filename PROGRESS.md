@@ -133,20 +133,21 @@ reset with its reference; from a button with the current time), a grid
 colored by priority with number and label, and the "why" on the bin detail.
 Out of scope: PASS/FAIL history (count milestone), optional improvements.
 
-**Status:** implemented on branch `m3-risk-scoring` and verified in the
-Claude Code environment. **Not complete** until the author reproduces the
-same commit on Windows and merges the pull request (E-001, E-009).
+**Status:** implemented on branch `m3-risk-scoring`; verified in the Claude
+Code environment and, on Windows, data, scores, tests and builds pass.
+**Not complete:** the interface on Windows must be checked again after the
+phone-width fix in `b1a0cc5` (E-001, E-009).
 
 | Check | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|
-| Formula: weights, caps, never audited = maximum, rounding once (half up), bands | `src/scoring/formula.ts` (pure) | Yes (9 unit tests) | Pending |
-| Window `(reference − 30 d, reference]`, once per affected bin | One SQL query in `src/scoring/recompute.ts` | Yes (start excluded, +1 ms included, end included, after end excluded, move counted for both bins, adjustment once) | Pending |
-| All or nothing; consistent inputs | One repeatable-read transaction; reset scores inside its own transaction | Yes (a failure while saving keeps the previous scores) | Pending |
-| Demo: scores with the reset reference | `resetDemoData` | Yes (all 30 equal to the formula written in SQL; 91 / 44 / 18; caps 11 / 0 / 2; 5 / 13 / 12 by band) | Pending |
-| API | `GET /warehouse`, `GET /bins/:code` with `score`; `POST /scores/recompute` | Yes (tests + manual) | Pending |
-| Web | Colored grid, legend, "Scores as of", recompute button; score card with "Why this score" | Yes (button recomputes 30 bins for the current time; 375 px without overflow) | Pending |
-| Migration from milestone 2 and from empty | `bin_scores` (CHECK 0–100, no cascade) | Yes (M2 database: 30 bins, 0 scores until recompute; empty test database: 3 migrations) | Pending |
-| Tests and builds | — | Yes (54/54; builds) | Pending |
+| Formula: weights, caps, never audited = maximum, rounding once (half up), bands | `src/scoring/formula.ts` (pure) | Yes (9 unit tests) | Yes (9 tests) |
+| Window `(reference − 30 d, reference]`, once per affected bin | One SQL query in `src/scoring/recompute.ts` | Yes (start excluded, +1 ms included, end included, after end excluded, move counted for both bins, adjustment once) | Yes (tests) |
+| All or nothing; consistent inputs | One repeatable-read transaction; reset scores inside its own transaction | Yes (a failure while saving keeps the previous scores) | Yes (tests) |
+| Demo: scores with the reset reference | `resetDemoData` | Yes (all 30 equal to the formula written in SQL; 91 / 44 / 18; caps 11 / 0 / 2; 5 / 13 / 12 by band) | Yes (reset 5 / 13 / 12; score fingerprint identical to Linux) |
+| API | `GET /warehouse`, `GET /bins/:code` with `score`; `POST /scores/recompute` | Yes (tests + manual) | Yes (tests) |
+| Web | Colored grid, legend, "Scores as of", recompute button; score card with "Why this score" | Yes (button recomputes 30 bins for the current time; 375 px without overflow) | Pending: interface checks after the phone-width fix (`b1a0cc5`); the earlier run noted the Points column too close to the edge |
+| Migration from milestone 2 and from empty | `bin_scores` (CHECK 0–100, no cascade) | Yes (M2 database: 30 bins, 0 scores until recompute; empty test database: 3 migrations) | Yes (milestone 2 → 3 on the development and test databases) |
+| Tests and builds | — | Yes (54/54; builds) | Yes (54/54; builds) |
 
 ### Implementation notes
 
@@ -166,3 +167,8 @@ same commit on Windows and merges the pull request (E-001, E-009).
   uses its reference time (shown as "As of …").
 - Weights and caps are initial heuristics; there are no count results yet
   to calibrate them.
+
+### Fixes
+
+- `b1a0cc5`: the score breakdown table overflowed its card at 375 px (and the
+  page at 320 px); it now has three columns and fits from 320 px up.
