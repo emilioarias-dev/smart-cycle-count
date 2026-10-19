@@ -28,6 +28,9 @@ export type DemoSummary = {
   firstMovementAt: Date | null;
   lastMovementAt: Date | null;
   scores: RecomputeSummary;
+  // Plans and tasks deleted by this reset, with their selection
+  // explanations (D-009).
+  deleted: { plans: number; tasks: number };
 };
 
 // user@host:port/database, never the password.
@@ -59,10 +62,12 @@ export async function resetDemoData(
         );
       }
 
-      // No CASCADE: if another table ever references these (plans, counts),
-      // the reset fails loudly instead of deleting that data silently. Scores
-      // are derived data and are recomputed below.
-      await tx.$executeRaw`TRUNCATE bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
+      // Every table is named and nothing cascades: if another table ever
+      // references these (counts), the reset fails loudly instead of deleting
+      // that data silently. Plans and tasks are deleted explicitly (D-009) and
+      // reported; scores are derived data and are recomputed below.
+      const deleted = { plans: await tx.auditPlan.count(), tasks: await tx.auditTask.count() };
+      await tx.$executeRaw`TRUNCATE audit_tasks, audit_plans, bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
 
       await tx.product.createMany({ data: data.products });
       await tx.bin.createMany({ data: data.bins });
@@ -97,6 +102,7 @@ export async function resetDemoData(
         firstMovementAt: range._min.occurredAt,
         lastMovementAt: range._max.occurredAt,
         scores,
+        deleted,
       };
     },
     { maxWait: 10_000, timeout: 120_000 },

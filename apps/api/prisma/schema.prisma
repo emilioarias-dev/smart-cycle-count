@@ -31,9 +31,10 @@ model Bin {
   lastAuditedAt    DateTime? @map("last_audited_at") @db.Timestamptz(3)
 
   pallets       Pallet[]
-  movementsFrom Movement[] @relation("MovementFromBin")
-  movementsTo   Movement[] @relation("MovementToBin")
+  movementsFrom Movement[]  @relation("MovementFromBin")
+  movementsTo   Movement[]  @relation("MovementToBin")
   score         BinScore?
+  auditTasks    AuditTask[]
 
   @@unique([aisle, rack, position])
   @@map("bins")
@@ -111,4 +112,53 @@ model BinScore {
   bin Bin @relation(fields: [binId], references: [id], onDelete: Restrict)
 
   @@map("bin_scores")
+}
+
+enum AuditTaskStatus {
+  PENDING
+  DONE
+}
+
+// A Top N audit plan (D-011). Keeps what was requested and why bins were
+// left out, next to the tasks it created.
+model AuditPlan {
+  id               Int      @id @default(autoincrement())
+  requestedCount   Int      @map("requested_count")
+  excludedPending  Int      @map("excluded_pending")
+  excludedUnscored Int      @map("excluded_unscored")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tasks AuditTask[]
+
+  @@map("audit_plans")
+}
+
+// One bin to audit. It keeps a full copy of the score that selected it
+// (D-002), so a later recompute does not change why it is in the plan.
+// PostgreSQL allows at most one PENDING task per bin (partial unique index in
+// the migration).
+model AuditTask {
+  id               Int             @id @default(autoincrement())
+  planId           Int             @map("plan_id")
+  binId            Int             @map("bin_id")
+  // Position in the plan, from 1.
+  rank             Int
+  status           AuditTaskStatus @default(PENDING)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  // Set when a count closes the task (milestone 5).
+  completedAt      DateTime?       @map("completed_at") @db.Timestamptz(3)
+  score            Int
+  priority         String
+  formulaVersion   Int             @map("formula_version")
+  scoreReferenceAt DateTime        @map("score_reference_at") @db.Timestamptz(3)
+  scoreComputedAt  DateTime        @map("score_computed_at") @db.Timestamptz(3)
+  breakdown        Json
+
+  plan AuditPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  bin  Bin       @relation(fields: [binId], references: [id], onDelete: Restrict)
+
+  @@unique([planId, rank])
+  @@unique([planId, binId])
+  @@index([binId])
+  @@map("audit_tasks")
 }
