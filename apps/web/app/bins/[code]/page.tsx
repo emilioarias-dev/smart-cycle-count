@@ -59,7 +59,7 @@ export default async function BinPage({ params }: { params: Promise<{ code: stri
               </div>
             </dl>
             <p className="footnote">
-              The last audit date is simulated demo data; there are no audit results behind it yet.
+              The last audit date is the latest count; before a bin is counted it is simulated demo data, with no result behind it.
             </p>
           </section>
 
@@ -100,7 +100,7 @@ function ScoreCard({ score }: { score: ScoreDetail | null }) {
       </section>
     );
   }
-  const { age, activity, adjustments } = score.breakdown.factors;
+  const { age, activity, adjustments, lastResult } = score.breakdown.factors;
   // Three columns so the table fits a phone: factor (weight), input of cap,
   // points.
   const rows = [
@@ -115,6 +115,19 @@ function ScoreCard({ score }: { score: ScoreDetail | null }) {
       factor: activity,
     },
     { name: 'Adjustments', input: `${adjustments.input} of ${adjustments.cap}`, factor: adjustments },
+    // Formula v2 (D-012). No count yet is unknown, not PASS.
+    ...(lastResult
+      ? [
+          {
+            name: 'Last count result',
+            input:
+              lastResult.result === null
+                ? 'Unknown (never counted)'
+                : `${lastResult.result} on ${utcDateTime(lastResult.countedAt!)}`,
+            factor: lastResult,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -162,7 +175,8 @@ function ScoreCard({ score }: { score: ScoreDetail | null }) {
         </tfoot>
       </table>
       <p className="footnote">
-        Points = weight × input ÷ cap, with the input counted at most up to its cap. Activity and adjustments are counted in the 30 days up to{' '}
+        Points = weight × input ÷ cap, with the input counted at most up to its cap; the last count adds its full weight only if it
+        failed. Formula version {score.formulaVersion}. Activity and adjustments are counted in the 30 days up to{' '}
         {utcDateTime(score.breakdown.window.to)}. This is a heuristic priority for audits, not a probability of error.
       </p>
     </section>

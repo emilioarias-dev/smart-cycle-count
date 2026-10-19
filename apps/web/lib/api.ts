@@ -9,6 +9,8 @@ export type ScoreSummary = { value: number; priority: Priority; label: string; r
 
 type Factor = { weight: number; cap: number; input: number; factor: number; contribution: number };
 
+export type CountResult = 'PASS' | 'FAIL';
+
 export type ScoreDetail = ScoreSummary & {
   computedAt: string;
   formulaVersion: number;
@@ -18,6 +20,8 @@ export type ScoreDetail = ScoreSummary & {
       age: Factor & { lastAuditedAt: string | null; neverAudited: boolean };
       activity: Factor;
       adjustments: Factor;
+      // Formula v2 (D-012); absent in version 1 breakdowns.
+      lastResult?: { weight: number; result: CountResult | null; countedAt: string | null; factor: number; contribution: number };
     };
     total: number;
     score: number;
@@ -73,7 +77,57 @@ export type AuditTask = {
   plan: { id: number; requestedCount: number; createdCount: number; excluded: { pendingTask: number; noScore: number }; createdAt: string };
   // The score copied when the plan was created (D-002).
   score: ScoreSummary & { computedAt: string; formulaVersion: number };
+  count: { result: CountResult; countedAt: string } | null;
 };
+
+export type ProductRef = { sku: string; name: string; unit: string };
+export type ExpectedLine = { palletCode: string; product: ProductRef; expectedQuantity: number };
+
+export type CountSheet = {
+  bin: { code: string };
+  task: { id: number; planId: number; rank: number };
+  inventoryVersion: number;
+  lines: ExpectedLine[];
+  products: ProductRef[];
+};
+
+// What the web sends; quantities typed as something other than a whole
+// number are passed as typed, so the API rejects them with its message.
+export type CountPayload = {
+  inventoryVersion: number;
+  lines: { palletCode: string; countedQuantity: unknown }[];
+  unexpected: { code: string; quantity: unknown; productSku: string | null }[];
+};
+
+export type CountView = {
+  id: number;
+  taskId: number;
+  bin: { code: string };
+  result: CountResult;
+  countedAt: string;
+  inventoryVersion: number;
+  lines: (ExpectedLine & { countedQuantity: number; variance: number })[];
+  // product null: product unknown, quantity in declared units (D-012).
+  unexpected: { code: string; quantity: number; product: ProductRef | null }[];
+};
+
+export type InventoryChange = { palletCode: string; change: 'added' | 'removed' | 'changed' };
+
+// The outcomes of submitting a count (D-001, D-012).
+export type CountOutcome =
+  | { status: 'saved'; recovered: boolean; count: CountView; score: ScoreSummary | null }
+  | {
+      status: 'inventory-changed';
+      message: string;
+      inventoryVersion: number;
+      lines: ExpectedLine[];
+      changes: InventoryChange[];
+      unexpectedNowExpected: string[];
+    }
+  | { status: 'already-counted'; message: string; count: CountView }
+  | { status: 'rejected'; message: string }
+  // No answer, or an unexpected one: the count may or may not be saved.
+  | { status: 'unconfirmed'; message: string };
 
 export type ApiResult<T> = { status: 'ok'; data: T } | { status: 'not-found' } | { status: 'error'; reason: string };
 
@@ -96,6 +150,51 @@ export function createPlan(n: unknown): Promise<ApiResult<CreatedPlan>> {
 
 export function getAuditTasks(): Promise<ApiResult<AuditTask[]>> {
   return getJson<AuditTask[]>('/audit-tasks');
+}
+
+export function getCountSheet(code: string): Promise<ApiResult<CountSheet>> {
+  return getJson<CountSheet>(`/bins/${encodeURIComponent(code)}/count-sheet`);
+}
+
+export async function submitCount(taskId: number, payload: CountPayload): Promise<CountOutcome> {
+  const baseUrl = process.env.API_BASE_URL;
+  if (!baseUrl) {
+    return { status: 'rejected', message: 'API_BASE_URL is not set. Copy apps/web/.env.example to apps/web/.env.' };
+  }
+  const url = new URL(`/audit-tasks/${taskId}/count`, baseUrl);
+  const unconfirmed = (why: string): CountOutcome => ({
+    status: 'unconfirmed',
+    message: `${why} It is not known whether the count was saved. Send the same count again: if it was saved, you will see the saved result.`,
+  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(30_000),
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.error(`Request to ${url.href} failed:`, error);
+    return unconfirmed('The API did not answer.');
+  }
+  const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if ((response.status === 200 || response.status === 201) && body) {
+    return { status: 'saved', ...(body as { recovered: boolean; count: CountView; score: ScoreSummary | null }) };
+  }
+  const message = typeof body?.message === 'string' ? body.message : `The API responded with HTTP ${response.status}.`;
+  if (response.status === 409 && body?.code === 'INVENTORY_CHANGED') {
+    return { status: 'inventory-changed', message, ...(body as Omit<Extract<CountOutcome, { status: 'inventory-changed' }>, 'status' | 'message'>) };
+  }
+  if (response.status === 409 && body?.code === 'TASK_ALREADY_COUNTED') {
+    return { status: 'already-counted', message, count: body.count as CountView };
+  }
+  if (response.status === 400 || response.status === 404) {
+    return { status: 'rejected', message };
+  }
+  console.error(`Request to ${url.href} returned HTTP ${response.status}`);
+  return unconfirmed(`The API responded with HTTP ${response.status}.`);
 }
 
 async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown): Promise<ApiResult<T>> {

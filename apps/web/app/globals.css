@@ -565,3 +565,198 @@ h1 {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Count flow (D-012) */
+
+.primary,
+.secondary {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.link-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.bin-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.bin-search label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+.bin-search input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+/* 16px avoids the automatic zoom on phones. */
+.bin-search input,
+.count-form input,
+.count-form select {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.count-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.count-form h2 {
+  margin-bottom: 0.5rem;
+}
+
+.count-lines {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.count-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.count-line p {
+  margin: 0;
+}
+
+.count-line label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.count-line input[type='number'] {
+  width: 7rem;
+}
+
+.unexpected-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.unexpected-row input,
+.unexpected-row select {
+  width: 100%;
+}
+
+.unexpected-row input[type='number'] {
+  width: 7rem;
+}
+
+.draft summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.draft h3,
+.count-result h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 1rem;
+}
+
+.changes {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.count-table {
+  width: 100%;
+  margin: 0.75rem 0;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.count-table th,
+.count-table td {
+  padding: 0.4rem 0.5rem 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.count-table .variance {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.result-badge {
+  display: inline-block;
+  margin: 0 0 0.5rem;
+  padding: 0.2rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.result-pass .result-badge,
+.status.result-pass {
+  background: var(--low-bg);
+  color: var(--low-text);
+}
+
+.result-fail .result-badge,
+.status.result-fail {
+  background: var(--high-bg);
+  color: var(--high-text);
+}
+
+.result-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+a.status-pending {
+  color: var(--accent);
+  text-decoration: none;
+}
