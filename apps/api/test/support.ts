@@ -6,7 +6,7 @@ import type { PrismaClient } from '../src/generated/prisma/client.js';
 export const FIXED_REFERENCE = new Date('2026-10-18T12:00:00Z');
 
 export async function clearInventory(prisma: PrismaClient): Promise<void> {
-  await prisma.$executeRaw`TRUNCATE audit_tasks, audit_plans, bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
+  await prisma.$executeRaw`TRUNCATE count_unexpected_pallets, count_lines, counts, audit_tasks, audit_plans, bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
 }
 
 // Business data only (codes, quantities, locations, dates, movement order),

@@ -32,9 +32,9 @@ describe('Audit plans (PostgreSQL)', () => {
         },
       });
       if (row.score !== null) {
-        const breakdown = { ...computeScore({ lastAuditedAt: daysAgo(row.breakdownAudit), activity: 0, adjustments: 0 }, R), score: row.score };
+        const breakdown = { ...computeScore({ lastAuditedAt: daysAgo(row.breakdownAudit), activity: 0, adjustments: 0, lastCount: null }, R), score: row.score };
         await prisma.binScore.create({
-          data: { binId: bin.id, score: row.score, formulaVersion: 1, referenceAt: R, computedAt: new Date(R.getTime() + i), breakdown },
+          data: { binId: bin.id, score: row.score, formulaVersion: breakdown.formulaVersion, referenceAt: R, computedAt: new Date(R.getTime() + i), breakdown },
         });
       }
     }

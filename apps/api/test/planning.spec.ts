@@ -12,7 +12,7 @@ function candidate(code: string, value: number | null, auditedDaysBefore: number
     binId: code.charCodeAt(code.length - 1),
     code,
     hasPendingTask,
-    score: value === null ? null : { value, breakdown: { ...computeScore({ lastAuditedAt, activity: 0, adjustments: 0 }, R), score: value } },
+    score: value === null ? null : { value, breakdown: { ...computeScore({ lastAuditedAt, activity: 0, adjustments: 0, lastCount: null }, R), score: value } },
   };
 }
 const codes = (selection: ReturnType<typeof selectForPlan>) => selection.selected.map((c) => c.code);

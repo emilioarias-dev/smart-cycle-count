@@ -35,6 +35,7 @@ model Bin {
   movementsTo   Movement[]  @relation("MovementToBin")
   score         BinScore?
   auditTasks    AuditTask[]
+  counts        Count[]
 
   @@unique([aisle, rack, position])
   @@map("bins")
@@ -47,7 +48,8 @@ model Product {
   name String
   unit String
 
-  pallets Pallet[]
+  pallets         Pallet[]
+  unexpectedFinds UnexpectedPallet[]
 
   @@map("products")
 }
@@ -61,9 +63,10 @@ model Pallet {
   binId     Int?   @map("bin_id")
   quantity  Int
 
-  product   Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
-  bin       Bin?       @relation(fields: [binId], references: [id], onDelete: Restrict)
-  movements Movement[]
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  bin        Bin?        @relation(fields: [binId], references: [id], onDelete: Restrict)
+  movements  Movement[]
+  countLines CountLine[]
 
   @@index([binId])
   @@map("pallets")
@@ -154,11 +157,82 @@ model AuditTask {
   scoreComputedAt  DateTime        @map("score_computed_at") @db.Timestamptz(3)
   breakdown        Json
 
-  plan AuditPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
-  bin  Bin       @relation(fields: [binId], references: [id], onDelete: Restrict)
+  plan  AuditPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  bin   Bin       @relation(fields: [binId], references: [id], onDelete: Restrict)
+  count Count?
 
   @@unique([planId, rank])
   @@unique([planId, binId])
+  // Lets a count reference its task and bin together (D-012).
+  @@unique([id, binId])
   @@index([binId])
   @@map("audit_tasks")
+}
+
+enum CountResult {
+  PASS
+  FAIL
+}
+
+// The count of one task (D-001, D-003, D-012): at most one per task. It
+// keeps the expected values next to the counted ones and never changes
+// inventory (D-004). PASS/FAIL is derived from the lines and the unexpected
+// pallets and checked in the same transaction.
+model Count {
+  id               Int         @id @default(autoincrement())
+  taskId           Int         @unique @map("task_id")
+  // Always the task's bin: the foreign key covers both columns.
+  binId            Int         @map("bin_id")
+  result           CountResult
+  // The version shown when the count was opened, equal to the bin's
+  // version when it was saved (D-001).
+  inventoryVersion Int         @map("inventory_version")
+  // Server time of the count; also the bin's new audit date and the
+  // reference of the recompute that followed (D-012).
+  countedAt        DateTime    @map("counted_at") @db.Timestamptz(3)
+
+  task       AuditTask          @relation(fields: [taskId, binId], references: [id, binId], onDelete: Restrict)
+  bin        Bin                @relation(fields: [binId], references: [id], onDelete: Restrict)
+  lines      CountLine[]
+  unexpected UnexpectedPallet[]
+
+  @@unique([taskId, binId])
+  @@index([binId, countedAt])
+  @@map("counts")
+}
+
+// One expected pallet: the expected quantity copied from inventory at the
+// count, the counted quantity and the variance (counted − expected).
+model CountLine {
+  id               Int @id @default(autoincrement())
+  countId          Int @map("count_id")
+  palletId         Int @map("pallet_id")
+  expectedQuantity Int @map("expected_quantity")
+  countedQuantity  Int @map("counted_quantity")
+  variance         Int
+
+  count  Count  @relation(fields: [countId], references: [id], onDelete: Restrict)
+  pallet Pallet @relation(fields: [palletId], references: [id], onDelete: Restrict)
+
+  @@unique([countId, palletId])
+  @@index([palletId])
+  @@map("count_lines")
+}
+
+// A pallet found in the bin that the system did not expect (D-012). The code
+// is stored as typed (normalised); the product is optional: without it the
+// quantity is in units declared by the operator, with no catalog unit.
+model UnexpectedPallet {
+  id        Int    @id @default(autoincrement())
+  countId   Int    @map("count_id")
+  code      String
+  quantity  Int
+  productId Int?   @map("product_id")
+
+  count   Count    @relation(fields: [countId], references: [id], onDelete: Restrict)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([countId, code])
+  @@index([productId])
+  @@map("count_unexpected_pallets")
 }

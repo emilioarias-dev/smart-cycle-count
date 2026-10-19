@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { applyMovementInTransaction } from '../inventory/movements.js';
+import { lockScores } from '../scoring/lock.js';
 import { type RecomputeSummary, recomputeScoresInTransaction } from '../scoring/recompute.js';
 import type { DemoData } from './generate.js';
 
@@ -28,9 +29,13 @@ export type DemoSummary = {
   firstMovementAt: Date | null;
   lastMovementAt: Date | null;
   scores: RecomputeSummary;
-  // Plans and tasks deleted by this reset, with their selection
-  // explanations (D-009).
-  deleted: { plans: number; tasks: number };
+  // Plans, tasks and counts deleted by this reset, with their selection
+  // explanations and results (D-009).
+  deleted: {
+    plans: number;
+    tasks: number;
+    counts: { total: number; pass: number; fail: number; lines: number; unexpectedPallets: number };
+  };
 };
 
 // user@host:port/database, never the password.
@@ -49,7 +54,7 @@ export async function resetDemoData(
 ): Promise<DemoSummary> {
   if (!options.confirmReset) {
     throw new DemoResetRefusedError(
-      'The demo reset deletes all bins, products, pallets and movements; it needs explicit confirmation (--confirm-reset).',
+      'The demo reset deletes all bins, products, pallets, movements, plans, tasks and counts; it needs explicit confirmation (--confirm-reset).',
     );
   }
 
@@ -62,12 +67,25 @@ export async function resetDemoData(
         );
       }
 
+      // Scores are rewritten below: take turns with counts and the button.
+      await lockScores(tx, 'exclusive');
+
       // Every table is named and nothing cascades: if another table ever
-      // references these (counts), the reset fails loudly instead of deleting
-      // that data silently. Plans and tasks are deleted explicitly (D-009) and
-      // reported; scores are derived data and are recomputed below.
-      const deleted = { plans: await tx.auditPlan.count(), tasks: await tx.auditTask.count() };
-      await tx.$executeRaw`TRUNCATE audit_tasks, audit_plans, bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
+      // references these, the reset fails loudly instead of deleting that
+      // data silently. Plans, tasks and counts are deleted explicitly (D-009)
+      // and reported; scores are derived data and are recomputed below.
+      const deleted = {
+        plans: await tx.auditPlan.count(),
+        tasks: await tx.auditTask.count(),
+        counts: {
+          total: await tx.count.count(),
+          pass: await tx.count.count({ where: { result: 'PASS' } }),
+          fail: await tx.count.count({ where: { result: 'FAIL' } }),
+          lines: await tx.countLine.count(),
+          unexpectedPallets: await tx.unexpectedPallet.count(),
+        },
+      };
+      await tx.$executeRaw`TRUNCATE count_unexpected_pallets, count_lines, counts, audit_tasks, audit_plans, bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
 
       await tx.product.createMany({ data: data.products });
       await tx.bin.createMany({ data: data.bins });
