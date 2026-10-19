@@ -133,10 +133,8 @@ reset with its reference; from a button with the current time), a grid
 colored by priority with number and label, and the "why" on the bin detail.
 Out of scope: PASS/FAIL history (count milestone), optional improvements.
 
-**Status:** implemented on branch `m3-risk-scoring`; verified in the Claude
-Code environment and, on Windows, data, scores, tests and builds pass.
-**Not complete:** the interface on Windows must be checked again after the
-phone-width fix in `b1a0cc5` (E-001, E-009).
+**Status:** verified in both environments (code `b1a0cc5`; later commits only
+change documentation) and merged into `main` as `2933e00`.
 
 | Check | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|
@@ -145,7 +143,7 @@ phone-width fix in `b1a0cc5` (E-001, E-009).
 | All or nothing; consistent inputs | One repeatable-read transaction; reset scores inside its own transaction | Yes (a failure while saving keeps the previous scores) | Yes (tests) |
 | Demo: scores with the reset reference | `resetDemoData` | Yes (all 30 equal to the formula written in SQL; 91 / 44 / 18; caps 11 / 0 / 2; 5 / 13 / 12 by band) | Yes (reset 5 / 13 / 12; score fingerprint identical to Linux) |
 | API | `GET /warehouse`, `GET /bins/:code` with `score`; `POST /scores/recompute` | Yes (tests + manual) | Yes (tests) |
-| Web | Colored grid, legend, "Scores as of", recompute button; score card with "Why this score" | Yes (button recomputes 30 bins for the current time; 375 px without overflow) | Pending: interface checks after the phone-width fix (`b1a0cc5`); the earlier run noted the Points column too close to the edge |
+| Web | Colored grid, legend, "Scores as of", recompute button; score card with "Why this score" | Yes (button recomputes 30 bins for the current time; 375 px without overflow) | Yes (author's report after the fix in `b1a0cc5`: grid, detail at 375 px, recompute button) |
 | Migration from milestone 2 and from empty | `bin_scores` (CHECK 0–100, no cascade) | Yes (M2 database: 30 bins, 0 scores until recompute; empty test database: 3 migrations) | Yes (milestone 2 → 3 on the development and test databases) |
 | Tests and builds | — | Yes (54/54; builds) | Yes (54/54; builds) |
 
