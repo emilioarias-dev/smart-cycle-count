@@ -170,3 +170,53 @@ change documentation) and merged into `main` as `2933e00`.
 
 - `b1a0cc5`: the score breakdown table overflowed its card at 375 px (and the
   page at 320 px); it now has three columns and fits from 320 px up.
+
+## Milestone 4 — audit plans
+
+**Scope (agreed 2026-10-19, D-011):** "Create plan → Top N" with the
+selection, order and exclusions of D-011; tasks that keep a full copy of the
+score that selected them; plan creations that take turns; a tasks page; the
+demo reset deleting plans and tasks explicitly. Out of scope: closing tasks
+(only through counts, milestone 5), the reset policy once counts exist,
+optional improvements.
+
+**Status:** verified in CC on code `75c46be` (later commits only change
+documentation); Windows reproduction pending.
+
+| Check | Implementation | Verified in CC | Verified on WIN |
+|---|---|---|---|
+| N from 1 to 30, default 5; other values and types rejected | `parsePlanSize` in `src/planning/selection.ts`; CHECK constraints | Yes (unit tests; API `400` for 0, 31, −3, 2.5, `"5"`, `null`, `true`, `[5]`; the browser blocks 0 and the API message is shown when its validation is bypassed) | Pending |
+| Eligible: scored (0 included) and without a pending task; partial plans; two distinct "no plan" answers | `selectForPlan` | Yes (unit and database tests; demo: 30 requested → 25 created, 5 skipped with a pending task; `409` `NO_AVAILABLE_BINS` and `NO_SCORES`) | Pending |
+| Order: score, then never audited / oldest audit from the stored breakdown, then code | `comparePriority` | Yes (tie at the N boundary with a contradicting `lastAuditedAt`; full demo order equal to an independent SQL query; `B-01-05` before `A-02-01` at 77) | Pending |
+| Tasks keep a copy of the score (value, priority, breakdown, formula version, both times, rank) | `createPlan` in `src/planning/create-plan.ts` | Yes (copies unchanged after a recompute that changed 14 of the 30 current scores) | Pending |
+| Plan and tasks atomic; one `PENDING` task per bin in PostgreSQL | One transaction; partial unique index | Yes (a failing task insert leaves no plan and no task; direct inserts rejected) | Pending |
+| Simultaneous requests take turns and select again | Transaction-scoped advisory lock, READ COMMITTED | Yes (8 eligible, two requests of 5 → 5 and 3, no duplicates; HTTP: two requests of 20 → 20 and 10) | Pending |
+| Reset deletes plans and tasks explicitly and reports them | `resetDemoData` | Yes (`Deleted 2 audit plans and 30 tasks, with their selection explanations.`) | Pending |
+| API | `POST /audit-plans`, `GET /audit-tasks` | Yes (tests + manual) | Pending |
+| Web | Create plan form on the warehouse page; `/tasks` grouped by plan; navigation | Yes (320, 375, 414 and 1100 px: page, form and task tables without overflow) | Pending |
+| Migration from milestone 3 and from empty | `20261019090000_audit_plans` | Yes (M3 database: bins and scores kept; empty test database: 4 migrations; no schema drift) | Pending |
+| Tests and builds | — | Yes (78/78; builds) | Pending |
+
+### Implementation notes
+
+- The advisory lock (key `4100011`) is released when the transaction ends.
+  READ COMMITTED is deliberate: under REPEATABLE READ a request that waited
+  would still see the bins as they were before the previous plan.
+- `excluded.pendingTask` counts every bin with a pending task;
+  `excluded.noScore` counts bins without a score and without a pending task,
+  so no bin is counted twice.
+- The web sends N as typed (a whole number as a number, anything else as
+  text); only the API validates it.
+- Mutation checks: removing the lock, using REPEATABLE READ, dropping the
+  audit-date tie-break and taking the audit date from the bin instead of the
+  breakdown make 1, 1, 6 and 1 tests fail respectively.
+
+### Known limitations
+
+- The grid does not mark bins that already have a pending task; the tasks
+  page shows them.
+- The demo reset deletes all plans and tasks and, with them, why each bin
+  was selected. What the reset does once counts exist is still open (D-009).
+- Running `npm run build` while `npm run dev` runs deletes the API's `dist/`
+  and stops the development API (behaviour since milestone 1, observed again
+  in this milestone); stop `dev` before building.

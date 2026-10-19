@@ -483,6 +483,40 @@ with colors, number, label and "Scores as of"; Points inside the card on
 No command output was shared for these checks; they are recorded as the
 author's report. PR #3 was then merged as `2933e00`.
 
+## 2026-10-19 — CC: milestone 4 development
+
+| Command / action | Result |
+|---|---|
+| Migration `audit_plans` on the milestone 3 development database | Applied; no schema drift |
+| `npm test` (working copy) | 78/78: plans 12, planning 8, audit API 4, plus the earlier 54 (demo reset now also reports deleted plans and tasks) |
+| Mutation checks (temporary): no advisory lock; REPEATABLE READ; no audit-date tie-break; audit date from the bin instead of the breakdown | 1, 1, 6 and 1 tests fail respectively (the concurrency test, the concurrency test, all order tests, the boundary tie test); code restored |
+| `npm run build` while `npm run dev` ran | The build deleted the API's `dist/`; the dev log shows `Cannot find module …/apps/api/dist/main`. Same cause as the milestone 1 seed bug (`deleteOutDir`); not changed in this milestone, documented in the README |
+| Playwright at 375 px on the warehouse page (`SEED_NOW=2026-10-18T12:00:00Z`) | Default N 5; N = 0 blocked by the browser; N = 31 with browser validation off → "N must be an integer from 1 to 30."; N = 3 → "Plan #1: 3 of 3 requested tasks created."; N = 30 → "Plan #2: 27 of 30 requested tasks created. Skipped: 3 with a pending task."; N = 5 → "No bins are available: every scored bin already has a pending task." |
+| `/tasks` | Plan #2 then Plan #1; "Scores as of 2026-10-18 12:00 UTC"; Plan #1 rows `B-02-03` 91, `C-01-01` 86, `B-01-05` 77, all High, Pending |
+| Layout at 320, 375, 414 and 1100 px, measuring the form against the page and each task table against its card | Page overflow 0; form inside the page; tables inside the card's content; no clipped cells |
+
+## 2026-10-19 — CC: milestone 4 clean verification (code `75c46be`)
+
+Fresh clone from GitHub; `docker compose down -v` first.
+
+| Command | Result |
+|---|---|
+| At `2933e00` (milestone 3): `npm ci`, `db:up`, `db:generate`, `db:migrate`, `db:reset-demo` with `SEED_NOW=2026-10-18T12:00:00Z` | 3 migrations; 30 bins, 30 scores |
+| Switch to `m4-audit-plans` (`75c46be`), `npm ci`, `db:generate`, `db:migrate` | `Applying migration 20261019090000_audit_plans`; 30 bins and 30 scores kept; 0 plans |
+| `npm run dev`; `POST /audit-plans` `{}` | `201`; plan 1, 5 of 5: `B-02-03` 91, `C-01-01` 86, `B-01-05` 77, `A-02-01` 77, `A-01-05` 70, all "High priority" |
+| `n` = 0, 31, `"5"`, 2.5 | `400` `INVALID_N` "N must be an integer from 1 to 30." each time |
+| `n` = 30, then `n` = 1 | `201` 25 of 30, `excluded.pendingTask` 5; then `409` `NO_AVAILABLE_BINS` |
+| Order of the two plans against an independent SQL query over the stored breakdowns (score, never audited, oldest audit, code) | All 30 bins in the same order |
+| `POST /scores/recompute` (current time) | 14 of the 30 current scores now differ from their task copies; fingerprint of the task copies and their `score_computed_at` unchanged |
+| `db:reset-demo` while `dev` runs | `Deleted 2 audit plans and 30 tasks, with their selection explanations.`; `/tasks` shows "No plans yet"; grid 200 |
+| Two simultaneous `POST /audit-plans` `{"n":20}` | Both `201`: one 20 tasks, the other 10 with `excluded.pendingTask` 20; 30 pending tasks on 30 distinct bins; 2 plans |
+| Playwright on the clone | With every bin pending, Create plan → "No bins are available…"; navigation to Tasks; task link opens `/bins/C-01-05`; 320/375/414/1100 px: page overflow 0, form and tables inside their containers |
+| Reference fingerprint: `db:reset-demo` with the same `SEED_NOW`, then `POST /audit-plans` `{}` | `plan 608aeba1e3a2f05fe763bbb7e0b44a9f` |
+| SIGINT | Ports 3000 and 3001 free |
+| Test database absent, `npm test` | Created and migrated from empty (4 migrations); **78/78 passed** |
+| `npm run build`; `git status` | API and web OK; clean |
+| `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | "No difference detected." |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -492,6 +526,8 @@ page for `/bins/%20a-01-03%20` (normalisation covered by the API test) and
 the page reload after a reset while `dev` runs.
 
 Milestone 3: nothing pending (merged as `2933e00`).
+
+Milestone 4: Windows reproduction of the PR commit (migration from milestone 3, plan fingerprint, tests, builds, interface).
 
 Later or optional:
 
