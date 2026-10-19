@@ -13,6 +13,8 @@ export type TaskRow = {
   plan: { id: number; requestedCount: number; createdCount: number; excluded: { pendingTask: number; noScore: number }; createdAt: Date };
   // The copy made when the plan was created (D-002), not the current score.
   score: { value: number; priority: Priority; label: string; reference: Date; computedAt: Date; formulaVersion: number };
+  // The task's count, once DONE.
+  count: { result: 'PASS' | 'FAIL'; countedAt: Date } | null;
 };
 
 @Injectable()
@@ -27,7 +29,11 @@ export class AuditService {
   async listTasks(): Promise<TaskRow[]> {
     const tasks = await this.prisma.auditTask.findMany({
       orderBy: [{ planId: 'desc' }, { rank: 'asc' }],
-      include: { bin: { select: { code: true } }, plan: { include: { _count: { select: { tasks: true } } } } },
+      include: {
+        bin: { select: { code: true } },
+        plan: { include: { _count: { select: { tasks: true } } } },
+        count: { select: { result: true, countedAt: true } },
+      },
     });
     return tasks.map((task) => {
       const priority = task.priority as Priority;
@@ -53,6 +59,7 @@ export class AuditService {
           computedAt: task.scoreComputedAt,
           formulaVersion: task.formulaVersion,
         },
+        count: task.count,
       };
     });
   }

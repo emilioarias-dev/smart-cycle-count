@@ -78,5 +78,6 @@ describe('Audit plans API (PostgreSQL)', () => {
     expect(body[0].plan).toMatchObject({ requestedCount: 3, createdCount: 3, excluded: { pendingTask: 2, noScore: 0 } });
     expect(body[0].score).toMatchObject({ value: 57, priority: 'medium', label: 'Medium priority', reference: FIXED_REFERENCE.toISOString(), formulaVersion: 2 });
     expect(body[0].completedAt).toBeNull();
+    expect(body[0].count).toBeNull();
   });
 });

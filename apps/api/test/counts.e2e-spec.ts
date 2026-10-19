@@ -121,6 +121,8 @@ describe('Count flow (PostgreSQL)', () => {
     expect((await breakdownOf('A-01-01')).factors.lastResult).toMatchObject({ result: 'PASS', countedAt: countedAt.toISOString(), contribution: 0 });
     expect((await breakdownOf('A-01-01')).factors.age.contribution).toBe(0);
     expect(body.score).toMatchObject({ value: scores.find((s) => s.binId === task.binId)!.score });
+    const listed = (await request(app.getHttpServer()).get('/audit-tasks').expect(200)).body.find((t: { id: number }) => t.id === taskId);
+    expect(listed).toMatchObject({ status: 'DONE', count: { result: 'PASS', countedAt: body.count.countedAt } });
 
     // D-004: no inventory change; D-002: the task copies are kept.
     const after = await businessSnapshot(prisma);
