@@ -538,6 +538,20 @@ plan (reference `2026-10-18T12:00:00.000Z`, fingerprint equal to Linux), and
 the running API shows the new routes, so the migration was applied; the
 outputs themselves were not shared.
 
+## 2026-10-19 — WIN: milestone 4 on `2829caf` (code `75c46be`) — **PASSED** (shared by the author, PowerShell transcript)
+
+| Command | Result |
+|---|---|
+| `git pull --ff-only`, `git rev-parse HEAD` | Fast-forward `9321d7e..2829caf` (documentation only); `2829caf086833ce606a8555bea820771a0a449e5` |
+| `npm.cmd run db:migrate` | `4 migrations found in prisma/migrations`; `No pending migrations to apply.` (applied in the earlier run; that output was not captured) |
+| `db:reset-demo` with `SEED_NOW=2026-10-18T12:00:00Z` (removed in `finally`) | Same demo totals as Linux; `Deleted 2 audit plans and 30 tasks, with their selection explanations.`; `Scores computed for 30 bins at the same reference: 5 high, 13 medium, 12 low priority.` |
+| `npm.cmd test` | Test database: 4 migrations, none pending; **78/78 passed** (demo reset 8, plans 12, audit API 4, bins 8, movements 12, scores 3, constraints 4, generator 10, planning 8, scoring 9) |
+| `npm.cmd run build` | API and web OK; routes `/`, `/bins/[code]`, `/tasks` |
+
+With the earlier entry (default plan and fingerprint identical to Linux;
+interface confirmed visually by the author), every milestone 4 check has
+Windows evidence.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -548,7 +562,7 @@ the page reload after a reset while `dev` runs.
 
 Milestone 3: nothing pending (merged as `2933e00`).
 
-Milestone 4: on Windows, the outputs of `git rev-parse HEAD`, `db:migrate`, `db:reset-demo`, `npm.cmd test` and `npm.cmd run build` for the PR commit. Plan fingerprint and interface done.
+Milestone 4: nothing pending; PR #4 ready to merge.
 
 Later or optional:
 

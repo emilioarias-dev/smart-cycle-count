@@ -180,22 +180,22 @@ demo reset deleting plans and tasks explicitly. Out of scope: closing tasks
 (only through counts, milestone 5), the reset policy once counts exist,
 optional improvements.
 
-**Status:** verified in CC on code `75c46be` (later commits only change
-documentation); Windows reproduction pending.
+**Status:** verified in both environments (code `75c46be`; later commits
+only change documentation; Windows ran `2829caf`). Ready to merge.
 
 | Check | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|
-| N from 1 to 30, default 5; other values and types rejected | `parsePlanSize` in `src/planning/selection.ts`; CHECK constraints | Yes (unit tests; API `400` for 0, 31, −3, 2.5, `"5"`, `null`, `true`, `[5]`; the browser blocks 0 and the API message is shown when its validation is bypassed) | Pending |
-| Eligible: scored (0 included) and without a pending task; partial plans; two distinct "no plan" answers | `selectForPlan` | Yes (unit and database tests; demo: 30 requested → 25 created, 5 skipped with a pending task; `409` `NO_AVAILABLE_BINS` and `NO_SCORES`) | Partly: author's visual check at 375 px (N = 30 → 25 tasks; then N = 5 → no bins available), backed by the dev log |
-| Order: score, then never audited / oldest audit from the stored breakdown, then code | `comparePriority` | Yes (tie at the N boundary with a contradicting `lastAuditedAt`; full demo order equal to an independent SQL query; `B-01-05` before `A-02-01` at 77) | Yes (default plan identical; plan fingerprint equal to Linux) |
-| Tasks keep a copy of the score (value, priority, breakdown, formula version, both times, rank) | `createPlan` in `src/planning/create-plan.ts` | Yes (copies unchanged after a recompute that changed 14 of the 30 current scores) | Pending |
-| Plan and tasks atomic; one `PENDING` task per bin in PostgreSQL | One transaction; partial unique index | Yes (a failing task insert leaves no plan and no task; direct inserts rejected) | Pending |
-| Simultaneous requests take turns and select again | Transaction-scoped advisory lock, READ COMMITTED | Yes (8 eligible, two requests of 5 → 5 and 3, no duplicates; HTTP: two requests of 20 → 20 and 10) | Pending |
-| Reset deletes plans and tasks explicitly and reports them | `resetDemoData` | Yes (`Deleted 2 audit plans and 30 tasks, with their selection explanations.`) | Pending |
-| API | `POST /audit-plans`, `GET /audit-tasks` | Yes (tests + manual) | Partly: `POST /audit-plans` `{}` → 5 of 5 |
+| N from 1 to 30, default 5; other values and types rejected | `parsePlanSize` in `src/planning/selection.ts`; CHECK constraints | Yes (unit tests; API `400` for 0, 31, −3, 2.5, `"5"`, `null`, `true`, `[5]`; the browser blocks 0 and the API message is shown when its validation is bypassed) | Yes (tests) |
+| Eligible: scored (0 included) and without a pending task; partial plans; two distinct "no plan" answers | `selectForPlan` | Yes (unit and database tests; demo: 30 requested → 25 created, 5 skipped with a pending task; `409` `NO_AVAILABLE_BINS` and `NO_SCORES`) | Yes (tests; author's visual check at 375 px: N = 30 → 25 tasks, then N = 5 → no bins available, backed by the dev log) |
+| Order: score, then never audited / oldest audit from the stored breakdown, then code | `comparePriority` | Yes (tie at the N boundary with a contradicting `lastAuditedAt`; full demo order equal to an independent SQL query; `B-01-05` before `A-02-01` at 77) | Yes (tests; default plan identical; plan fingerprint equal to Linux) |
+| Tasks keep a copy of the score (value, priority, breakdown, formula version, both times, rank) | `createPlan` in `src/planning/create-plan.ts` | Yes (copies unchanged after a recompute that changed 14 of the 30 current scores) | Yes (tests) |
+| Plan and tasks atomic; one `PENDING` task per bin in PostgreSQL | One transaction; partial unique index | Yes (a failing task insert leaves no plan and no task; direct inserts rejected) | Yes (tests) |
+| Simultaneous requests take turns and select again | Transaction-scoped advisory lock, READ COMMITTED | Yes (8 eligible, two requests of 5 → 5 and 3, no duplicates; HTTP: two requests of 20 → 20 and 10) | Yes (tests) |
+| Reset deletes plans and tasks explicitly and reports them | `resetDemoData` | Yes (`Deleted 2 audit plans and 30 tasks, with their selection explanations.`) | Yes (`Deleted 2 audit plans and 30 tasks, with their selection explanations.`; tests) |
+| API | `POST /audit-plans`, `GET /audit-tasks` | Yes (tests + manual) | Yes (tests; `POST /audit-plans` `{}` → 5 of 5) |
 | Web | Create plan form on the warehouse page; `/tasks` grouped by plan; navigation | Yes (320, 375, 414 and 1100 px: page, form and task tables without overflow) | Author's visual check at 375 px (form messages; Tasks with two plans, no overflow); no screenshots |
-| Migration from milestone 3 and from empty | `20261019090000_audit_plans` | Yes (M3 database: bins and scores kept; empty test database: 4 migrations; no schema drift) | Pending |
-| Tests and builds | — | Yes (78/78; builds) | Pending |
+| Migration from milestone 3 and from empty | `20261019090000_audit_plans` | Yes (M3 database: bins and scores kept; empty test database: 4 migrations; no schema drift) | Yes (development and test databases: 4 migrations, none pending; the `Applying …` output itself was not captured) |
+| Tests and builds | — | Yes (78/78; builds) | Yes (78/78; builds) |
 
 ### Implementation notes
 
