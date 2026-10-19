@@ -611,6 +611,28 @@ the Linux fingerprint.
 Visual confirmations without a screenshot: none reported for this
 milestone.
 
+## 2026-10-19 — WIN: milestone 5 on `00cfa69` (code `54cf1c1`) — terminal log with exit codes (shared by the author)
+
+| Command | Result |
+|---|---|
+| `git fetch`, `git switch`, `git pull --ff-only`, `git rev-parse HEAD` | Fast-forward `5b89a51..00cfa69` (documentation only); `00cfa6971791fd831bb436f3387b06e4ddeca450`; exit 0 |
+| `npm.cmd ci` | 449 packages; 0 vulnerabilities; exit 0 |
+| `npm.cmd run db:up`, `db:generate` | Container healthy; Prisma Client 7.10.1 generated; exit 0 |
+| `npm.cmd run db:migrate` | `5 migrations found`; `No pending migrations to apply.` (the run that applied `20261019180000_counts` was not captured); exit 0 |
+| `npm.cmd run db:reset-demo` | `reference 2026-10-18T12:00:00.000Z (from SEED_NOW)`; same demo totals as Linux; `Deleted 1 audit plans and 5 tasks…`; **`Deleted 3 counts (1 PASS, 2 FAIL) with 9 count lines and 1 unexpected pallets.`**; `0 high, 9 medium, 21 low`; exit 0 |
+| Score fingerprint | `scores 9209366078931a97aa2eab4d674d0573` — **identical to Linux**; exit 0 |
+| `npm.cmd test` | Test database: 5 migrations, none pending; **98/98 passed** (counts 17, plans 12, movements 12, scores 5, demo reset 8, bins 8, scoring 10, demo data 10, audit 4, planning 8, constraints 4); exit 0. The `ERROR [ExceptionsHandler] … simulated failure while recomputing` in the log is the rollback test's simulated failure (that test passed). The output also shows a `pg` DeprecationWarning (`client.query()` while a query is running), not a failure |
+| `npm.cmd run build` | API and web OK; routes `/`, `/bins/[code]`, `/count`, `/tasks`; exit 0 |
+| `git status --short` | Empty (clean tree); exit 0 |
+
+The deleted counts match the earlier screenshots: three counts (`B-02-03`
+PASS, `C-01-01` FAIL, `B-01-05` FAIL), 4 + 4 + 1 = 9 lines, and one
+unexpected pallet (`UNEXPECTED-TEST-01`).
+
+Not shown by this log or the screenshots: the count flow at 375 px, an
+identical retry recovered in the interface, the bin page "Last count
+result" row.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -623,7 +645,7 @@ Milestone 3: nothing pending (merged as `2933e00`).
 
 Milestone 4: nothing pending (merged as `0f6d2be`).
 
-Milestone 5: on Windows, the outputs of `git rev-parse HEAD`, `db:migrate`, `db:reset-demo` with the fixed `SEED_NOW`, the score fingerprint, `npm.cmd test` and `npm.cmd run build`; the count flow at 375 px (an identical retry from a second tab, the bin page "Last count result" row). Done: screenshots of a FAIL by an unexpected pallet of unknown product and of Tasks with PASS / FAIL.
+Milestone 5: on Windows, the count flow at 375 px (an identical retry recovered from a second tab; the bin page "Last count result" row). Done: terminal log on `00cfa69` (fingerprint identical, 98/98, builds, reset with counts) and screenshots of a FAIL by an unexpected pallet and of Tasks.
 
 Later or optional:
 
