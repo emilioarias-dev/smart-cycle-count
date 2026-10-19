@@ -671,6 +671,57 @@ now has Windows evidence. The commit hash of this last run was not shared.
 | CC: `git fetch origin main`; merge commit parents; tree comparison | `690db87` merges `0f6d2be` and `bd718a8` (PR #5 head); its tree equals `bd718a8`'s (`4c37e40`) |
 | CC: `pg` DeprecationWarning seen in the Windows test log | Reproduced on Linux (`vitest run` of the counts and demo reset tests: "Calling client.query() when the client is already executing a query is deprecated…"); tests pass. Not yet traced to its call site; candidates are the `Promise.all` calls inside transactions (`src/demo-data/reset.ts`, `src/counting/sheet.ts`) |
 
+## 2026-10-19 — CC: diagnosis of the `pg` DeprecationWarning (code `690db87`, branch `m6-delivery` at `c57d0a6`)
+
+No dependency, warning setting or functional code was changed. The probes
+below were scratch files outside the repository.
+
+**Effective versions:** Node 24.22.0, npm 11.19.1, `pg` 8.23.1 (only copy,
+through `@prisma/adapter-pg`), `pg-pool` 3.14.0, `pg-protocol` 1.16.1,
+`@prisma/adapter-pg` 7.10.1, `@prisma/client` and `prisma` 7.10.1, Vitest
+4.1.12.
+
+**Message (complete):** `DeprecationWarning: Calling client.query() when the
+client is already executing a query is deprecated and will be removed in
+pg@9.0. Use async/await or an external async flow control mechanism
+instead.` `pg` emits it through `util.deprecate` (`lib/client.js`, line 780)
+when a query is added while another one is still waiting in the client's
+queue, so at most once per process.
+
+| Step | Result |
+|---|---|
+| Each test file alone, `NODE_OPTIONS=--trace-deprecation` | Only `counts.e2e-spec.ts` emits it (1). `demo-reset.e2e-spec.ts` and every other file: 0. All tests pass |
+| Each test of `counts.e2e-spec.ts` alone | Emitted by the 12 tests that save a new count; not by opening a sheet (the `Promise.all` in `sheet.ts`), by validation errors, by the 409 after a movement, or by the recompute failure (rolled back before the end) |
+| Trace with `--stack-trace-limit=200` | `Client.query` ← `PgTransaction.performIO` ← `PgTransaction.queryRaw` (`@prisma/adapter-pg`) ← `Array.map` in the Prisma query interpreter; no project frame (asynchronous boundary) |
+| Probe preloaded with `--import`, logging the SQL whenever a query is added while another waits (test "an empty bin…") | One case: active `SELECT … FROM bins WHERE id = $1`, waiting `SELECT … FROM count_lines …`, added `SELECT … FROM count_unexpected_pallets …`: the three relations of one `findUnique` |
+| Minimal reproduction, one case per process, read-only on the development database | `findUnique` on `counts` with `bin`, `lines` and `unexpected` inside `$transaction`: **1 warning**; the same without a transaction: 0; with two relations (`lines`, `unexpected`) inside a transaction: 0; `Promise.all` of two queries (as `sheet.ts`) and of eight counts (as `reset.ts`) inside a transaction: 0 |
+
+**Cause (confirmed):** `readCount` in `src/counting/submit.ts` runs one
+`findUnique` that includes three relations (`bin`, `lines` with pallet and
+product, `unexpected` with product) inside the count's interactive
+transaction. Prisma 7.10.1 loads the three relations concurrently, and the
+transaction has a single `pg` client, so the third query is queued while
+the second waits. It runs after every new count (and for a recovered
+retry). The `Promise.all` calls in `reset.ts` and `sheet.ts` did not
+reproduce it.
+
+**`--throw-deprecation` evaluated** (`NODE_OPTIONS=--throw-deprecation`):
+it reaches the Vitest worker that runs the tests. On "an empty bin with
+nothing found is a PASS" the run exits 1 with "Vitest caught 1 unhandled
+error … Uncaught Exception DeprecationWarning: Calling client.query() …",
+while the test itself is reported as passed. `demo-reset` and `bins` with
+the flag: 16/16, exit 0. Limits: it fails the run, not the test that
+caused it; it reacts to any deprecation, not only this one; each
+deprecation is reported once per process; and it only covers code the tests
+execute.
+
+**Proposed correction (not applied):** in `readCount`, read the count with
+its bin, then its lines and then its unexpected pallets in three awaited
+queries, returning the same `CountView`. Regression: a test that listens to
+`process` warnings while saving a count and a recovered retry and fails on
+this message (to be checked to fail without the correction), plus
+`--throw-deprecation` as an extra whole-suite check.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -684,6 +735,8 @@ Milestone 3: nothing pending (merged as `2933e00`).
 Milestone 4: nothing pending (merged as `0f6d2be`).
 
 Milestone 5: nothing pending (merged as `690db87`).
+
+Milestone 6 (in preparation): correction of the `pg` warning (cause confirmed, correction proposed, not applied).
 
 Later or optional:
 

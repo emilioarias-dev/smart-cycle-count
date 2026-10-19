@@ -293,3 +293,19 @@ on the page background it measured 4.32:1, below 4.5:1.
   the count page after a count shows "no pending task".
 - The consistent snapshot of the count sheet relies on REPEATABLE READ; no
   test forces a movement between its two reads.
+
+## Milestone 6 — delivery (in preparation)
+
+**Authorised so far (2026-10-19):** documentation and the diagnosis of the
+`pg` DeprecationWarning, without changing dependencies or functional code.
+
+- `README.md` reorganised for a first-time install: requirements, install,
+  configuration, schema, demo data (with a warning, before the command, that
+  it deletes plans, tasks and counts with their history), start, a
+  walkthrough of the main flow, known limitations, and the database update
+  notes grouped by milestone. `db:reset-demo` stays the only seed command.
+- `pg` warning: cause confirmed in `readCount` (`src/counting/submit.ts`); a
+  correction is proposed, not applied (see `VERIFICATION.md`).
+
+Pending decisions: the correction of the warning; the delivery scope (final
+acceptance from clean clones, version tag).
