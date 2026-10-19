@@ -304,8 +304,13 @@ on the page background it measured 4.32:1, below 4.5:1.
   it deletes plans, tasks and counts with their history), start, a
   walkthrough of the main flow, known limitations, and the database update
   notes grouped by milestone. `db:reset-demo` stays the only seed command.
-- `pg` warning: cause confirmed in `readCount` (`src/counting/submit.ts`); a
-  correction is proposed, not applied (see `VERIFICATION.md`).
+- `pg` warning: cause confirmed in `readCount` (`src/counting/submit.ts`) and
+  corrected (accepted 2026-10-19, `137afc9`): the count, its lines and its
+  unexpected pallets are read one after another in the same transaction.
+  Regression: `test/pg-queue.e2e-spec.ts` checks pg's queueing condition on
+  every query while opening, saving and recovering a count; it fails with
+  the previous code. `NODE_OPTIONS=--throw-deprecation npm test` passes as
+  an extra check.
 
-Pending decisions: the correction of the warning; the delivery scope (final
+Pending: Windows run of the correction; the delivery scope (final
 acceptance from clean clones, version tag).

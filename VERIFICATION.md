@@ -722,6 +722,20 @@ queries, returning the same `CountView`. Regression: a test that listens to
 this message (to be checked to fail without the correction), plus
 `--throw-deprecation` as an extra whole-suite check.
 
+## 2026-10-19 — CC: `pg` warning corrected (code `137afc9`)
+
+| Command / check | Result |
+|---|---|
+| New regression `test/pg-queue.e2e-spec.ts` against the previous `readCount` (before the correction) | Fails: 2 queries queued (`SELECT … FROM count_unexpected_pallets …`), one while saving and one while recovering; the watcher's own check passes |
+| Full suite with the previous `readCount` | 99/100: only the regression fails, although `counts.e2e-spec.ts` had already printed the once-per-process warning earlier in the run |
+| Correction: `readCount` reads the count with its bin, then its lines, then its unexpected pallets, awaited one after another | Same `CountView`; `tsc` OK |
+| Regression with the correction | 2/2 |
+| `npm test` (full suite) | **100/100** |
+| Each test file alone with `NODE_OPTIONS=--trace-deprecation` | 0 warnings in every file except `pg-queue.e2e-spec.ts` (1), whose watcher check provokes the pattern on purpose |
+| Full suite with `NODE_OPTIONS=--throw-deprecation` | Exit 0; 99 passed, 1 skipped (the watcher check, skipped only in this mode because it warns on purpose) |
+| Regression file with `--throw-deprecation` and the previous `readCount` | Exit 1: the regression fails and the thrown deprecation is reported |
+| `npm run build -w apps/api` | OK |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -736,7 +750,7 @@ Milestone 4: nothing pending (merged as `0f6d2be`).
 
 Milestone 5: nothing pending (merged as `690db87`).
 
-Milestone 6 (in preparation): correction of the `pg` warning (cause confirmed, correction proposed, not applied).
+Milestone 6 (in preparation): Windows run of the `pg` correction (`npm.cmd test`, 100/100 expected, without the DeprecationWarning).
 
 Later or optional:
 
