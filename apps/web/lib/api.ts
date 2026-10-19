@@ -58,6 +58,23 @@ export type BinDetail = {
   score: ScoreDetail | null;
 };
 
+export type CreatedPlan = {
+  plan: { id: number; requestedCount: number; createdCount: number; excluded: { pendingTask: number; noScore: number }; createdAt: string };
+  tasks: { rank: number; binCode: string; score: ScoreSummary }[];
+};
+
+export type AuditTask = {
+  id: number;
+  rank: number;
+  status: 'PENDING' | 'DONE';
+  createdAt: string;
+  completedAt: string | null;
+  bin: { code: string };
+  plan: { id: number; requestedCount: number; createdCount: number; excluded: { pendingTask: number; noScore: number }; createdAt: string };
+  // The score copied when the plan was created (D-002).
+  score: ScoreSummary & { computedAt: string; formulaVersion: number };
+};
+
 export type ApiResult<T> = { status: 'ok'; data: T } | { status: 'not-found' } | { status: 'error'; reason: string };
 
 export function getWarehouse(): Promise<ApiResult<WarehouseLayout>> {
@@ -72,7 +89,16 @@ export function recomputeScores(): Promise<ApiResult<RecomputeSummary>> {
   return getJson<RecomputeSummary>('/scores/recompute', 'POST');
 }
 
-async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise<ApiResult<T>> {
+// N is passed as given; the API is the only place that validates it (D-011).
+export function createPlan(n: unknown): Promise<ApiResult<CreatedPlan>> {
+  return getJson<CreatedPlan>('/audit-plans', 'POST', { n });
+}
+
+export function getAuditTasks(): Promise<ApiResult<AuditTask[]>> {
+  return getJson<AuditTask[]>('/audit-tasks');
+}
+
+async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown): Promise<ApiResult<T>> {
   const baseUrl = process.env.API_BASE_URL;
   if (!baseUrl) {
     return { status: 'error', reason: 'API_BASE_URL is not set. Copy apps/web/.env.example to apps/web/.env.' };
@@ -81,7 +107,12 @@ async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise
   const url = new URL(path, baseUrl);
   let response: Response;
   try {
-    response = await fetch(url, { method, cache: 'no-store', signal: AbortSignal.timeout(method === 'POST' ? 30_000 : 5000) });
+    response = await fetch(url, {
+      method,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(method === 'POST' ? 30_000 : 5000),
+      ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+    });
   } catch (error) {
     console.error(`Request to ${url.href} failed:`, error);
     return {
@@ -92,6 +123,13 @@ async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise
 
   if (response.status === 404) {
     return { status: 'not-found' };
+  }
+  // 400 and 409 carry a message meant for the user (for example an invalid N).
+  if (response.status === 400 || response.status === 409) {
+    const error = (await response.json().catch(() => null)) as { message?: unknown } | null;
+    if (typeof error?.message === 'string') {
+      return { status: 'error', reason: error.message };
+    }
   }
   if (!response.ok) {
     console.error(`Request to ${url.href} returned HTTP ${response.status}`);

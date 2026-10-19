@@ -15,8 +15,10 @@ workspaces monorepo.
   single movement function; a warehouse grid and a bin detail page.
 - **Milestone 3 (risk scoring):** a 0–100 audit priority per bin with its
   breakdown, a color-coded grid and a recompute button.
+- **Milestone 4 (audit plans):** "Create plan → Top N" from the warehouse
+  page and a tasks page; each task keeps the score that selected it.
 
-Audit plans and the count flow come in later milestones. See
+The count flow comes in a later milestone. See
 [`PROGRESS.md`](PROGRESS.md).
 
 ## Requirements
@@ -73,8 +75,8 @@ PowerShell except where two variants are shown.
    npm run db:reset-demo
    ```
 
-   `db:reset-demo` **replaces** the demo data and scores every bin; see
-   [Demo data](#demo-data) and [Risk score](#risk-score).
+   `db:reset-demo` **replaces** the demo data, deletes any audit plans and
+   scores every bin; see [Demo data](#demo-data) and [Risk score](#risk-score).
 
 5. Start the API and the web app together (Ctrl+C stops both):
 
@@ -82,7 +84,8 @@ PowerShell except where two variants are shown.
    npm run dev
    ```
 
-   - Web: <http://localhost:3000> (warehouse grid; select a bin for its detail)
+   - Web: <http://localhost:3000> (warehouse grid; select a bin for its
+     detail) and <http://localhost:3000/tasks> (audit tasks)
    - API: <http://localhost:3001/warehouse> and
      <http://localhost:3001/bins/A-01-03>
 
@@ -106,9 +109,11 @@ PowerShell except where two variants are shown.
 Every change goes through the movement function, so the movement log can
 rebuild every pallet and every bin's `inventoryVersion`.
 
-**What it deletes.** It replaces **all** bins, products, pallets and
-movements in the target database, in one transaction (if anything fails,
-the previous data is kept). It prints the target database (without the
+**What it deletes.** It replaces **all** bins, products, pallets, movements
+and scores in the target database and deletes **all audit plans and
+tasks**, in one transaction (if anything fails, the previous data is kept).
+It prints how many plans and tasks it deleted: their copied scores, which
+explained why each bin was selected, are lost with them. It prints the target database (without the
 password), only runs on a dedicated project database
 (`smart_cycle_count` or `smart_cycle_count_<suffix>`) and is never run
 automatically. Running the compiled script directly without
@@ -179,12 +184,44 @@ audits look older and moves the 30-day window past the demo activity.
 **Coming from milestone 2.** After `npm run db:migrate`, bins have no score
 until you press **Recompute scores** or run `npm run db:reset-demo`.
 
+## Audit plans
+
+**Create plan** on the warehouse page (or `POST /audit-plans`) creates a
+plan with the **Top N** bins to audit (decision D-011):
+
+- `N` is a whole number from 1 to 30; 5 by default. Anything else is
+  rejected with a message and no plan is created.
+- Only bins with a stored score and **without a pending task** are
+  considered. A score of 0 counts; scores are not recomputed automatically,
+  so press **Recompute scores** first if you want current ones.
+- Order: score (highest first); on a tie, a bin never audited first, then
+  the oldest audit (as recorded in the score's breakdown); then bin code.
+- If fewer than `N` bins are available, the plan is created with those and
+  says how many were skipped and why (pending task, no score). If none is
+  available, no plan is created and the message says whether no bin has a
+  score yet or every scored bin already has a pending task.
+- Each task keeps a **copy of the score that selected it** (value, priority,
+  breakdown, formula version and times), so recomputing scores later does
+  not change why the bin is in the plan.
+- Tasks start as **Pending**; they become Done only through a count (next
+  milestone). There is no manual close.
+
+Two requests at the same time take turns: the second one waits for the
+first and then selects from the bins still available, so a bin never gets
+two pending tasks.
+
+The **Tasks** page (<http://localhost:3000/tasks>) lists the plans, newest
+first, with each task's position, bin, score at selection and status.
+
+**Coming from milestone 3.** `npm run db:migrate` adds the plan tables; the
+bins and scores are kept.
+
 ## Other commands
 
 | Command | What it does |
 |---|---|
 | `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data). Needs `npm run db:up`. |
-| `npm run build` | Type-checks and builds the API and the web app |
+| `npm run build` | Type-checks and builds the API and the web app. Stop `npm run dev` first: the build replaces the API's `dist/` folder, which stops the development API |
 | `npm run db:down` | Stops PostgreSQL (data is kept in a Docker volume) |
 | `docker compose down -v` | Stops PostgreSQL and **deletes** its data |
 
@@ -192,15 +229,17 @@ until you press **Recompute scores** or run `npm run db:reset-demo`.
 
 ```
 PostgreSQL (Docker)  ←  Prisma client  ←  NestJS API :3001     ←  Next.js server :3000  ←  browser
-bins, products,          PrismaService      GET /warehouse          / (grid + recompute button)
+bins, products,          PrismaService      GET /warehouse          / (grid, recompute, create plan)
 pallets, movements,                         GET /bins/:code         /bins/[code] (detail)
-bin_scores                                  POST /scores/recompute
+bin_scores,                                 POST /scores/recompute  /tasks (audit tasks)
+audit_plans,                                POST /audit-plans
+audit_tasks                                 GET /audit-tasks
 ```
 
 - `apps/api` owns the database: the Prisma schema, migrations, the movement
   function (`src/inventory/movements.ts`), the score formula
   (`src/scoring/formula.ts`, the only implementation) and the demo data
-  generator (`src/demo-data/`) live there, and it is the only app that
+  generator (`src/demo-data/`) and plan creation (`src/planning/`) live there, and it is the only app that
   connects to PostgreSQL.
 - `apps/web` asks the API for data from the Next.js server; the browser never
   calls the API or sees its URL (`API_BASE_URL`).
@@ -212,6 +251,8 @@ bin_scores                                  POST /scores/recompute
 | `GET /warehouse` | `200` with aisles → racks → bins (in location order), each bin with `code`, `position`, `palletCount`, `lastAuditedAt` and `score` (`value`, `priority`, `label`, `reference`, or `null` if not scored) |
 | `GET /bins/:code` | `200` with the bin's location, `inventoryVersion`, `lastAuditedAt`, its current pallets (code, quantity, product SKU, name and unit) and `score` with its `breakdown`, or `404`. The code is normalised: ` a-01-03 ` finds `A-01-03` |
 | `POST /scores/recompute` | `200` with the reference time, the number of bins scored and how many fall in each priority band. All scores or none are saved |
+| `POST /audit-plans` with JSON `{"n": 5}` (`n` optional, default 5) | `201` with the plan (`requestedCount`, `createdCount`, `excluded.pendingTask`, `excluded.noScore`) and its tasks (rank, bin code, copied score). `400` `INVALID_N` for an `n` that is not a whole number from 1 to 30; `409` `NO_SCORES` or `NO_AVAILABLE_BINS` when no plan can be created. The plan and its tasks are saved together or not at all |
+| `GET /audit-tasks` | `200` with every task, newest plan first and by rank, each with its plan summary, bin code, status and the score copied at selection (with `computedAt` and `formulaVersion`) |
 
 ## Project documents
 

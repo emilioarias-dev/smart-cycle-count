@@ -10,7 +10,8 @@ discussion), **Deferred** (to be decided at a later milestone),
 
 Last updated: 2026-10-18 (E-001 re-confirmed; E-002 pin and E-004 to E-009
 accepted by the author; D-006 to D-009 accepted for milestone 2; D-010 for
-milestone 3; E-004 and E-009 table statuses brought up to date). Milestone 1
+milestone 3; E-004 and E-009 table statuses brought up to date; D-011 and
+the D-009 reset scope for plans accepted for milestone 4). Milestone 1
 implements E-002 to E-008; see `PROGRESS.md` for what milestone 2
 implements. "Claude's Linux workspace"
 below means the claude.ai session's cloud workspace where these decisions were
@@ -34,6 +35,7 @@ in the dated tables kept below).
 | D-008 | Movements and the movement function | Accepted |
 | D-009 | Demo data: generation, reset and simulated audit history | Accepted |
 | D-010 | Risk score: factors, caps, window and stored breakdown | Accepted |
+| D-011 | Audit plans (Top N) and tasks | Accepted |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -392,14 +394,59 @@ Limitations: one level per rack; no capacity per bin (see D-007).
   target without the password, and is never run automatically on start.
 - Deletion and rebuild happen in **one transaction**: if anything fails,
   the previous data stays as it was.
-- Tables are cleared without `CASCADE`. When plans and counts exist, a
-  reset must either be refused while they exist or explicitly reset them
-  too; **that choice is still open** and no silent cascading delete is
-  introduced meanwhile.
+- Tables are cleared without `CASCADE`.
+- **Plans and tasks (accepted 2026-10-19, milestone 4):** the explicit reset
+  also deletes audit plans and tasks, naming those tables, reporting how
+  many it deletes and staying in the same transaction. Their historical
+  selection explanations (D-002 copies) are lost with them.
+- **Counts:** the policy for a reset once counts exist is **still open**; no
+  silent cascading delete is introduced meanwhile.
 - The milestone 2 migration deletes the milestone 1 sample bin
   (`SAMPLE-BIN-01`) and nothing else; if any other bin exists, the
   migration stops with an error instead of deleting it. Earlier migrations
   are kept unchanged.
+
+---
+
+## D-011 — Audit plans (Top N) and tasks
+
+**Status:** Accepted (2026-10-19). Milestone 4.
+
+**Selection**
+
+- `N` is an integer from 1 to 30 (the number of bins); default 5. Any other
+  value or type is rejected.
+- **Eligible bins:** bins with a stored score and without a `PENDING` task.
+  A score of 0 is a valid score; a bin without a score is not eligible.
+- If fewer than `N` bins are eligible, the plan is created with those, keeps
+  the requested `N` and reports how many tasks were created and why bins
+  were excluded (pending task, no score).
+- If none is eligible, **no plan** is created, with two distinct answers:
+  "no bin has a score: recompute first" or "no bins are available".
+- Plans use the **stored** scores (no automatic recompute) and show their
+  reference time.
+
+**Order:** score descending; then never-audited first, then the oldest
+audit; then bin code alphabetically. The audit information comes from the
+**stored score breakdown**, not from the bin's current `lastAuditedAt`.
+Example (demo, `SEED_NOW=2026-10-18T12:00:00Z`): `B-02-03` 91, `C-01-01` 86,
+then the 77 tie is broken by `B-01-05` (never audited) **before** `A-02-01`
+(audited 83 days earlier), then `A-01-05` 70.
+
+**What a task keeps (D-002):** a full copy of the score, its breakdown,
+formula version, reference and computation times, its priority at
+selection and its position in the plan. A later recompute does not change
+that explanation.
+
+**Concurrent requests:** plan creations are serialised by a short
+transactional lock; after waiting, each request selects again from the bins
+still available. PostgreSQL guarantees at most one `PENDING` task per bin
+and creates a plan and its tasks atomically. Example: with eight eligible
+bins and two requests for five, one gets five and the other three; a request
+that finds no candidates creates no plan.
+
+**Status:** `PENDING` on creation; `DONE` only through the count flow
+(milestone 5). There is no manual closing.
 
 ---
 
@@ -724,10 +771,14 @@ History before 2026-10-18:
 
 To be decided when the corresponding milestone starts:
 
-- Plan rules (default N, tie-break, bins with pending tasks).
 - Unexpected pallet capture details.
-- Demo reset once plans and counts exist: refuse the reset while they exist,
-  or reset them too with explicit authorisation (D-009).
+- Demo reset once counts exist: refuse the reset while they exist, or
+  reset them too with explicit authorisation (D-009; plans and tasks were
+  decided in milestone 4).
+
+Decided in milestone 4: plan rules (N limits and default, tie-break, bins
+with pending tasks or without a score) in D-011; demo reset with plans in
+D-009.
 
 Decided in milestone 3: scoring factors, weights, window and normalisation
 (D-010).

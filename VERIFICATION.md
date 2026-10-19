@@ -475,6 +475,83 @@ The author accepted the breakdown table fix (`b1a0cc5`). No new command
 output or interface check was shared, so the Windows interface checks after
 the fix remain pending.
 
+## 2026-10-19 — WIN: milestone 3 interface after the table fix (reported by the author)
+
+The author reported that the interface checks after the fix passed (grid
+with colors, number, label and "Scores as of"; Points inside the card on
+`B-02-03` and `A-01-03` with page overflow 0 at 375 px; the recompute button).
+No command output was shared for these checks; they are recorded as the
+author's report. PR #3 was then merged as `2933e00`.
+
+## 2026-10-19 — CC: milestone 4 development
+
+| Command / action | Result |
+|---|---|
+| Migration `audit_plans` on the milestone 3 development database | Applied; no schema drift |
+| `npm test` (working copy) | 78/78: plans 12, planning 8, audit API 4, plus the earlier 54 (demo reset now also reports deleted plans and tasks) |
+| Mutation checks (temporary): no advisory lock; REPEATABLE READ; no audit-date tie-break; audit date from the bin instead of the breakdown | 1, 1, 6 and 1 tests fail respectively (the concurrency test, the concurrency test, all order tests, the boundary tie test); code restored |
+| `npm run build` while `npm run dev` ran | The build deleted the API's `dist/`; the dev log shows `Cannot find module …/apps/api/dist/main`. Same cause as the milestone 1 seed bug (`deleteOutDir`); not changed in this milestone, documented in the README |
+| Playwright at 375 px on the warehouse page (`SEED_NOW=2026-10-18T12:00:00Z`) | Default N 5; N = 0 blocked by the browser; N = 31 with browser validation off → "N must be an integer from 1 to 30."; N = 3 → "Plan #1: 3 of 3 requested tasks created."; N = 30 → "Plan #2: 27 of 30 requested tasks created. Skipped: 3 with a pending task."; N = 5 → "No bins are available: every scored bin already has a pending task." |
+| `/tasks` | Plan #2 then Plan #1; "Scores as of 2026-10-18 12:00 UTC"; Plan #1 rows `B-02-03` 91, `C-01-01` 86, `B-01-05` 77, all High, Pending |
+| Layout at 320, 375, 414 and 1100 px, measuring the form against the page and each task table against its card | Page overflow 0; form inside the page; tables inside the card's content; no clipped cells |
+
+## 2026-10-19 — CC: milestone 4 clean verification (code `75c46be`)
+
+Fresh clone from GitHub; `docker compose down -v` first.
+
+| Command | Result |
+|---|---|
+| At `2933e00` (milestone 3): `npm ci`, `db:up`, `db:generate`, `db:migrate`, `db:reset-demo` with `SEED_NOW=2026-10-18T12:00:00Z` | 3 migrations; 30 bins, 30 scores |
+| Switch to `m4-audit-plans` (`75c46be`), `npm ci`, `db:generate`, `db:migrate` | `Applying migration 20261019090000_audit_plans`; 30 bins and 30 scores kept; 0 plans |
+| `npm run dev`; `POST /audit-plans` `{}` | `201`; plan 1, 5 of 5: `B-02-03` 91, `C-01-01` 86, `B-01-05` 77, `A-02-01` 77, `A-01-05` 70, all "High priority" |
+| `n` = 0, 31, `"5"`, 2.5 | `400` `INVALID_N` "N must be an integer from 1 to 30." each time |
+| `n` = 30, then `n` = 1 | `201` 25 of 30, `excluded.pendingTask` 5; then `409` `NO_AVAILABLE_BINS` |
+| Order of the two plans against an independent SQL query over the stored breakdowns (score, never audited, oldest audit, code) | All 30 bins in the same order |
+| `POST /scores/recompute` (current time) | 14 of the 30 current scores now differ from their task copies; fingerprint of the task copies and their `score_computed_at` unchanged |
+| `db:reset-demo` while `dev` runs | `Deleted 2 audit plans and 30 tasks, with their selection explanations.`; `/tasks` shows "No plans yet"; grid 200 |
+| Two simultaneous `POST /audit-plans` `{"n":20}` | Both `201`: one 20 tasks, the other 10 with `excluded.pendingTask` 20; 30 pending tasks on 30 distinct bins; 2 plans |
+| Playwright on the clone | With every bin pending, Create plan → "No bins are available…"; navigation to Tasks; task link opens `/bins/C-01-05`; 320/375/414/1100 px: page overflow 0, form and tables inside their containers |
+| Reference fingerprint: `db:reset-demo` with the same `SEED_NOW`, then `POST /audit-plans` `{}` | `plan 608aeba1e3a2f05fe763bbb7e0b44a9f` |
+| SIGINT | Ports 3000 and 3001 free |
+| Test database absent, `npm test` | Created and migrated from empty (4 migrations); **78/78 passed** |
+| `npm run build`; `git status` | API and web OK; clean |
+| `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | "No difference detected." |
+
+## 2026-10-19 — WIN: milestone 4, default plan and interface (shared by the author)
+
+| Command / action | Result |
+|---|---|
+| `npm.cmd run dev` | API maps `POST /audit-plans` and `GET /audit-tasks`; `AuditModule` initialised; no errors |
+| `Invoke-RestMethod -Method Post http://localhost:3001/audit-plans -Body '{}'` | Plan 1, 5 of 5, `excluded` 0 / 0: `B-02-03` 91, `C-01-01` 86, `B-01-05` 77, `A-02-01` 77, `A-01-05` 70, all "High priority", reference `2026-10-18T12:00:00.000Z` — identical to Linux |
+| Plan fingerprint (same query, passed with `psql -c`) | `plan 608aeba1e3a2f05fe763bbb7e0b44a9f` — **identical to Linux** |
+| Dev log during the interface check | Two `createPlanAction` calls; the second shows the result of the first: `Plan #2: 25 of 30 requested tasks created. Skipped: 5 with a pending task.`; then `GET /tasks 200` |
+| Ctrl+C, answering `S` | Both apps stopped |
+
+Interface at 375 px, **visual confirmation by the author, no screenshots**:
+N = 30 created 25 tasks; the next attempt with N = 5 said that no bins were
+available; Tasks showed both plans without overflow.
+
+Not shared for this milestone: the commit hash (`git rev-parse HEAD`), the
+`db:migrate` output (milestone 3 → 4), the `db:reset-demo` output, `npm.cmd
+test` and `npm.cmd run build`. The reset reference is consistent with the
+plan (reference `2026-10-18T12:00:00.000Z`, fingerprint equal to Linux), and
+the running API shows the new routes, so the migration was applied; the
+outputs themselves were not shared.
+
+## 2026-10-19 — WIN: milestone 4 on `2829caf` (code `75c46be`) — **PASSED** (shared by the author, PowerShell transcript)
+
+| Command | Result |
+|---|---|
+| `git pull --ff-only`, `git rev-parse HEAD` | Fast-forward `9321d7e..2829caf` (documentation only); `2829caf086833ce606a8555bea820771a0a449e5` |
+| `npm.cmd run db:migrate` | `4 migrations found in prisma/migrations`; `No pending migrations to apply.` (applied in the earlier run; that output was not captured) |
+| `db:reset-demo` with `SEED_NOW=2026-10-18T12:00:00Z` (removed in `finally`) | Same demo totals as Linux; `Deleted 2 audit plans and 30 tasks, with their selection explanations.`; `Scores computed for 30 bins at the same reference: 5 high, 13 medium, 12 low priority.` |
+| `npm.cmd test` | Test database: 4 migrations, none pending; **78/78 passed** (demo reset 8, plans 12, audit API 4, bins 8, movements 12, scores 3, constraints 4, generator 10, planning 8, scoring 9) |
+| `npm.cmd run build` | API and web OK; routes `/`, `/bins/[code]`, `/tasks` |
+
+With the earlier entry (default plan and fingerprint identical to Linux;
+interface confirmed visually by the author), every milestone 4 check has
+Windows evidence.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -483,12 +560,9 @@ Milestone 2: nothing required pending. Optional, not run on Windows: the
 page for `/bins/%20a-01-03%20` (normalisation covered by the API test) and
 the page reload after a reset while `dev` runs.
 
-Milestone 3:
+Milestone 3: nothing pending (merged as `2933e00`).
 
-- WIN: with the presentation fix (`b1a0cc5`): rebuild the web app and check
-  the interface at 375 px (grid, detail of a high and a never-audited bin,
-  recompute button). Data, scores, tests and the API are already verified
-  on Windows and did not change.
+Milestone 4: nothing pending; PR #4 ready to merge.
 
 Later or optional:
 

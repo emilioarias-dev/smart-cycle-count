@@ -133,10 +133,8 @@ reset with its reference; from a button with the current time), a grid
 colored by priority with number and label, and the "why" on the bin detail.
 Out of scope: PASS/FAIL history (count milestone), optional improvements.
 
-**Status:** implemented on branch `m3-risk-scoring`; verified in the Claude
-Code environment and, on Windows, data, scores, tests and builds pass.
-**Not complete:** the interface on Windows must be checked again after the
-phone-width fix in `b1a0cc5` (E-001, E-009).
+**Status:** verified in both environments (code `b1a0cc5`; later commits only
+change documentation) and merged into `main` as `2933e00`.
 
 | Check | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|
@@ -145,7 +143,7 @@ phone-width fix in `b1a0cc5` (E-001, E-009).
 | All or nothing; consistent inputs | One repeatable-read transaction; reset scores inside its own transaction | Yes (a failure while saving keeps the previous scores) | Yes (tests) |
 | Demo: scores with the reset reference | `resetDemoData` | Yes (all 30 equal to the formula written in SQL; 91 / 44 / 18; caps 11 / 0 / 2; 5 / 13 / 12 by band) | Yes (reset 5 / 13 / 12; score fingerprint identical to Linux) |
 | API | `GET /warehouse`, `GET /bins/:code` with `score`; `POST /scores/recompute` | Yes (tests + manual) | Yes (tests) |
-| Web | Colored grid, legend, "Scores as of", recompute button; score card with "Why this score" | Yes (button recomputes 30 bins for the current time; 375 px without overflow) | Pending: interface checks after the phone-width fix (`b1a0cc5`); the earlier run noted the Points column too close to the edge |
+| Web | Colored grid, legend, "Scores as of", recompute button; score card with "Why this score" | Yes (button recomputes 30 bins for the current time; 375 px without overflow) | Yes (author's report after the fix in `b1a0cc5`: grid, detail at 375 px, recompute button) |
 | Migration from milestone 2 and from empty | `bin_scores` (CHECK 0–100, no cascade) | Yes (M2 database: 30 bins, 0 scores until recompute; empty test database: 3 migrations) | Yes (milestone 2 → 3 on the development and test databases) |
 | Tests and builds | — | Yes (54/54; builds) | Yes (54/54; builds) |
 
@@ -172,3 +170,53 @@ phone-width fix in `b1a0cc5` (E-001, E-009).
 
 - `b1a0cc5`: the score breakdown table overflowed its card at 375 px (and the
   page at 320 px); it now has three columns and fits from 320 px up.
+
+## Milestone 4 — audit plans
+
+**Scope (agreed 2026-10-19, D-011):** "Create plan → Top N" with the
+selection, order and exclusions of D-011; tasks that keep a full copy of the
+score that selected them; plan creations that take turns; a tasks page; the
+demo reset deleting plans and tasks explicitly. Out of scope: closing tasks
+(only through counts, milestone 5), the reset policy once counts exist,
+optional improvements.
+
+**Status:** verified in both environments (code `75c46be`; later commits
+only change documentation; Windows ran `2829caf`). Ready to merge.
+
+| Check | Implementation | Verified in CC | Verified on WIN |
+|---|---|---|---|
+| N from 1 to 30, default 5; other values and types rejected | `parsePlanSize` in `src/planning/selection.ts`; CHECK constraints | Yes (unit tests; API `400` for 0, 31, −3, 2.5, `"5"`, `null`, `true`, `[5]`; the browser blocks 0 and the API message is shown when its validation is bypassed) | Yes (tests) |
+| Eligible: scored (0 included) and without a pending task; partial plans; two distinct "no plan" answers | `selectForPlan` | Yes (unit and database tests; demo: 30 requested → 25 created, 5 skipped with a pending task; `409` `NO_AVAILABLE_BINS` and `NO_SCORES`) | Yes (tests; author's visual check at 375 px: N = 30 → 25 tasks, then N = 5 → no bins available, backed by the dev log) |
+| Order: score, then never audited / oldest audit from the stored breakdown, then code | `comparePriority` | Yes (tie at the N boundary with a contradicting `lastAuditedAt`; full demo order equal to an independent SQL query; `B-01-05` before `A-02-01` at 77) | Yes (tests; default plan identical; plan fingerprint equal to Linux) |
+| Tasks keep a copy of the score (value, priority, breakdown, formula version, both times, rank) | `createPlan` in `src/planning/create-plan.ts` | Yes (copies unchanged after a recompute that changed 14 of the 30 current scores) | Yes (tests) |
+| Plan and tasks atomic; one `PENDING` task per bin in PostgreSQL | One transaction; partial unique index | Yes (a failing task insert leaves no plan and no task; direct inserts rejected) | Yes (tests) |
+| Simultaneous requests take turns and select again | Transaction-scoped advisory lock, READ COMMITTED | Yes (8 eligible, two requests of 5 → 5 and 3, no duplicates; HTTP: two requests of 20 → 20 and 10) | Yes (tests) |
+| Reset deletes plans and tasks explicitly and reports them | `resetDemoData` | Yes (`Deleted 2 audit plans and 30 tasks, with their selection explanations.`) | Yes (`Deleted 2 audit plans and 30 tasks, with their selection explanations.`; tests) |
+| API | `POST /audit-plans`, `GET /audit-tasks` | Yes (tests + manual) | Yes (tests; `POST /audit-plans` `{}` → 5 of 5) |
+| Web | Create plan form on the warehouse page; `/tasks` grouped by plan; navigation | Yes (320, 375, 414 and 1100 px: page, form and task tables without overflow) | Author's visual check at 375 px (form messages; Tasks with two plans, no overflow); no screenshots |
+| Migration from milestone 3 and from empty | `20261019090000_audit_plans` | Yes (M3 database: bins and scores kept; empty test database: 4 migrations; no schema drift) | Yes (development and test databases: 4 migrations, none pending; the `Applying …` output itself was not captured) |
+| Tests and builds | — | Yes (78/78; builds) | Yes (78/78; builds) |
+
+### Implementation notes
+
+- The advisory lock (key `4100011`) is released when the transaction ends.
+  READ COMMITTED is deliberate: under REPEATABLE READ a request that waited
+  would still see the bins as they were before the previous plan.
+- `excluded.pendingTask` counts every bin with a pending task;
+  `excluded.noScore` counts bins without a score and without a pending task,
+  so no bin is counted twice.
+- The web sends N as typed (a whole number as a number, anything else as
+  text); only the API validates it.
+- Mutation checks: removing the lock, using REPEATABLE READ, dropping the
+  audit-date tie-break and taking the audit date from the bin instead of the
+  breakdown make 1, 1, 6 and 1 tests fail respectively.
+
+### Known limitations
+
+- The grid does not mark bins that already have a pending task; the tasks
+  page shows them.
+- The demo reset deletes all plans and tasks and, with them, why each bin
+  was selected. What the reset does once counts exist is still open (D-009).
+- Running `npm run build` while `npm run dev` runs deletes the API's `dist/`
+  and stops the development API (behaviour since milestone 1, observed again
+  in this milestone); stop `dev` before building.

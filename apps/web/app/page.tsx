@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
+import { CreatePlanForm } from '../components/CreatePlanForm';
 import { RecomputeButton } from '../components/RecomputeButton';
 import { StatusCard } from '../components/StatusCard';
 import { type WarehouseLayout, getWarehouse } from '../lib/api';
@@ -29,6 +30,7 @@ export default async function WarehousePage() {
           </ul>
           <p className="muted scores-as-of">{scoresAsOf(result.data)}</p>
           <RecomputeButton />
+          <CreatePlanForm />
         </section>
       )}
 

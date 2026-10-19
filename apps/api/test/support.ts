@@ -6,13 +6,13 @@ import type { PrismaClient } from '../src/generated/prisma/client.js';
 export const FIXED_REFERENCE = new Date('2026-10-18T12:00:00Z');
 
 export async function clearInventory(prisma: PrismaClient): Promise<void> {
-  await prisma.$executeRaw`TRUNCATE bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
+  await prisma.$executeRaw`TRUNCATE audit_tasks, audit_plans, bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
 }
 
 // Business data only (codes, quantities, locations, dates, movement order),
 // never internal ids (D-009).
 export async function businessSnapshot(prisma: PrismaClient) {
-  const [bins, products, pallets, movements, scores] = await Promise.all([
+  const [bins, products, pallets, movements, scores, plans] = await Promise.all([
     prisma.bin.findMany({
       orderBy: [{ aisle: 'asc' }, { rack: 'asc' }, { position: 'asc' }],
       select: { code: true, aisle: true, rack: true, position: true, inventoryVersion: true, lastAuditedAt: true },
@@ -38,6 +38,29 @@ export async function businessSnapshot(prisma: PrismaClient) {
       orderBy: { bin: { code: 'asc' } },
       select: { score: true, formulaVersion: true, referenceAt: true, breakdown: true, bin: { select: { code: true } } },
     }),
+    // Creation times are wall-clock times, not business data.
+    prisma.auditPlan.findMany({
+      orderBy: { id: 'asc' },
+      select: {
+        requestedCount: true,
+        excludedPending: true,
+        excludedUnscored: true,
+        tasks: {
+          orderBy: { rank: 'asc' },
+          select: {
+            rank: true,
+            status: true,
+            score: true,
+            priority: true,
+            formulaVersion: true,
+            scoreReferenceAt: true,
+            scoreComputedAt: true,
+            breakdown: true,
+            bin: { select: { code: true } },
+          },
+        },
+      },
+    }),
   ]);
   return {
     bins,
@@ -58,5 +81,6 @@ export async function businessSnapshot(prisma: PrismaClient) {
       reference: s.referenceAt.toISOString(),
       breakdown: s.breakdown,
     })),
+    plans,
   };
 }

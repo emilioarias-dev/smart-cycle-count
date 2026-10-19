@@ -14,7 +14,7 @@ export function RecomputeButton() {
         {pending ? 'Recomputing…' : 'Recompute scores'}
       </button>
       {state.status !== 'idle' && (
-        <p className={`recompute-result ${state.status}`} role={state.status === 'error' ? 'alert' : 'status'}>
+        <p className={`action-result ${state.status}`} role={state.status === 'error' ? 'alert' : 'status'}>
           {state.message}
         </p>
       )}

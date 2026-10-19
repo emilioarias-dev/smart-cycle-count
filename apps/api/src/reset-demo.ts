@@ -40,6 +40,9 @@ try {
       `movements: ${m.PUTAWAY} putaway, ${m.PICK} pick, ${m.MOVE} move, ${m.ADJUSTMENT} adjustment ` +
       `(${summary.firstMovementAt?.toISOString()} → ${summary.lastMovementAt?.toISOString()}).`,
   );
+  console.log(
+    `Deleted ${summary.deleted.plans} audit plans and ${summary.deleted.tasks} tasks, with their selection explanations.`,
+  );
   const p = summary.scores.byPriority;
   console.log(
     `Scores computed for ${summary.scores.bins} bins at the same reference: ${p.high} high, ${p.medium} medium, ${p.low} low priority.`,

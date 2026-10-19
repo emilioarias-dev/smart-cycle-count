@@ -4,7 +4,7 @@ import { ACTIVITY_DAYS, type DemoData, generateDemoData } from '../src/demo-data
 import { resetDemoData } from '../src/demo-data/reset.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import type { ScoreBreakdown } from '../src/scoring/formula.js';
-import { FIXED_REFERENCE, businessSnapshot } from './support.js';
+import { FIXED_REFERENCE, businessSnapshot, clearInventory } from './support.js';
 
 // The demo reset against the real PostgreSQL test database (D-009).
 describe('Demo data reset (PostgreSQL)', () => {
@@ -16,6 +16,8 @@ describe('Demo data reset (PostgreSQL)', () => {
   });
 
   it('loads the demo warehouse (fixture for generator v1, seed 20261018, reference 2026-10-18T12:00:00Z)', async () => {
+    // Start without plans left by other test files, so that none is deleted.
+    await clearInventory(prisma);
     const summary = await resetDemoData(prisma, data, { confirmReset: true });
     expect(summary).toEqual({
       bins: 30,
@@ -28,6 +30,7 @@ describe('Demo data reset (PostgreSQL)', () => {
       firstMovementAt: expect.any(Date),
       lastMovementAt: expect.any(Date),
       scores: { reference: FIXED_REFERENCE, computedAt: expect.any(Date), bins: 30, byPriority: { high: 5, medium: 13, low: 12 } },
+      deleted: { plans: 0, tasks: 0 },
     });
     expect(summary.lastMovementAt!.getTime()).toBeLessThan(FIXED_REFERENCE.getTime());
   });
