@@ -633,6 +633,22 @@ Not shown by this log or the screenshots: the count flow at 375 px, an
 identical retry recovered in the interface, the bin page "Last count
 result" row.
 
+## 2026-10-19 — CC: theme toggle (code `c892ecf`)
+
+Development server, Playwright (Chromium).
+
+| Check | Result |
+|---|---|
+| System light, no choice → toggle → reload of another page | `data-theme` absent and light background; after the toggle `dark`, stored `scc-theme=dark`; on the next page `data-theme=dark` already at DOMContentLoaded (before hydration); back to light, reloaded → light |
+| System dark, no choice | Dark background without `data-theme`; button "Light theme"; choosing light → light, stored |
+| Token contrast, light / dark (text, muted, links, visited links, accent, text on accent, error, priority chips) | All text pairs ≥ 4.5:1 after the fix (light accent on the page background was 4.32:1 before it); focus outline ≥ 5.96:1 (light) and ≥ 11.36:1 (dark) |
+| Every text element against its background on `/`, `/tasks`, `/bins/B-01-05`, `/count` (not countable, form with an unexpected row, result) | Light minimum 5.13:1; dark minimum 4.52:1; nothing below 4.5:1 |
+| Keyboard: Tab through the count page in both themes | Navigation links, toggle, inputs and buttons show a 3 px solid outline |
+| Visited links | The rendered visited state could not be reproduced in headless Chromium (links visited by clicking still render as unvisited there), so it is checked only through the token contrast above |
+| 320 and 375 px | Page overflow 0; the toggle stays inside the viewport (at 320 px it moves to its own line); a tap switches the theme |
+| Browser console during all checks | No errors or warnings (no hydration warnings) |
+| `npm run build -w apps/web` | OK |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -645,7 +661,7 @@ Milestone 3: nothing pending (merged as `2933e00`).
 
 Milestone 4: nothing pending (merged as `0f6d2be`).
 
-Milestone 5: on Windows, the count flow at 375 px (an identical retry recovered from a second tab; the bin page "Last count result" row). Done: terminal log on `00cfa69` (fingerprint identical, 98/98, builds, reset with counts) and screenshots of a FAIL by an unexpected pallet and of Tasks.
+Milestone 5: on Windows, after the theme toggle, `npm.cmd run build` and the theme checks (toggle on every page, remembered after a reload, visited links and keyboard focus readable in both themes, desktop and phone width); the count flow at 375 px (an identical retry recovered from a second tab; the bin page "Last count result" row). Done: terminal log on `00cfa69` (fingerprint identical, 98/98, builds, reset with counts) and screenshots of a FAIL by an unexpected pallet and of Tasks.
 
 Later or optional:
 

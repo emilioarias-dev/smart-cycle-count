@@ -269,6 +269,16 @@ complete and verify it.
   taking the oldest count as the last result make 2, 2, 1, 1, 1 and 2 tests
   fail respectively.
 
+### Presentation change: theme toggle (requested 2026-10-19)
+
+A light / dark toggle in the top bar of every page (`components/ThemeToggle.tsx`,
+CSS tokens in `globals.css`); no business rule, API or dependency changed.
+Without a choice the system preference applies; the choice is stored in
+`localStorage` and applied by an inline script before the first paint.
+Plain links have a visited color and every focusable element a 3 px focus
+outline, in both themes. The light accent went from `#1f6feb` to `#1a5fd0`:
+on the page background it measured 4.32:1, below 4.5:1.
+
 ### Known limitations
 
 - After a FAIL the inventory is not corrected (D-004): the next count of the

@@ -93,6 +93,10 @@ PowerShell except where two variants are shown.
    - API: <http://localhost:3001/warehouse> and
      <http://localhost:3001/bins/A-01-03>
 
+   The **Dark theme / Light theme** button in the top bar switches the
+   colors on every page; without a choice the app follows the system
+   setting, and the choice is remembered in that browser.
+
    On Windows, Ctrl+C makes `cmd.exe` ask `Terminate batch job (Y/N)?`
    (`¿Desea terminar el trabajo por lotes (S/N)?` in Spanish) once per
    process; answer `Y` / `S` and both apps stop.
