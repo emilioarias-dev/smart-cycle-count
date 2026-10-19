@@ -101,15 +101,20 @@ function ScoreCard({ score }: { score: ScoreDetail | null }) {
     );
   }
   const { age, activity, adjustments } = score.breakdown.factors;
+  // Three columns so the table fits a phone: factor (weight), input of cap,
+  // points.
   const rows = [
     {
       name: 'Time since last audit',
-      input: age.neverAudited ? 'Never audited (counts as the maximum)' : `${twoDecimals(age.input)} days`,
+      input: age.neverAudited ? `Never audited (counts as ${age.cap} days)` : `${twoDecimals(age.input)} of ${age.cap} days`,
       factor: age,
-      cap: `${age.cap} days`,
     },
-    { name: 'Activity (putaway, pick, move)', input: plural(activity.input, 'movement'), factor: activity, cap: `${activity.cap}` },
-    { name: 'Adjustments', input: plural(adjustments.input, 'adjustment'), factor: adjustments, cap: `${adjustments.cap}` },
+    {
+      name: 'Activity (putaway, pick, move)',
+      input: `${activity.input} of ${plural(activity.cap, 'movement')}`,
+      factor: activity,
+    },
+    { name: 'Adjustments', input: `${adjustments.input} of ${adjustments.cap}`, factor: adjustments },
   ];
 
   return (
@@ -126,37 +131,38 @@ function ScoreCard({ score }: { score: ScoreDetail | null }) {
       <table className="breakdown">
         <thead>
           <tr>
-            <th scope="col">Factor</th>
-            <th scope="col">Input</th>
-            <th scope="col">Cap</th>
-            <th scope="col">Weight</th>
-            <th scope="col">Points</th>
+            <th scope="col">Factor (weight)</th>
+            <th scope="col">Input / cap</th>
+            <th scope="col" className="points">
+              Points
+            </th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.name}>
-              <th scope="row">{row.name}</th>
+              <th scope="row">
+                {row.name} <span className="muted">({row.factor.weight})</span>
+              </th>
               <td>{row.input}</td>
-              <td>{row.cap}</td>
-              <td>{row.factor.weight}</td>
-              <td>{twoDecimals(row.factor.contribution)}</td>
+              <td className="points">{twoDecimals(row.factor.contribution)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr>
-            <th scope="row" colSpan={4}>
-              Total (rounded once to the score)
+            <th scope="row" colSpan={2}>
+              Total, rounded once to the score
             </th>
-            <td>
-              {twoDecimals(score.breakdown.total)} → {score.value}
+            <td className="points">
+              {twoDecimals(score.breakdown.total)}
+              <br />→ {score.value}
             </td>
           </tr>
         </tfoot>
       </table>
       <p className="footnote">
-        Each factor counts input ÷ cap (at most 1) × weight. Activity and adjustments are counted in the 30 days up to{' '}
+        Points = weight × input ÷ cap, with the input counted at most up to its cap. Activity and adjustments are counted in the 30 days up to{' '}
         {utcDateTime(score.breakdown.window.to)}. This is a heuristic priority for audits, not a probability of error.
       </p>
     </section>

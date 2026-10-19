@@ -431,10 +431,19 @@ h1 {
 
 .breakdown th,
 .breakdown td {
-  padding: 0.4rem 0.3rem;
+  padding: 0.45rem 0.6rem 0.45rem 0;
   border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+/* Numbers line up on the right, inside the card's padding. */
+.breakdown .points {
+  padding-right: 0;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .breakdown thead th {
