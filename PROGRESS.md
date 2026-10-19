@@ -181,7 +181,8 @@ demo reset deleting plans and tasks explicitly. Out of scope: closing tasks
 optional improvements.
 
 **Status:** verified in both environments (code `75c46be`; later commits
-only change documentation; Windows ran `2829caf`). Ready to merge.
+only change documentation; Windows ran `2829caf`) and merged into `main` as
+`0f6d2be`.
 
 | Check | Implementation | Verified in CC | Verified on WIN |
 |---|---|---|---|

@@ -552,6 +552,13 @@ With the earlier entry (default plan and fingerprint identical to Linux;
 interface confirmed visually by the author), every milestone 4 check has
 Windows evidence.
 
+## 2026-10-19 — Milestone 4 merged (author's Windows output and CC check)
+
+| Command / check | Result |
+|---|---|
+| WIN: `git switch main`, `git pull --ff-only`, `git status` | Fast-forward `6d07421..0f6d2be`; clean, up to date with `origin/main` |
+| CC: `git fetch origin main`; merge commit parents; tree comparison | `0f6d2be` merges `2933e00` and `b555148` (PR #4 head); its tree equals `b555148`'s (`e4dba28`) |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -562,7 +569,7 @@ the page reload after a reset while `dev` runs.
 
 Milestone 3: nothing pending (merged as `2933e00`).
 
-Milestone 4: nothing pending; PR #4 ready to merge.
+Milestone 4: nothing pending (merged as `0f6d2be`).
 
 Later or optional:
 
