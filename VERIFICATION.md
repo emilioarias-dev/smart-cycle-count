@@ -475,6 +475,14 @@ The author accepted the breakdown table fix (`b1a0cc5`). No new command
 output or interface check was shared, so the Windows interface checks after
 the fix remain pending.
 
+## 2026-10-19 — WIN: milestone 3 interface after the table fix (reported by the author)
+
+The author reported that the interface checks after the fix passed (grid
+with colors, number, label and "Scores as of"; Points inside the card on
+`B-02-03` and `A-01-03` with page overflow 0 at 375 px; the recompute button).
+No command output was shared for these checks; they are recorded as the
+author's report. PR #3 was then merged as `2933e00`.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -483,12 +491,7 @@ Milestone 2: nothing required pending. Optional, not run on Windows: the
 page for `/bins/%20a-01-03%20` (normalisation covered by the API test) and
 the page reload after a reset while `dev` runs.
 
-Milestone 3:
-
-- WIN: with the presentation fix (`b1a0cc5`): rebuild the web app and check
-  the interface at 375 px (grid, detail of a high and a never-audited bin,
-  recompute button). Data, scores, tests and the API are already verified
-  on Windows and did not change.
+Milestone 3: nothing pending (merged as `2933e00`).
 
 Later or optional:
 
