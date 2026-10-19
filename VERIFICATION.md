@@ -593,6 +593,24 @@ Fresh clone from GitHub; `docker compose down -v` first.
 | `npm run build`; `git status` | API and web OK; clean |
 | `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | "No difference detected." |
 
+## 2026-10-19 — WIN: milestone 5, two screenshots (shared by the author)
+
+Screenshots, desktop width, dark theme. No terminal output was shared for
+this milestone.
+
+| Screenshot | What it shows |
+|---|---|
+| `/count`, bin `B-01-05` (plan #1, task 4), counted 2026-10-19 19:04 UTC | **FAIL caused only by the unexpected pallet**: the expected pallet P-0107 has 88 expected, 88 counted, variance 0; unexpected `UNEXPECTED-TEST-01`: "12 units declared, product unknown (catalog unit not identified)"; "Bin score now: 51 Medium priority" |
+| `/tasks`, plan #1 (5 of 5, created 18:50 UTC, "Scores as of 2026-10-19 18:46 UTC") | `B-02-03` 63 Done · PASS; `C-01-01` 62 Done · FAIL; `A-02-01` 57 Count; `B-01-05` 56 Done · FAIL; `A-01-05` 54 Count |
+
+The plan's scores are as of 18:46 UTC, not the fixed reference
+`2026-10-18T12:00:00Z` (with it the plan would show 68, 64, 57, 57, 54), so
+these scores were computed for the current time and cannot be compared with
+the Linux fingerprint.
+
+Visual confirmations without a screenshot: none reported for this
+milestone.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -605,7 +623,7 @@ Milestone 3: nothing pending (merged as `2933e00`).
 
 Milestone 4: nothing pending (merged as `0f6d2be`).
 
-Milestone 5: Windows reproduction of the PR commit (migration from milestone 4, score fingerprint, tests, builds, count flow on a phone width).
+Milestone 5: on Windows, the outputs of `git rev-parse HEAD`, `db:migrate`, `db:reset-demo` with the fixed `SEED_NOW`, the score fingerprint, `npm.cmd test` and `npm.cmd run build`; the count flow at 375 px (an identical retry from a second tab, the bin page "Last count result" row). Done: screenshots of a FAIL by an unexpected pallet of unknown product and of Tasks with PASS / FAIL.
 
 Later or optional:
 
