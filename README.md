@@ -16,8 +16,11 @@ in the app are real records of this app.
 
 ## What you can do
 
-- **Dashboard** (`/`): a heatmap of the 30 bins by aisle and rack, colored
-  by audit priority (green low, yellow medium, red high).
+- **Dashboard** (`/`): an overview band (priority mix of all bins, progress
+  of the latest plan, bins never audited), a heatmap of the 30 bins by aisle
+  and rack colored by audit priority (green low, yellow medium, red high),
+  the latest plan with each bin's score at selection and now, and a
+  **Score breakdown · Top 5 bins** chart.
 - **Bin detail** (`/bins/A-01-03`): the score and why it got it, the last
   audit date and the pallets stored in the bin.
 - **Create plan → Top N** (on the dashboard): saves the riskiest bins as
@@ -155,26 +158,32 @@ To stop PostgreSQL: `npm run db:down` (the data is kept in a Docker volume).
 With the demo data loaded and `npm run dev` running:
 
 1. **Dashboard** — open <http://localhost:3000>. Each bin shows its score,
-   its priority label and its pallets, colored by band. "Scores as of"
-   gives the reference time of the scores.
-2. **Why a score** — select a bin. Its page shows the score with a table of
-   the factors (input, cap, weight, points), the last audit date and the
-   pallets in the bin.
+   its priority label and its pallets, colored by band; a **TASK** marker
+   means a pending task, **PASS** / **FAIL** the bin's count in the latest
+   plan. "Scores as of" gives the reference time of the scores. The
+   **Score breakdown · Top 5 bins** chart stacks the points of each factor
+   on one 0–100 scale: hover or focus a bar for its values, or click / tap
+   it to open them under the bar.
+2. **Why a score** — select a bin. Its page shows the score with each
+   factor (input, cap, weight, points, and a bar on the same 0–100 scale),
+   the last audit date, the last count result and the pallets in the bin.
 3. **Plan** — back on the dashboard, set **Top N** (5 by default) and press
    **Create plan**. The message says how many tasks were created; **Tasks**
    lists them with the score that selected each bin.
 4. **Count** — open **Count** (on a phone or a narrow window), type a code
    from the plan, enter each counted quantity (`0` for a missing pallet),
    optionally add an unexpected pallet, and submit. The page shows PASS or
-   FAIL, the variances and the bin's new score; **Tasks** shows the task as
-   `Done · PASS` or `Done · FAIL`.
-5. **Recompute** — on the dashboard, press **Recompute scores**: every bin
-   is scored for the current time and the heatmap updates. A counted bin's
-   age is back to 0, and a FAIL adds 25 points.
+   FAIL, the quantities and variances in the product's unit, and the bin's
+   new score; **Tasks** shows the task as **Done** with its result.
+5. **Recompute** — on the dashboard, press **Recompute scores** (on a phone,
+   the circular arrow next to "Scores as of"): every bin is scored for the
+   current time and the heatmap updates. A counted bin's age is back to 0,
+   and a FAIL adds 25 points.
 
-The **Dark theme / Light theme** button in the top bar switches the colors
-on every page; without a choice the app follows the system setting, and the
-choice is remembered in that browser.
+The sun / moon button in the top bar switches between the light and dark
+themes on every page; without a choice the app follows the system setting,
+and the choice is remembered in that browser. On a phone, Warehouse, Tasks
+and Count are in a tab bar at the bottom of the screen.
 
 ## Demo data
 
@@ -283,9 +292,11 @@ Two requests at the same time take turns: the second one waits for the
 first and then selects from the bins still available, so a bin never gets
 two pending tasks.
 
-The **Tasks** page lists the plans, newest first, with each task's
-position, bin, score at selection and status: a **Count** link while
-pending, then **Done · PASS** or **Done · FAIL**.
+The **Tasks** page lists the plans, newest first, with their progress and
+each task's position, bin and score at selection. The task's **status**
+(Pending or Done) and its count **result** (PASS or FAIL, only once done)
+are shown apart; a pending task has a **Count** button in place of the
+result.
 
 ## Count flow
 
@@ -302,10 +313,13 @@ D-012):
    known, the product from the catalog (its unit is shown). If the product
    is unknown, the quantity is kept as "units declared, product unknown",
    without inventing a SKU or unit. At most 10.
-4. Submit. **PASS** only if every quantity matches exactly and there is no
-   unexpected pallet; otherwise **FAIL**. The result is derived from the
-   numbers, not chosen by the operator. The page shows the variances and
-   the bin's new score.
+4. Submit (the button stays at the bottom of the screen; on a wide screen
+   it also says how many pallets still need a quantity: a typed `0` is an
+   answer, an empty field is not). **PASS** only if every quantity matches
+   exactly and there is no unexpected pallet; otherwise **FAIL**. The
+   result is derived from the numbers, not chosen by the operator. The page
+   shows expected and counted quantities and the variances in each
+   product's unit, and the bin's new score.
 
 Saving a count stores the expected and counted quantities, closes **that**
 task, sets the bin's audit date and recomputes every score, all in one
@@ -321,6 +335,14 @@ transaction. A count never changes the inventory.
   send the same count again.
 - **Different quantities for a task already counted** are rejected: the
   page shows the saved result and says the new quantities were not saved.
+
+## Interface
+
+The look follows Rivero's identity (decision D-013): the Rivero logo, the
+Onest typeface, brand blue and black, light and dark themes. Onest is
+stored in the repository (`apps/web/app/fonts/`, SIL Open Font License), so
+the build needs no network and the browser loads no external font. A
+"Prototype · synthetic demo data" notice stays in the top bar.
 
 ## Known limitations
 
@@ -372,6 +394,7 @@ PostgreSQL (Docker)  ←  Prisma client  ←  NestJS API :3001               ←
 bins, products,          PrismaService      GET /warehouse                    / (grid, recompute, create plan)
 pallets, movements,                         GET /bins/:code                   /bins/[code] (detail)
 bin_scores,                                 POST /scores/recompute            /tasks (audit tasks)
+                                            GET /scores/top
 audit_plans,                                POST /audit-plans                 /count (count a bin)
 audit_tasks, counts,                        GET /audit-tasks
 count_lines,                                GET /bins/:code/count-sheet
@@ -393,6 +416,7 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
 |---|---|
 | `GET /warehouse` | `200` with aisles → racks → bins (in location order), each bin with `code`, `position`, `palletCount`, `lastAuditedAt` and `score` (`value`, `priority`, `label`, `reference`, or `null` if not scored) |
 | `GET /bins/:code` | `200` with the bin's location, `inventoryVersion`, `lastAuditedAt`, its current pallets (code, quantity, product SKU, name and unit) and `score` with its `breakdown`, or `404`. The code is normalised: ` a-01-03 ` finds `A-01-03` |
+| `GET /scores/top` | `200` with the five highest stored scores of **all** bins (pending tasks included), in the plan order of D-011 (score, then never audited and oldest audit as stored in the breakdown, then code); each with `rank`, `binCode` and `score` with its `breakdown`. An empty list if no bin is scored. Used by the dashboard chart |
 | `POST /scores/recompute` | `200` with the reference time, the number of bins scored and how many fall in each priority band. All scores or none are saved |
 | `POST /audit-plans` with JSON `{"n": 5}` (`n` optional, default 5) | `201` with the plan (`requestedCount`, `createdCount`, `excluded.pendingTask`, `excluded.noScore`) and its tasks (rank, bin code, copied score). `400` `INVALID_N` for an `n` that is not a whole number from 1 to 30; `409` `NO_SCORES` or `NO_AVAILABLE_BINS` when no plan can be created. The plan and its tasks are saved together or not at all |
 | `GET /audit-tasks` | `200` with every task, newest plan first and by rank, each with its plan summary, bin code, status, the score copied at selection (with `computedAt` and `formulaVersion`) and its `count` (`result`, `countedAt`, or `null`) |

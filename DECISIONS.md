@@ -39,7 +39,8 @@ in the dated tables kept below).
 | D-010 | Risk score: factors, caps, window and stored breakdown | Accepted |
 | D-011 | Audit plans (Top N) and tasks | Accepted |
 | D-012 | Count flow: access, unexpected pallets, retries, conflicts and results | Accepted |
-| D-013 | Visual direction: Rivero identity and dashboard additions | Accepted (design); implementation pending |
+| D-013 | Visual direction: Rivero identity and dashboard additions | Accepted; implemented (milestone 6 redesign) |
+| D-014 | Next extensions: 3D heatmap, Rivvy, data analysis | Accepted as direction; not implemented |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -414,10 +415,30 @@ Limitations: one level per rack; no capacity per bin (see D-007).
 
 ---
 
+## D-014 — Next extensions: 3D heatmap, Rivvy, data analysis
+
+**Status:** Accepted as direction (2026-10-20); **not implemented**. Each
+extension gets its own branch and pull request, after the redesign; the
+delivery is planned for Thursday 2026-10-22. Final acceptance of the whole
+(clean clones, version tag) comes after the extensions.
+
+- **Interactive 3D heatmap**, as an alternative view of the same data: fixed
+  orientation; select a bin with mouse or touch; zoom; a camera reset; and
+  the 2D heatmap kept as the alternative (and for accessibility). Its
+  dependencies are decided when it starts.
+- **Rivvy**, an assistant to query the data and explain decisions: Google
+  **Gemini**, **read-only** (it never creates plans, counts or movements).
+  The model and its effective quota are still to be checked before
+  implementation; how it reaches the data and keeps the API key on the
+  server is decided then.
+- **Additional data analysis** by the author, afterwards.
+
+---
+
 ## D-013 — Visual direction: Rivero identity and dashboard additions
 
-**Status:** Accepted (2026-10-20) as the design direction; not implemented
-yet. Presentation only: no formula, rule or data changes.
+**Status:** Accepted (2026-10-20); implemented on branch `m6-redesign`
+(milestone 6). Presentation only: no formula, rule or data changes.
 
 - **Identity (Rivero, from riveroco.com):** the official logo file, the
   Onest typeface, brand blue `#235cf2`, black `#070707` / `#040404` and its
@@ -439,11 +460,30 @@ yet. Presentation only: no formula, rule or data changes.
   refined mockups (v4) were approved on 2026-10-20; the implementation
   goes on its own branch from `main`.
 
-**Next extensions (registered 2026-10-20, not started):** an interactive 3D
-heatmap as an alternative view; Rivvy, an AI assistant to query the data
-and explain decisions; and the author's data analysis contribution. Each
-needs its own decisions (dependencies, AI provider, data access) before
-implementation.
+**Choices made when approving v4 and implementing it (2026-10-20):**
+
+- **Count helper:** the submit bar says how many pallets still need a
+  quantity (expected pallets and unexpected rows). A typed `0` is an
+  answer; only an empty field is still pending. Shown on wide screens.
+- **"No bin is in the high band in this snapshot."** stays on the heatmap
+  when no bin is high; the formula and the data are not changed for it.
+- **Top 5 chart:** the current Top 5 of **all** bins (pending tasks
+  included), separate from the historical plan, in the D-011 order on the
+  stored breakdowns (score; never audited, then the oldest audit; code). A
+  read-only endpoint, `GET /scores/top`, applies the same comparison as the
+  plans, so the web does not re-implement it. The v4 mockup had broken the
+  57 tie by code (`A-02-01` before `B-01-05`); the accepted order puts
+  `B-01-05`, never audited, first.
+- **Tasks:** the task's status (Pending / Done, neutral) is shown apart from
+  its count result (PASS / FAIL, colored).
+- **Count result:** expected, counted and variance keep the product's unit.
+- **Fixed bars:** the count form's submit bar and the phone tab bar never
+  hide a field: focusing or scrolling to a field keeps it above them
+  (`scroll-padding`).
+- **Icon-only recompute (phones):** a real button named "Recompute scores",
+  with a tooltip, 44 px target and the same busy state.
+- **Font:** Onest is stored in the repository (latin subset, SIL Open Font
+  License) and loaded with `next/font/local`, so the build needs no network.
 
 ---
 
@@ -903,8 +943,9 @@ History before 2026-10-18:
 
 To be decided when the corresponding milestone starts:
 
-Deferred to later milestones (D-013): the interactive 3D heatmap, the Rivvy
-assistant and the author's data analysis contribution.
+Deferred to their own branches (D-014): the interactive 3D heatmap, the
+Rivvy assistant (Gemini, read-only; model and effective quota to be
+checked) and the author's data analysis contribution.
 
 Decided in milestone 5: unexpected pallet capture, retries, conflicts and
 results in scoring (D-012, D-010 v2); demo reset with counts (D-009).

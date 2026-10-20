@@ -776,6 +776,45 @@ is informational (no dependency was changed). Not run on Windows for this
 branch: `npm.cmd run build` (CC: API build OK on `137afc9`; the web app is
 unchanged since `690db87`).
 
+## 2026-10-20 — CC: redesign mockup v4 (static files, outside the repository)
+
+Checks of the approved mockups only; they say nothing about the app. The
+mockups embedded a snapshot of the API data (2026-10-19) and are not
+committed.
+
+| Check | Result |
+|---|---|
+| 6 pages × 320, 390, 768 and 1440 px × light and dark (48 views) | No horizontal overflow; phone targets ≥ 44 px; text contrast ≥ 4.83 (light) and 5.41 (dark); heatmap tiles with one height and the same score and label position; bottom bars cover nothing |
+| Chart: hover, Tab + Enter, tap | Tooltip, accessible name and expand / collapse work |
+| Limits found later | The mockup's Top 5 broke the 57 tie by code (`A-02-01` before `B-01-05`): wrong under D-011, corrected in the app. Screenshots alone did not prove that the Count fields stay reachable under the fixed bars: checked in the app (below) |
+
+## 2026-10-20 — CC: redesign in the app (code `0f0de73` API, `29b36ab` web)
+
+Production build (`npm run build`, then `npm run start` in each workspace);
+Playwright with Chromium. Data: `SEED_NOW=2026-10-18T12:00:00Z npm run
+db:reset-demo`, then the flows below. The scripts were scratch files. The
+checks ran on local commits with the same trees, before the branch was
+created from `main` after PR #6 (`git diff` between them: empty).
+
+| Command / check | Result |
+|---|---|
+| `npm run build` | API and web OK |
+| Web build with the network blocked (proxy to a closed port) | With `next/font/google`: **fails** ("next/font: error", fonts.googleapis.com unreachable). With the font stored in the repository (`next/font/local`): OK. Kept the local file |
+| `npm test` | **103/103** (13 files; new `scores-top.e2e-spec.ts` 3). The `pg` warning once, from the detector's self-test |
+| `NODE_OPTIONS=--throw-deprecation`, whole API suite | Exit 0; 102 passed, 1 skipped (the self-test) |
+| Mutation: `GET /scores/top` sorted by score then code (the mockup's order) | 2 of the 3 new tests fail; code restored |
+| Demo before any plan: chart order | `B-02-03` 68, `C-01-01` 64, `B-01-05` 57, `A-02-01` 57, `A-01-05` 54: the 57 tie puts `B-01-05` (never audited) first; same order as `GET /scores/top` and as the SQL order of D-011 in the test |
+| Real flows, 33 checks (desktop and phone) | **All passed**, no console errors: empty plan states and the high-band note; Create plan (5) → toast and 5 TASK markers, chart unchanged; Tasks → Count `B-02-03` with `P-0026` 31 → FAIL, "33 cases / 31 cases / −2 cases", new score; helper "4 of 4 … still need a quantity", a typed `0` → 3 of 4, emptied → 4 of 4, an unexpected row → 5 of 5, all entered; a pick on `P-0068` while `C-01-01` was open → "The inventory changed", draft "P-0068: changed (was 15, now 14 bags)", nothing stored, recount → PASS; `A-01-05` in three tabs → saved, "Recovered", "Already counted" with the stored PASS, one count; Tasks "Done FAIL / Done PASS / Pending Count"; band "3 / 5 counted, 2 PASS · 1 FAIL · 2 pending" and matching markers; chart = API order after the counts; phone recompute icon: one button named "Recompute scores", 44 × 44, tooltip, reached with Tab, Enter → "Scores recomputed" |
+| Count fields with the fixed bars: Tab through the form, typing in each field; tap (phone) or click each field from the top and type; scroll to the end | All fields reachable, inside the visible area and hit at their center, at 390 × 844, 320 × 568, 390 × 500 and 320 × 400 (viewport shrunk as by an on-screen keyboard), 768 × 1024, 1440 × 900 and 1440 × 500. Control: without the `scroll-padding` rule all 7 cases fail |
+| Chart, 10 checks | Hover tooltip with the four stored contributions; hidden on leave; segments on the 0–100 scale; Tab reaches the bar with its values in the accessible name; Enter opens, Space closes; tap opens the values under the bar, a second tap closes them |
+| Layout: 7 pages (dashboard, bin, tasks, count form with an unexpected row, empty count, unknown bin on count and bin pages) × 320, 390, 768 and 1440 px × light and dark (56 views) | **0 issues**: no horizontal overflow, nothing outside its panel, phone targets ≥ 44 px, text contrast ≥ 4.83 (light) and 5.41 (dark), tiles of one height with the same score and label offsets, tab bar at the bottom covering nothing, submit bar above the tab bar. The first run found the plan panel's bin links at 26 px on phones; corrected |
+| Font | Onest loaded from the app; no request outside the app's origin |
+
+Not checked: browsers other than Chromium (Safari and Firefox may scroll
+focused fields differently), real phones and on-screen keyboards (emulated
+by shrinking the viewport), and the "Not confirmed" state with the API
+stopped (same component, restyled; checked in milestone 5).
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -791,9 +830,12 @@ Milestone 4: nothing pending (merged as `0f6d2be`).
 Milestone 5: nothing pending (merged as `690db87`).
 
 Milestone 6 preparation (README, `pg` correction, D-013): nothing pending
-(Windows: 100/100 on `350e1db`, 2026-10-20). Next on milestone 6: the
-redesign, on a new branch from `main` after this preparation is merged.
-Final acceptance of the whole: after the next extensions.
+(Windows: 100/100 on `350e1db`, 2026-10-20; merged through PR #6).
+
+Milestone 6 redesign (`m6-redesign`): Windows run of the same commit
+(`npm.cmd test` 103/103, `npm.cmd run build`, the main flow at desktop and
+phone width in both themes). Final acceptance of the whole: after the next
+extensions (D-014).
 
 Later or optional:
 
