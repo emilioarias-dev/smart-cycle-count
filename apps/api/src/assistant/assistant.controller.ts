@@ -14,6 +14,7 @@ const STATUS: Record<AskErrorCode, number> = {
   BLOCKED: 502,
   MODEL_ERROR: 502,
   LIMIT: 502,
+  UNSUPPORTED: 502,
 };
 
 @Controller('assistant')

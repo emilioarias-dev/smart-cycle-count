@@ -13,6 +13,7 @@ import { generateDemoData } from '../src/demo-data/generate.js';
 import { resetDemoData } from '../src/demo-data/reset.js';
 import { createPlan } from '../src/planning/create-plan.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { ScoresService } from '../src/scores/scores.service.js';
 import { FIXED_REFERENCE } from './support.js';
 
 // Rivy against a SIMULATED Gemini: a local HTTP server returns scripted
@@ -160,7 +161,7 @@ describe('Rivy assistant with a simulated Gemini (PostgreSQL)', () => {
       lines: sheet.lines.map((l, i) => ({ palletCode: l.palletCode, countedQuantity: l.expectedQuantity - (i === 0 ? 2 : 0) })),
       unexpected: [],
     });
-    script = [{ body: call('get_bin_history', { code: 'B-02-03' }) }, { body: text('FAIL') }];
+    script = [{ body: call('get_bin_history', { code: 'B-02-03' }) }, { body: text('B-02-03: FAIL.') }];
     const { body } = await ask({ question: 'Show the counts of B-02-03', history: [] }).expect(200);
     const [response] = toolResponses();
     const current = await prisma.binScore.findFirstOrThrow({ where: { bin: { code: 'B-02-03' } } });
@@ -293,5 +294,82 @@ describe('Rivy assistant with a simulated Gemini (PostgreSQL)', () => {
     } finally {
       await other.close();
     }
+  });
+
+  // The author's Windows run of 2026-10-20 (real Gemini): asked "que bins
+  // tienen la mayor puntuacion", the model read compare_bins for B-02-03 and
+  // A-02-01, then wrote A-01-01 (71) and A-01-02 (70) and a "data as of"
+  // time that no tool returned. Such an answer must not be shown.
+  it('regression: an answer with bins, scores, links or times that this question\'s tools did not return is withheld with a clear message', async () => {
+    const history = [{ question: 'Why does bin B-02-03 have its priority?', answer: 'B-02-03 has a current score of 63 (score time 2026-10-20T22:38:58.831Z).' }];
+    script = [
+      { body: call('compare_bins', { first: 'B-02-03', second: 'A-02-01' }) },
+      { body: text('Los bins con mayor puntuación y prioridad son:\n- /bins/A-01-01 (score 71, High priority)\n- /bins/A-01-02 (score 70, High priority)\n\nDatos al 2026-10-20T23:14:45.122Z. Soy de solo lectura; consulta /warehouse, /tasks o /count.') },
+    ];
+    const { body } = await ask({ question: 'que bins tienen la mayor puntuacion', history }).expect(502);
+    const sent = JSON.stringify(toolResponses());
+    expect(sent).not.toContain('A-01-01');
+    expect(body).toMatchObject({ code: 'UNSUPPORTED', retryable: true });
+    for (const item of ['/bins/A-01-01', '/bins/A-01-02', '71', '70', '2026-10-20T23:14:45.122Z', '/warehouse', 'compare_bins']) {
+      expect(body.message).toContain(item);
+    }
+    expect(body.message).toMatch(/^Rivy's answer was not shown: it mentioned .* which the app's records read for this question \(compare_bins\) do not contain\. Try again, or ask more specifically\.$/);
+
+    // The same tool results with an answer that only uses them is shown.
+    const [{ response }] = toolResponses();
+    const [b, a] = response.bins;
+    requests = [];
+    script = [
+      { body: call('compare_bins', { first: 'B-02-03', second: 'A-02-01' }) },
+      { body: text(`${response.higherPriority} va primero (${response.decidedBy}). ${b.code}: ${b.currentScore.value}; ${a.code}: ${a.currentScore.value}. Hora de la puntuación: ${b.currentScore.scoreTime}. Ver /bins/${b.code}.`) },
+    ];
+    const ok = await ask({ question: 'compara B-02-03 y A-02-01', history }).expect(200);
+    expect(ok.body.references.map((r: any) => r.href)).toEqual(['/bins/B-02-03', '/bins/A-02-01']);
+  });
+
+  it('get_top_bins: the dashboard Top 5 in its order and score times; the answer, links and time come from this query', async () => {
+    const top = await app.get(ScoresService).top();
+    const before = Date.now();
+    script = [
+      { body: call('get_top_bins', {}) },
+      { body: text(`Highest priority first:\n${top.map((t) => `${t.rank}. ${t.binCode} — ${t.score.value} (${t.score.label}), score time ${t.score.reference.toISOString().slice(0, 16).replace('T', ' ')} UTC`).join('\n')}\nSee /bins/${top[0].binCode}.`) },
+    ];
+    const { body } = await ask({ question: 'Which bins have the highest scores?', history: [] }).expect(200);
+    const [{ response }] = toolResponses();
+    expect(response.bins).toEqual(top.map((t) => ({ rank: t.rank, code: t.binCode, currentScore: t.score.value, band: t.score.label, scoreTime: t.score.reference.toISOString() })));
+    expect(response.bins).toHaveLength(5);
+    expect(body.tools).toEqual([{ name: 'get_top_bins', args: {} }]);
+    expect(body.references.map((r: any) => r.href)).toEqual([...top.map((t) => `/bins/${t.binCode}`), '/']);
+    expect(body.queriedAt).toBe(response.queriedAt);
+    expect(Date.parse(body.queriedAt)).toBeGreaterThanOrEqual(before - 1000);
+
+    // Only the bins the answer names are listed as its sources.
+    script = [{ body: call('get_top_bins', {}) }, { body: text(`${top[0].binCode} comes first with ${top[0].score.value}.`) }];
+    const first = await ask({ question: 'Which bin comes first?', history: [] }).expect(200);
+    expect(first.body.references.map((r: any) => r.href)).toEqual([`/bins/${top[0].binCode}`, '/']);
+  });
+
+  it('a follow-up with history: figures from an earlier answer are not a source; the tools are read again', async () => {
+    const history = [{ question: 'Why does bin B-02-03 have its priority?', answer: 'B-02-03 has a current score of 63 (Medium), score time 2026-10-20T22:38:58.831Z. See /bins/B-02-03.' }];
+    script = [{ body: text('Its score is still 63 (score time 2026-10-20T22:38:58.831Z).') }];
+    let r = await ask({ question: '¿Y cuál es su puntuación ahora?', history }).expect(502);
+    expect(r.body.code).toBe('UNSUPPORTED');
+    expect(r.body.message).toContain('63');
+    expect(r.body.message).toContain('(none)');
+    expect(requests[0].body.contents).toHaveLength(3);
+
+    const stored = (await bins.findByCode('B-02-03'))!;
+    requests = [];
+    script = [{ body: call('get_bin', { code: 'B-02-03' }) }, { body: text(`B-02-03: puntuación actual ${stored.score!.value} (${stored.score!.label}), calculada a ${stored.score!.reference.toISOString()}.`) }];
+    r = await ask({ question: '¿Y cuál es su puntuación ahora? Consulta nuevamente los datos.', history }).expect(200);
+    expect(r.body.tools).toEqual([{ name: 'get_bin', args: { code: 'B-02-03' } }]);
+    expect(r.body.references).toEqual([{ label: 'Bin B-02-03', href: '/bins/B-02-03' }]);
+    expect(r.body.queriedAt).toBe(toolResponses()[0].response.queriedAt);
+  });
+
+  it('missing information: an answer that says the records do not show it is shown, with no data time', async () => {
+    script = [{ body: text("The app's records available to me do not include a ranking by lowest score. The Warehouse page (/) shows every bin.") }];
+    const { body } = await ask({ question: 'Which bins have the lowest scores?', history: [] }).expect(200);
+    expect(body).toMatchObject({ tools: [], references: [], queriedAt: null });
   });
 });

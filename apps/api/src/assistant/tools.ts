@@ -5,12 +5,13 @@ import { normalizeBinCode } from '../inventory/bin-code.js';
 import { comparePriority } from '../planning/selection.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CAPS, FORMULA_VERSION, WEIGHTS, WINDOW_DAYS } from '../scoring/formula.js';
+import { ScoresService, TOP_SIZE } from '../scores/scores.service.js';
 
 // Rivy's tools (D-016). Read-only: they only read through the existing
 // services and queries, never write, and never run SQL from the model.
 // Every figure, time reference and link in an answer comes from here.
 
-export const TOOL_NAMES = ['get_bin', 'compare_bins', 'get_bin_history', 'get_rules'] as const;
+export const TOOL_NAMES = ['get_bin', 'compare_bins', 'get_top_bins', 'get_bin_history', 'get_rules'] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
 
 // What Gemini sees: one declaration per tool.
@@ -30,6 +31,11 @@ export const TOOL_DECLARATIONS = [
       properties: { first: { type: 'string', description: 'First bin code.' }, second: { type: 'string', description: 'Second bin code.' } },
       required: ['first', 'second'],
     },
+  },
+  {
+    name: 'get_top_bins',
+    description: `The ${TOP_SIZE} bins with the highest CURRENT stored scores among all bins (the dashboard's Top ${TOP_SIZE}), highest priority first in the order plans use, each with its score, band and score time. Use it for any question about which bins have the highest scores or priority overall. There is no other ranking (for example, no lowest scores).`,
+    parameters: { type: 'object', properties: {} },
   },
   {
     name: 'get_bin_history',
@@ -83,6 +89,7 @@ export class AssistantTools {
   constructor(
     private readonly prisma: PrismaService,
     private readonly bins: BinsService,
+    private readonly scores: ScoresService,
   ) {}
 
   run(name: string, args: Record<string, unknown>): Promise<ToolResult> {
@@ -91,6 +98,8 @@ export class AssistantTools {
         return this.getBin(String(args.code ?? ''));
       case 'compare_bins':
         return this.compareBins(String(args.first ?? ''), String(args.second ?? ''));
+      case 'get_top_bins':
+        return this.getTopBins();
       case 'get_bin_history':
         return this.getBinHistory(String(args.code ?? ''));
       case 'get_rules':
@@ -159,6 +168,22 @@ export class AssistantTools {
       higherPriority: first.code,
       decidedBy: decider(ca, cb),
       note: 'Priority uses the current stored scores; a pending task does not change priority but excludes the bin from a new plan.',
+    };
+  }
+
+  // The dashboard's Top 5 (GET /scores/top), in its order (D-011).
+  async getTopBins(): Promise<ToolResult> {
+    const queriedAt = new Date().toISOString();
+    const top = await this.scores.top();
+    if (top.length === 0) {
+      return { found: false, queriedAt, bins: [], message: 'No bin has a stored score yet: Recompute scores on the Warehouse page.' };
+    }
+    return {
+      found: true,
+      queriedAt,
+      order: 'Highest priority first, as plans order bins: score, then never audited or older audit, then bin code. Bins with a pending task are included.',
+      bins: top.map((t) => ({ rank: t.rank, code: t.binCode, currentScore: t.score.value, band: t.score.label, scoreTime: iso(t.score.reference) })),
+      links: [...top.map((t) => ({ label: `Bin ${t.binCode}`, href: `/bins/${t.binCode}` })), { label: 'Warehouse', href: '/' }],
     };
   }
 

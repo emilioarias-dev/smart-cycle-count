@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { type Content, type GeminiConfig, GeminiError, type GeminiErrorCode, type Part, type Usage, generateContent, geminiConfig } from './gemini.js';
+import { unsupported } from './grounding.js';
 import { AssistantTools, TOOL_DECLARATIONS, type ToolResult } from './tools.js';
 
 // Rivy (D-016): one question, answered with at most two Gemini calls and two
@@ -29,7 +30,7 @@ export type AskResult = {
   truncated: boolean;
 };
 
-export type AskErrorCode = GeminiErrorCode | 'INVALID_QUESTION' | 'RATE_LIMITED' | 'LIMIT';
+export type AskErrorCode = GeminiErrorCode | 'INVALID_QUESTION' | 'RATE_LIMITED' | 'LIMIT' | 'UNSUPPORTED';
 export class AskError extends Error {
   constructor(
     readonly code: AskErrorCode,
@@ -42,17 +43,19 @@ export class AskError extends Error {
 }
 
 const SYSTEM = `You are Rivy, the read-only assistant of Smart Cycle Count, a warehouse cycle-count app. All data is synthetic demo data.
-- Use the tools for every figure, date and link. Never invent or estimate numbers. If a tool says a bin does not exist or data is missing, say so plainly.
-- Earlier answers in this conversation may be outdated: for current data, call the tools again.
+- Use the tools for every bin, figure, date and link, and state only what the tool results of THIS question contain. Never invent, estimate or compute new numbers. If a tool says a bin does not exist, or no tool returns what the question needs, say plainly that the app's records do not show it.
+- For the bins with the highest scores or priority overall, use get_top_bins; never infer a ranking from other bins.
+- Earlier answers in this conversation may be outdated and are not a source: for any figure, call the tools again.
 - Keep three things apart: the CURRENT score (get_bin, with its score time), the score AT SELECTION copied when a plan selected the bin (get_bin_history), and a COUNT RESULT (PASS or FAIL, with its count time). No stored count means unknown, never PASS.
-- Give the time references the tools return (score time, count time, "data as of" query time) as UTC dates and times.
+- Give the score time or count time a tool returns, as a UTC date and time, when it matters. Do not add a "data as of" line: the page shows the query time.
 - When you mention a bin or a page, write its link path exactly as a tool returned it (for example /bins/B-02-03 or /tasks).
-- You cannot change anything: no plans, counts, recomputes, inventory moves or rule changes. If asked, say you are read-only and point to the Warehouse, Tasks or Count page.
+- You cannot change anything: no plans, counts, recomputes, inventory moves or rule changes. Only if asked to, say you are read-only and point to the Warehouse (/), Tasks (/tasks) or Count (/count) page.
 - Answer in the language of the question (English if unclear). Keep bin codes, pallet codes, SKUs, units and the values PASS, FAIL, PENDING, DONE, High, Medium and Low exactly as given.
 - Be brief: at most about 150 words, plain text, short lists if useful.`;
 
 @Injectable()
 export class AssistantService {
+  private readonly logger = new Logger('Rivy');
   // Model calls in the last minute, to stay under the free-tier rate limit.
   private readonly calls: number[] = [];
 
@@ -74,6 +77,7 @@ export class AssistantService {
     ];
     const usage = { modelCalls: 0, promptTokens: 0, outputTokens: 0, totalTokens: 0 };
     const used: AskResult['tools'] = [];
+    const results: ToolResult[] = [];
     const references = new Map<string, string>();
     let queriedAt: string | null = null;
 
@@ -105,6 +109,7 @@ export class AssistantService {
           if (i < LIMITS.toolCalls) {
             used.push({ name, args });
             response = await this.tools.run(name, args);
+            results.push(response);
             for (const link of response.links ?? []) {
               references.set(link.href, link.label);
             }
@@ -124,9 +129,19 @@ export class AssistantService {
       if (!answer) {
         throw new AskError('LIMIT', `Rivy could not finish an answer within ${LIMITS.modelCalls} model calls. Try a more specific question.`);
       }
+      // Nothing the tool results of this question do not contain is shown.
+      const missing = unsupported(answer, results, question);
+      if (missing.length > 0) {
+        this.logger.warn(`Answer withheld; not in the records read (${used.map((t) => t.name).join(', ') || 'none'}): ${missing.join(', ')}`);
+        throw new AskError(
+          'UNSUPPORTED',
+          `Rivy's answer was not shown: it mentioned ${list(missing)}, which the app's records read for this question (${used.map((t) => t.name).join(', ') || 'none'}) do not contain. Try again, or ask more specifically.`,
+        );
+      }
       return {
         answer,
-        references: [...references].map(([href, label]) => ({ label, href })),
+        // A bin's page is a source only if the answer names that bin.
+        references: [...references].filter(([href]) => !href.startsWith('/bins/') || answer.includes(href.slice('/bins/'.length))).map(([href, label]) => ({ label, href })),
         queriedAt,
         tools: used,
         model: config.model,
@@ -187,6 +202,10 @@ function textOf(parts: Part[]): string {
     .map((p) => p.text)
     .join('')
     .trim();
+}
+
+function list(items: string[]): string {
+  return items.length > 6 ? `${items.slice(0, 6).join(', ')} and ${items.length - 6} more` : items.join(', ');
 }
 
 function addUsage(total: AskResult['usage'], usage: Usage) {
