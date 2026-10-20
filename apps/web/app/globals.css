@@ -536,8 +536,8 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
 .h3d-stage.dragging { cursor: grabbing; }
 .h3d-stage canvas { display: block; width: 100%; height: 100%; }
 .h3d-labels { position: absolute; inset: 0; pointer-events: none; }
-.h3d-label { position: absolute; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); white-space: nowrap; }
-.h3d-label.row { transform: translate(-100%, -50%); padding-right: 0.3rem; }
+.h3d-label { position: absolute; padding: 0 0.2rem; border-radius: 2px; background: color-mix(in srgb, var(--surface) 82%, transparent); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); white-space: nowrap; }
+.h3d-label.row { transform: translate(-100%, -50%); margin-left: -0.15rem; }
 .h3d-label.column { transform: translate(-50%, 0); }
 .h3d-tag { position: absolute; transform: translate(-50%, calc(-100% - 6px)); padding: 0.2rem 0.5rem; background: var(--rv-black); color: #f2f2f2; font-size: 0.74rem; font-weight: 600; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-lift); }
 .h3d-tag.hover { opacity: 0.92; }
