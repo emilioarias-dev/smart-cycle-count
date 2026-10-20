@@ -132,6 +132,20 @@ export type CountOutcome =
 // One bar of the dashboard chart: the Top 5 of all bins in the D-011 order.
 export type TopScore = { rank: number; binCode: string; score: ScoreDetail };
 
+// Rivy (D-016): one answer, built by the API from its read-only tools.
+export type RivyExchange = { question: string; answer: string };
+export type RivyAnswer = {
+  answer: string;
+  references: { label: string; href: string }[];
+  queriedAt: string | null;
+  tools: { name: string; args: Record<string, unknown> }[];
+  model: string;
+  usage: { modelCalls: number; promptTokens: number; outputTokens: number; totalTokens: number };
+  ms: number;
+  truncated: boolean;
+};
+export type RivyOutcome = { status: 'ok'; data: RivyAnswer } | { status: 'error'; code: string; message: string; retryable: boolean };
+
 export type ApiResult<T> = { status: 'ok'; data: T } | { status: 'not-found' } | { status: 'error'; reason: string };
 
 export function getWarehouse(): Promise<ApiResult<WarehouseLayout>> {
@@ -202,6 +216,37 @@ export async function submitCount(taskId: number, payload: CountPayload): Promis
   }
   console.error(`Request to ${url.href} returned HTTP ${response.status}`);
   return unconfirmed(`The API responded with HTTP ${response.status}.`);
+}
+
+// The API answers within its own 60 s limit; 75 s leaves room for the rest.
+export async function askRivy(question: string, history: RivyExchange[]): Promise<RivyOutcome> {
+  const baseUrl = process.env.API_BASE_URL;
+  if (!baseUrl) {
+    return { status: 'error', code: 'NOT_CONFIGURED', message: 'API_BASE_URL is not set. Copy apps/web/.env.example to apps/web/.env.', retryable: false };
+  }
+  const url = new URL('/assistant/ask', baseUrl);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(75_000),
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question, history }),
+    });
+    const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    if (response.ok && body) {
+      return { status: 'ok', data: body as RivyAnswer };
+    }
+    return {
+      status: 'error',
+      code: typeof body?.code === 'string' ? body.code : `HTTP_${response.status}`,
+      message: typeof body?.message === 'string' ? body.message : `The API responded with HTTP ${response.status}.`,
+      retryable: body?.retryable !== false,
+    };
+  } catch (error) {
+    console.error(`Request to ${url.href} failed:`, error);
+    return { status: 'error', code: 'API_UNREACHABLE', message: 'The API did not answer. Check that it is running, then try again.', retryable: true };
+  }
 }
 
 async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown): Promise<ApiResult<T>> {
