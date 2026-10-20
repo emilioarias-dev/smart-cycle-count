@@ -312,5 +312,12 @@ on the page background it measured 4.32:1, below 4.5:1.
   the previous code. `NODE_OPTIONS=--throw-deprecation npm test` passes as
   an extra check.
 
-Pending: Windows run of the correction; the delivery scope (final
-acceptance from clean clones, version tag).
+- Visual direction (D-013): Rivero identity approved on a static dashboard
+  mockup (v3, 2026-10-20); refinements and the other screens (bin details,
+  tasks, count, interaction states) are being mocked up before any change
+  to the application.
+
+Pending: Windows run of the `pg` correction; the redesign implementation
+after the mockups are approved; the delivery scope (final acceptance from
+clean clones, version tag). Next extensions, not started: 3D heatmap,
+Rivvy, the author's data analysis.
