@@ -346,6 +346,6 @@ no network. No dependency, migration, rule, formula or data change.
 | Tests and builds | `npm test`, `npm run build` | Yes (103/103; builds, also without network) | Pending |
 
 Next, each on its own branch and pull request (D-014, not started): the 3D
-heatmap, Rivvy (Gemini, read-only) and the author's data analysis. Delivery
+heatmap, Rivy (Gemini, read-only) and the author's data analysis. Delivery
 planned for Thursday 2026-10-22; final acceptance of the whole (clean
 clones, version tag) after the extensions.

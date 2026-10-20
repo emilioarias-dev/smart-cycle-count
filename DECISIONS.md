@@ -40,7 +40,7 @@ in the dated tables kept below).
 | D-011 | Audit plans (Top N) and tasks | Accepted |
 | D-012 | Count flow: access, unexpected pallets, retries, conflicts and results | Accepted |
 | D-013 | Visual direction: Rivero identity and dashboard additions | Accepted; implemented on `m6-redesign`, not merged yet |
-| D-014 | Next extensions: 3D heatmap, Rivvy, data analysis | Accepted as direction; not implemented |
+| D-014 | Next extensions: 3D heatmap, Rivy, data analysis | Accepted as direction; not implemented |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -415,10 +415,11 @@ Limitations: one level per rack; no capacity per bin (see D-007).
 
 ---
 
-## D-014 — Next extensions: 3D heatmap, Rivvy, data analysis
+## D-014 — Next extensions: 3D heatmap, Rivy, data analysis
 
 **Status:** Accepted as direction (2026-10-20); **not implemented**. Each
-extension gets its own branch and pull request, after the redesign; the
+extension gets its own branch and pull request, after the redesign, in this
+order: the 3D heatmap, then Rivy, then the data analysis. The
 delivery is planned for Thursday 2026-10-22. Final acceptance of the whole
 (clean clones, version tag) comes after the extensions.
 
@@ -426,7 +427,7 @@ delivery is planned for Thursday 2026-10-22. Final acceptance of the whole
   orientation; select a bin with mouse or touch; zoom; a camera reset; and
   the 2D heatmap kept as the alternative (and for accessibility). Its
   dependencies are decided when it starts.
-- **Rivvy**, an assistant to query the data and explain decisions: Google
+- **Rivy**, an assistant to query the data and explain decisions: Google
   **Gemini**, **read-only** (it never creates plans, counts or movements).
   The model and its effective quota are still to be checked before
   implementation; how it reaches the data and keeps the API key on the
@@ -944,7 +945,7 @@ History before 2026-10-18:
 To be decided when the corresponding milestone starts:
 
 Deferred to their own branches (D-014): the interactive 3D heatmap, the
-Rivvy assistant (Gemini, read-only; model and effective quota to be
+Rivy assistant (Gemini, read-only; model and effective quota to be
 checked) and the author's data analysis contribution.
 
 Decided in milestone 5: unexpected pallet capture, retries, conflicts and

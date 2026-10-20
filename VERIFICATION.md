@@ -815,6 +815,12 @@ focused fields differently), real phones and on-screen keyboards (emulated
 by shrinking the viewport), and the "Not confirmed" state with the API
 stopped (same component, restyled; checked in milestone 5).
 
+## 2026-10-20 — WIN: redesign, visual review (reported by the author)
+
+The author is reviewing the redesigned app on Windows and reports that it
+looks right so far. Recorded as visual acceptance of what was observed
+only: no flow, test or build result on Windows is confirmed by this entry.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -833,8 +839,9 @@ Milestone 6 preparation (README, `pg` correction, D-013): nothing pending
 (Windows: 100/100 on `350e1db`, 2026-10-20; PR #6, merged as `e407ebc`).
 
 Milestone 6 redesign (`m6-redesign`): Windows run of the same commit
-(`npm.cmd test` 103/103, `npm.cmd run build`, the main flow at desktop and
-phone width in both themes). Final acceptance of the whole: after the next
+(`npm.cmd test` 103/103, `npm.cmd run build`). Visual review reported as
+good so far; the main flow at desktop and phone width in both themes not
+yet confirmed. Final acceptance of the whole: after the next
 extensions (D-014).
 
 Later or optional:
