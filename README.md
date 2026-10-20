@@ -396,6 +396,8 @@ project and shown in AI Studio (<https://aistudio.google.com/rate-limit>).
   score at selection, its status and the count (lines, variances,
   unexpected pallets). A bin without counts has an unknown result, not
   PASS.
+- *Which bins have the highest scores?* — the dashboard's Top 5 in the
+  plan order, with each score and score time.
 - *How is the risk score calculated?* — a short, versioned summary of the
   rules.
 
@@ -414,6 +416,13 @@ it. Rivy does not retry by itself: after a failure, **Try again**. If
 Gemini is unavailable, the quota is reached or the key is missing, the
 page says so and the rest of the app keeps working.
 
+**Checked answers.** Before an answer is shown, the API checks that every
+bin code, pallet code, SKU, link, date, time and number in it comes from the
+records read for that question (not from earlier answers). If the model
+wrote anything else, the answer is not shown and the page says what it
+mentioned; try again or ask more specifically. Questions the records cannot
+answer (for example, the lowest scores) get "the records do not show it".
+
 ## Interface
 
 The look follows Rivero's identity (decision D-013): the Rivero logo, the
@@ -429,9 +438,11 @@ initial JavaScript grows by about 5 KB.
 ## Known limitations
 
 - Rivy depends on Gemini's free tier: answers can be slow, Gemini may be
-  busy (503) and the quota is per project (429). The model can still word
-  things wrongly: the figures come from the app, but check them on the
-  linked pages. The conversation is not saved.
+  busy (503) and the quota is per project (429). The check covers codes,
+  links, dates, times and numbers, not wording: a sentence can still
+  misread a figure that is in the records (check the linked pages), and a
+  number written in words is not checked. A correct answer that derives a new
+  number (a difference, a sum) is withheld. The conversation is not saved.
 - The data is synthetic, and the last audit dates before the first count
   are simulated (see [Demo data](#demo-data)).
 - The 3D view was checked in Chromium (desktop and phone emulation) with
@@ -514,7 +525,7 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
 | `GET /audit-tasks` | `200` with every task, newest plan first and by rank, each with its plan summary, bin code, status, the score copied at selection (with `computedAt` and `formulaVersion`) and its `count` (`result`, `countedAt`, or `null`) |
 | `GET /bins/:code/count-sheet` | `200` with the bin's pending task, `inventoryVersion`, expected lines (pallet code, product, expected quantity) and the product catalog, read in one snapshot. `404` `BIN_NOT_FOUND`; `409` `NO_PENDING_TASK` |
 | `POST /audit-tasks/:taskId/count` with JSON `{"inventoryVersion": 46, "lines": [{"palletCode": "P-0026", "countedQuantity": 33}], "unexpected": [{"code": "X-1", "quantity": 12, "productSku": null}]}` | `201` with the count (result, lines with expected, counted and variance, unexpected pallets) and the bin's new score; `200` with `recovered: true` and the stored count for an identical retry. `400` (`INVALID_COUNT`, `LINES_MISMATCH`, `UNEXPECTED_IS_EXPECTED`, `UNKNOWN_PRODUCT`); `404` `TASK_NOT_FOUND`; `409` `INVENTORY_CHANGED` (nothing saved; with the current version, lines and `changes`) or `TASK_ALREADY_COUNTED` (with the stored count) |
-| `POST /assistant/ask` with JSON `{"question": "Why does bin B-02-03 have its priority?", "history": [{"question": "…", "answer": "…"}]}` (`history`: at most the last 6 exchanges) | `200` with `answer`, `references` (label and path of the pages read), `queriedAt`, `tools` (name and arguments), `model`, `usage` (Gemini calls and tokens), `ms` and `truncated`. Errors have `code`, `message`, `retryable` and, for the local rate guard, `retryAfterSeconds`: `400` `INVALID_QUESTION`; `429` `RATE_LIMITED` or `QUOTA`; `503` `NOT_CONFIGURED` or `UNAVAILABLE`; `504` `TIMEOUT`; `502` `AUTH`, `BLOCKED`, `MODEL_ERROR` or `LIMIT`. Read-only |
+| `POST /assistant/ask` with JSON `{"question": "Why does bin B-02-03 have its priority?", "history": [{"question": "…", "answer": "…"}]}` (`history`: at most the last 6 exchanges) | `200` with `answer`, `references` (label and path of the pages read), `queriedAt`, `tools` (name and arguments), `model`, `usage` (Gemini calls and tokens), `ms` and `truncated`. Errors have `code`, `message`, `retryable` and, for the local rate guard, `retryAfterSeconds`: `400` `INVALID_QUESTION`; `429` `RATE_LIMITED` or `QUOTA`; `503` `NOT_CONFIGURED` or `UNAVAILABLE`; `504` `TIMEOUT`; `502` `AUTH`, `BLOCKED`, `MODEL_ERROR`, `LIMIT` or `UNSUPPORTED` (the answer named codes, links, dates, times or numbers that the records read for this question do not contain; not shown). Read-only |
 
 ## Project documents
 

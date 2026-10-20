@@ -927,6 +927,63 @@ Google. Production build; Playwright with Chromium; data:
 Not checked: the real model through the app (the six real queries are
 pending with the author), Safari, Firefox, real phones and Windows.
 
+## 2026-10-20 — WIN: Rivy with the real model (shared by the author, screenshot and page text)
+
+**Real check on the author's PC**, key in `apps/api/.env`. Reported by the
+author with a screenshot and the page text; the commit and terminal output
+were not shared. Per answer, from the page's meta line:
+
+| Question | Tool read | Calls · tokens · time | What the answer said |
+|---|---|---|---|
+| Why does bin B-02-03 have its priority? | `get_bin` | 2 · 2376 · 2.3 s | Score 63 (Medium), score time and the four factors; coherent |
+| ¿Y cuál es su puntuación ahora? Consulta nuevamente los datos. (follow-up) | `get_bin` | 2 · 2706 · 1.6 s | 63 (63.32 before rounding), score time; coherent, in Spanish |
+| Compare B-01-05 and A-02-01… | `compare_bins` | 2 · 3270 · 4.0 s | A-02-01 first, 57 vs 55; coherent |
+| Show the recorded count history for B-02-03… | `get_bin_history` | 2 · 3257 · 5.8 s | No count stored (not PASS), one pending task, score at selection 63; coherent |
+| What makes a count PASS or FAIL?… | `get_rules` | 2 · 3377 · 1.5 s | Rule correct, but the text gave a "data as of" time that no tool returned |
+| ¿Qué puntuación tiene el bin Z-99-99? | `get_bin` | 2 · 3537 · 2.3 s | Does not exist; coherent |
+| que bins tienen la mayor puntuacion | `compare_bins` | 2 · 4305 · 2.2 s | **Unsupported**: A-01-01 (71) and A-01-02 (70), while the sources were B-02-03 and A-02-01; text time 23:14:45, meta 23:10 |
+
+Several answers also ended with a link path `/warehouse`, which is not a
+page of the app.
+
+## 2026-10-20 — CC: investigation and fix of unsupported answers (code `a941c18`)
+
+**Cause, from the code:** there was no tool for a global ranking, so the
+model read `compare_bins` for two bins of the conversation and wrote other
+bins and scores from nowhere; nothing between Gemini and the page compared
+the text with the tool results. The time in the text was written by the
+model: the instructions asked it to give the "data as of" query time, which
+`get_rules` does not return; the meta line's time is the API's. The
+`/warehouse` path came from "point to the Warehouse page".
+
+**Fix:** `get_top_bins` (the dashboard's Top 5, same code as
+`GET /scores/top`); the API checks every code, link, date, time and number
+of an answer against this question's tool results before returning it
+(withheld otherwise, `UNSUPPORTED`); a bin's page is a source only if the
+answer names it; the instructions no longer ask for a "data as of" line and
+give the real page paths. The earlier checks were kept and re-run.
+
+**Simulated** (fake Gemini, nothing sent to Google):
+
+| Command / check | Result |
+|---|---|
+| `npm test` | API **121/121** (113 + 4 Rivy e2e + 4 check tests); web **11/11** |
+| New Rivy tests | The Windows case replayed (history, `compare_bins` for B-02-03 and A-02-01, the same answer): **502 `UNSUPPORTED`**, message naming `/bins/A-01-01`, `/bins/A-01-02`, 71, 70, the time and `/warehouse`; the same results with an answer using only them: 200. Top 5: tool = `ScoresService.top()` in order with score times, references the bins named. Follow-up with history: an answer from the earlier figures without tools is withheld; with `get_bin` it is shown with this query's time. Missing information: "the records do not show it" is shown, no time |
+| Check tests (`test/grounding.spec.ts`) | Written forms accepted (decimal comma, rounding, "22:38 UTC", a date in words, 31/33, −2); unknown bins, pallets, SKUs, links, timestamps, clocks and numbers reported; no tool results ⇒ figures unsupported |
+| Mutations, each restored | Check not applied; history counted as a source; codes, timestamps or links not checked; Top 5 order not kept; query time as score time; sources not limited to the bins named: **each one fails the tests** (8/8). The 6 earlier mutations still fail too |
+| `npx tsc --noEmit` (web), `npm run build` | Exit 0; builds OK |
+| `/rivy` in the browser, earlier 67 checks | **67/67** (re-run) |
+| `/rivy`, affected cases at 1440 dark and 390 light | **18/18**: the ranking equals `GET /scores/top` in order and scores, sources = the 5 bins + Warehouse, meta `get_top_bins`; a follow-up reads the tools again; the invented answer is withheld with the message and Try again, nothing of it shown; Try again then answers; no horizontal scroll |
+
+**Real, from CC through its proxy (not Windows):** the affected cases
+once, 6 Gemini calls in total, dev data of this container:
+
+| Question | Result |
+|---|---|
+| que bins tienen la mayor puntuacion | 200 in 16.2 s, `get_top_bins`, 2 calls, 2635 tokens: the five bins of `GET /scores/top` in order with their scores and score time, in Spanish; passed the check |
+| ¿Y cuál es la puntuación del primero ahora? Consulta nuevamente los datos. (with the answer above as history) | 200 in 12.0 s, `get_top_bins` read again (new query time), 2927 tokens: B-02-03, 60, score time; passed the check |
+| What makes a count PASS or FAIL? Does counting change inventory? | 200 in 14.9 s, `get_rules`, 2157 tokens: the rule, no invented time, links `/`, `/tasks`, `/count`; passed the check |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -958,12 +1015,13 @@ Rivy (`m6-rivy`), pending on Windows (WIN):
 
 - In AI Studio: the TPM limit of Gemini 3.5 Flash-Lite, the project behind
   the key and its tier (Free), without enabling billing.
-- `npm.cmd ci`, `npm.cmd test` (expected 113 API + 11 web), `npm.cmd run
+- `npm.cmd ci`, `npm.cmd test` (expected 121 API + 11 web), `npm.cmd run
   build`, with the key in `apps/api/.env` only.
-- Six real questions through `/rivy` (the four capabilities, a follow-up
-  and one without data; English and Spanish), recording for each the Gemini
-  calls, tokens, time and whether the answer matches the app's pages. The
-  quota is not exhausted on purpose: quota errors were tested simulated.
+- Real questions: the author's run on the PR's first commit is recorded
+  above. Pending: only the affected cases on `a941c18` or later (the global
+  ranking, a follow-up with history, the rules question), with calls,
+  tokens and time. The quota is not exhausted on purpose: quota errors were
+  tested simulated.
 
 Later or optional:
 
