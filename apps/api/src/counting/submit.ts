@@ -148,18 +148,23 @@ export async function submitCount(prisma: PrismaClient, taskId: number, body: un
   );
 }
 
+// Three queries, one after another. A transaction has a single connection:
+// one findUnique including the lines and the unexpected pallets lets Prisma
+// send their queries at the same time, which pg 8 warns about and pg 9 will
+// refuse (VERIFICATION.md, 2026-10-19).
 export async function readCount(tx: Prisma.TransactionClient, taskId: number): Promise<CountView | null> {
-  const count = await tx.count.findUnique({
-    where: { taskId },
-    include: {
-      bin: { select: { code: true } },
-      lines: { include: { pallet: { select: { code: true, product: { select: { sku: true, name: true, unit: true } } } } } },
-      unexpected: { include: { product: { select: { sku: true, name: true, unit: true } } } },
-    },
-  });
+  const count = await tx.count.findUnique({ where: { taskId }, include: { bin: { select: { code: true } } } });
   if (!count) {
     return null;
   }
+  const lines = await tx.countLine.findMany({
+    where: { countId: count.id },
+    include: { pallet: { select: { code: true, product: { select: { sku: true, name: true, unit: true } } } } },
+  });
+  const unexpected = await tx.unexpectedPallet.findMany({
+    where: { countId: count.id },
+    include: { product: { select: { sku: true, name: true, unit: true } } },
+  });
   return {
     id: count.id,
     taskId: count.taskId,
@@ -167,7 +172,7 @@ export async function readCount(tx: Prisma.TransactionClient, taskId: number): P
     result: count.result,
     countedAt: count.countedAt,
     inventoryVersion: count.inventoryVersion,
-    lines: count.lines
+    lines: lines
       .map((l) => ({
         palletCode: l.pallet.code,
         product: l.pallet.product,
@@ -176,7 +181,7 @@ export async function readCount(tx: Prisma.TransactionClient, taskId: number): P
         variance: l.variance,
       }))
       .sort((a, b) => byText(a.palletCode, b.palletCode)),
-    unexpected: count.unexpected
+    unexpected: unexpected
       .map((u) => ({ code: u.code, quantity: u.quantity, product: u.product }))
       .sort((a, b) => byText(a.code, b.code)),
   };

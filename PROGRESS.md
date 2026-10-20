@@ -234,7 +234,7 @@ camera scanning, reconciling inventory after a FAIL, optional improvements.
 (`c892ecf`, web only) verified in CC. On Windows: terminal checks on
 `00cfa69`, two screenshots, and the author's report that the web build after
 the theme toggle exited 0 and that the theme and phone-width checks passed.
-Ready to merge. Commit `eb4cf0a` is a
+Merged into `main` as `690db87`. Commit `eb4cf0a` is a
 checkpoint of incomplete work saved before a pause; the commits after it
 complete and verify it.
 
@@ -293,3 +293,35 @@ on the page background it measured 4.32:1, below 4.5:1.
   the count page after a count shows "no pending task".
 - The consistent snapshot of the count sheet relies on REPEATABLE READ; no
   test forces a movement between its two reads.
+
+## Milestone 6 — delivery (in preparation)
+
+**Authorised so far (2026-10-19):** documentation and the diagnosis of the
+`pg` DeprecationWarning, without changing dependencies or functional code.
+
+- `README.md` reorganised for a first-time install: requirements, install,
+  configuration, schema, demo data (with a warning, before the command, that
+  it deletes plans, tasks and counts with their history), start, a
+  walkthrough of the main flow, known limitations, and the database update
+  notes grouped by milestone. `db:reset-demo` stays the only seed command.
+- `pg` warning: cause confirmed in `readCount` (`src/counting/submit.ts`) and
+  corrected (accepted 2026-10-19, `137afc9`): the count, its lines and its
+  unexpected pallets are read one after another in the same transaction.
+  Regression: `test/pg-queue.e2e-spec.ts` checks pg's queueing condition on
+  every query while opening, saving and recovering a count; it fails with
+  the previous code. `NODE_OPTIONS=--throw-deprecation npm test` passes as
+  an extra check.
+
+  Windows (2026-10-20, `350e1db`): 100/100; before the correction, on
+  `main`, 98/98 with the warning from the count tests. With the correction
+  the only warning left comes from the detector's self-test, which provokes
+  it on purpose (VERIFICATION.md).
+- Visual direction (D-013): Rivero identity approved on a static dashboard
+  mockup (v3), then the refined mockups (v4: dashboard, bin details, tasks,
+  count, interaction states) approved on 2026-10-20. Not in the
+  application yet.
+
+This preparation is complete: nothing pending. Next, after it is merged:
+the redesign, on a new branch from `main`. Then the next extensions (3D
+heatmap, Rivvy, the author's data analysis; not started). Final acceptance
+of the whole (clean clones, version tag) comes after the extensions.

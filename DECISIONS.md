@@ -39,6 +39,7 @@ in the dated tables kept below).
 | D-010 | Risk score: factors, caps, window and stored breakdown | Accepted |
 | D-011 | Audit plans (Top N) and tasks | Accepted |
 | D-012 | Count flow: access, unexpected pallets, retries, conflicts and results | Accepted |
+| D-013 | Visual direction: Rivero identity and dashboard additions | Accepted (design); implementation pending |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -410,6 +411,39 @@ Limitations: one level per rack; no capacity per bin (see D-007).
   (`SAMPLE-BIN-01`) and nothing else; if any other bin exists, the
   migration stops with an error instead of deleting it. Earlier migrations
   are kept unchanged.
+
+---
+
+## D-013 — Visual direction: Rivero identity and dashboard additions
+
+**Status:** Accepted (2026-10-20) as the design direction; not implemented
+yet. Presentation only: no formula, rule or data changes.
+
+- **Identity (Rivero, from riveroco.com):** the official logo file, the
+  Onest typeface, brand blue `#235cf2`, black `#070707` / `#040404` and its
+  neutral greys; sentence-case titles ending in a blue dot, eyebrows with a
+  slash, pill buttons with an arrow, square-cornered panels. Finish taken
+  as reference from viamaster-intl.com, moto-card.com and mvplogistics.eu.
+- **Kept:** both themes; the priority colors, always with the number and
+  the label (D-010); the existing actions.
+- **Dashboard additions approved:** an overview band (priority mix of all
+  bins, latest plan progress as counted / total, bins never audited), each
+  with its scope and time reference; TASK / PASS / FAIL markers on the
+  heatmap, visually distinct from priority; the latest plan with the score
+  at selection next to the current score; a "Score breakdown · Top 5 bins"
+  chart on a common 0–100 scale.
+- **Interface text stays in English**; a short "prototype, synthetic data"
+  notice stays visible.
+- The design is reviewed as static mockups (dashboard, bin details, tasks,
+  count, interaction states) before it reaches the application. The
+  refined mockups (v4) were approved on 2026-10-20; the implementation
+  goes on its own branch from `main`.
+
+**Next extensions (registered 2026-10-20, not started):** an interactive 3D
+heatmap as an alternative view; Rivvy, an AI assistant to query the data
+and explain decisions; and the author's data analysis contribution. Each
+needs its own decisions (dependencies, AI provider, data access) before
+implementation.
 
 ---
 
@@ -869,7 +903,8 @@ History before 2026-10-18:
 
 To be decided when the corresponding milestone starts:
 
-Nothing deferred at the moment.
+Deferred to later milestones (D-013): the interactive 3D heatmap, the Rivvy
+assistant and the author's data analysis contribution.
 
 Decided in milestone 5: unexpected pallet capture, retries, conflicts and
 results in scoring (D-012, D-010 v2); demo reset with counts (D-009).
