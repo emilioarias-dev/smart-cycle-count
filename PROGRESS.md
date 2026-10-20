@@ -336,14 +336,14 @@ no network. No dependency, migration, rule, formula or data change.
 
 | Item | Where | CC verified | WIN verified |
 |---|---|---|---|
-| Top 5 of all bins, D-011 order, stored breakdown | `GET /scores/top`; dashboard chart | Yes (API tests incl. the 57 tie and a mutation; chart = API order before and after counts) | Pending |
-| Dashboard: band, heatmap markers, latest plan, chart by mouse / keyboard / touch | `app/page.tsx`, `components/` | Yes (real flows, chart checks) | Pending |
-| Tasks: status apart from result | `app/tasks/page.tsx` | Yes | Pending |
-| Count: helper, units in the result, conflict / recovered / already counted | `components/CountForm.tsx` | Yes | Pending |
-| Fields reachable with the fixed bars (Tab, tap, scroll, shrunk viewport) | `globals.css` (`scroll-padding`) | Yes (7 viewports; fails without the rule) | Pending |
-| Icon-only recompute: name, tooltip, 44 px, Tab | `components/WarehouseHead.tsx` | Yes | Pending |
-| Layout: 4 widths × 2 themes, contrast, overflow, targets | all pages | Yes (56 views, 0 issues) | Pending |
-| Tests and builds | `npm test`, `npm run build` | Yes (103/103; builds, also without network) | Pending |
+| Top 5 of all bins, D-011 order, stored breakdown | `GET /scores/top`; dashboard chart | Yes (API tests incl. the 57 tie and a mutation; chart = API order before and after counts) | Yes (API tests, `578820c`) |
+| Dashboard: band, heatmap markers, latest plan, chart by mouse / keyboard / touch | `app/page.tsx`, `components/` | Yes (real flows, chart checks) | Visual review only (not each flow) |
+| Tasks: status apart from result | `app/tasks/page.tsx` | Yes | Visual review only (not each flow) |
+| Count: helper, units in the result, conflict / recovered / already counted | `components/CountForm.tsx` | Yes | Visual review only (not each flow) |
+| Fields reachable with the fixed bars (Tab, tap, scroll, shrunk viewport) | `globals.css` (`scroll-padding`) | Yes (7 viewports; fails without the rule) | Visual review only (not each flow) |
+| Icon-only recompute: name, tooltip, 44 px, Tab | `components/WarehouseHead.tsx` | Yes | Visual review only (not each flow) |
+| Layout: 4 widths × 2 themes, contrast, overflow, targets | all pages | Yes (56 views, 0 issues) | Visual review only (not each flow) |
+| Tests and builds | `npm test`, `npm run build` | Yes (103/103; builds, also without network) | Yes (103/103, builds; `578820c`) |
 
 Next, each on its own branch and pull request (D-014, not started): the 3D
 heatmap, Rivy (Gemini, read-only) and the author's data analysis. Delivery

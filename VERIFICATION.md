@@ -821,6 +821,20 @@ The author is reviewing the redesigned app on Windows and reports that it
 looks right so far. Recorded as visual acceptance of what was observed
 only: no flow, test or build result on Windows is confirmed by this entry.
 
+## 2026-10-20 — WIN: redesign on `578820c` (code `0f0de73` + `29b36ab`) — **PASSED** (shared by the author, PowerShell transcript)
+
+| Command | Result |
+|---|---|
+| `git status --short`; `git fetch origin`; `git switch m6-redesign`; `git pull --ff-only`; `git rev-parse HEAD` | Clean; fast-forward `e16e74b..578820c` (documentation only); `578820c908c9ea06f508c4dc873ec516cb3c5130` |
+| `npm.cmd run db:up` | Container healthy |
+| `npm.cmd test` (through `cmd.exe … | Tee-Object`) | Test database: 5 migrations, none pending; **13 files, 103/103 passed** (`scores-top.e2e-spec.ts` 3/3), 132.64 s. Expected lines only: the `[Nest] ERROR … simulated failure while recomputing` of the rollback test (process 4632) and one `pg` DeprecationWarning, printed by process 38736 right before the `pg-queue.e2e-spec.ts` report (the detector's self-test); Prisma's "Update available" notice is informational |
+| `npm.cmd run build` | API and web OK; routes `/`, `/bins/[code]`, `/count`, `/tasks` |
+
+The check marks show as `Ô£ô` because of the console encoding through
+`Tee-Object`; the counts are unaffected. With the visual review reported
+earlier, this completes what PR #7 needed on Windows. The individual flows
+were not confirmed one by one on Windows; they are covered by the CC checks.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -838,11 +852,10 @@ Milestone 5: nothing pending (merged as `690db87`).
 Milestone 6 preparation (README, `pg` correction, D-013): nothing pending
 (Windows: 100/100 on `350e1db`, 2026-10-20; PR #6, merged as `e407ebc`).
 
-Milestone 6 redesign (`m6-redesign`): Windows run of the same commit
-(`npm.cmd test` 103/103, `npm.cmd run build`). Visual review reported as
-good so far; the main flow at desktop and phone width in both themes not
-yet confirmed. Final acceptance of the whole: after the next
-extensions (D-014).
+Milestone 6 redesign (`m6-redesign`): nothing required pending (Windows:
+103/103 and builds on `578820c`, plus the author's visual review).
+Optional: each flow confirmed one by one on Windows. Final acceptance of
+the whole: after the next extensions (D-014).
 
 Later or optional:
 
