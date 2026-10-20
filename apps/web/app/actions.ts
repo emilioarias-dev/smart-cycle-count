@@ -19,7 +19,7 @@ export async function recomputeScoresAction(_previous: RecomputeState): Promise<
   const { bins, byPriority } = result.data;
   return {
     status: 'ok',
-    message: `Recomputed ${bins} bins: ${byPriority.high} high, ${byPriority.medium} medium, ${byPriority.low} low priority.`,
+    message: `${bins} bins: ${byPriority.high} high, ${byPriority.medium} medium, ${byPriority.low} low priority.`,
   };
 }
 
@@ -48,7 +48,7 @@ export async function createPlanAction(_previous: CreatePlanState, formData: For
     status: 'ok',
     planId: plan.id,
     message:
-      `Plan #${plan.id}: ${plan.createdCount} of ${plan.requestedCount} requested tasks created.` +
+      `${plan.createdCount} of ${plan.requestedCount} requested tasks created.` +
       (skipped.length > 0 ? ` Skipped: ${skipped.join(', ')}.` : ''),
   };
 }

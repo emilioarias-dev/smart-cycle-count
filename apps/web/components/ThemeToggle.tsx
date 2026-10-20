@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Icon } from './Icon';
 
 // Light / dark theme toggle (presentation only). Without a choice the page
 // follows the system preference; a choice is stored in this browser and
@@ -43,16 +44,12 @@ export function ThemeToggle() {
     setTheme(next);
   }
 
+  // The icon shows the theme the button switches to; the accessible name says it.
   const target = theme === 'dark' ? 'light' : 'dark';
+  const label = theme === null ? 'Theme' : `Switch to ${target} theme`;
   return (
-    <button
-      type="button"
-      className="theme-toggle"
-      onClick={toggle}
-      disabled={theme === null}
-      aria-label={theme === null ? 'Theme' : `Switch to ${target} theme`}
-    >
-      {theme === null ? 'Theme' : target === 'dark' ? 'Dark theme' : 'Light theme'}
+    <button type="button" className="theme-toggle" onClick={toggle} disabled={theme === null} aria-label={label} title={label}>
+      <Icon name={target === 'light' ? 'sun' : 'moon'} />
     </button>
   );
 }

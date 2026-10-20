@@ -321,7 +321,31 @@ on the page background it measured 4.32:1, below 4.5:1.
   count, interaction states) approved on 2026-10-20. Not in the
   application yet.
 
-This preparation is complete: nothing pending. Next, after it is merged:
-the redesign, on a new branch from `main`. Then the next extensions (3D
-heatmap, Rivvy, the author's data analysis; not started). Final acceptance
-of the whole (clean clones, version tag) comes after the extensions.
+This preparation is complete: nothing pending (PR #6, merged as `e407ebc`).
+
+### Redesign (branch `m6-redesign`, from `main`)
+
+The approved v4 design in the app (D-013), with the choices confirmed on
+2026-10-20: the pending-quantity helper in Count (a typed `0` is an answer,
+an empty field is not), the "no bin in the high band" note without changing
+formula or data, the Top 5 chart of all bins in the D-011 order (new
+read-only `GET /scores/top`), status apart from result in Tasks, units in
+the count result, fields never hidden by the fixed bars, and an accessible
+icon-only recompute on phones. Onest is stored locally, so the build needs
+no network. No dependency, migration, rule, formula or data change.
+
+| Item | Where | CC verified | WIN verified |
+|---|---|---|---|
+| Top 5 of all bins, D-011 order, stored breakdown | `GET /scores/top`; dashboard chart | Yes (API tests incl. the 57 tie and a mutation; chart = API order before and after counts) | Yes (API tests, `578820c`) |
+| Dashboard: band, heatmap markers, latest plan, chart by mouse / keyboard / touch | `app/page.tsx`, `components/` | Yes (real flows, chart checks) | Visual review only (not each flow) |
+| Tasks: status apart from result | `app/tasks/page.tsx` | Yes | Visual review only (not each flow) |
+| Count: helper, units in the result, conflict / recovered / already counted | `components/CountForm.tsx` | Yes | Visual review only (not each flow) |
+| Fields reachable with the fixed bars (Tab, tap, scroll, shrunk viewport) | `globals.css` (`scroll-padding`) | Yes (7 viewports; fails without the rule) | Visual review only (not each flow) |
+| Icon-only recompute: name, tooltip, 44 px, Tab | `components/WarehouseHead.tsx` | Yes | Visual review only (not each flow) |
+| Layout: 4 widths × 2 themes, contrast, overflow, targets | all pages | Yes (56 views, 0 issues) | Visual review only (not each flow) |
+| Tests and builds | `npm test`, `npm run build` | Yes (103/103; builds, also without network) | Yes (103/103, builds; `578820c`) |
+
+Next, each on its own branch and pull request (D-014, not started): the 3D
+heatmap, Rivy (Gemini, read-only) and the author's data analysis. Delivery
+planned for Thursday 2026-10-22; final acceptance of the whole (clean
+clones, version tag) after the extensions.
