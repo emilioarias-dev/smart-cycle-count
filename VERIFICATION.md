@@ -866,6 +866,18 @@ on local commits with the same trees, before the branch was created from
 Not checked: Safari, Firefox, real phones and GPUs (two-finger gestures
 were synthesised through the DevTools protocol), and Windows.
 
+## 2026-10-20 — WIN: 3D heatmap on `3ec45ca` (reported by the author)
+
+The author ran the steps given for this commit (`git switch m6-heatmap-3d`,
+`git pull --ff-only`, `npm.cmd ci`, `npm.cmd ls three @types/three`,
+`npm.cmd run db:up`, `npm.cmd test`, `npm.cmd run build`, the demo reset
+with `SEED_NOW`, `npm.cmd run dev`) and reviewed the 3D view on Windows:
+everything worked and the interaction felt smooth. **Reported by the
+author; the terminal output was not shared**, so the commit hash, the
+installed versions and the test and build counts are not recorded here
+from Windows output. This is the author's acceptance of the 3D view on
+real hardware (it was checked here only with software WebGL).
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -888,10 +900,9 @@ Milestone 6 redesign (`m6-redesign`): nothing required pending (Windows:
 Merged through PR #7 as `d8150d3`. Optional: each flow confirmed one by one
 on Windows.
 
-3D heatmap (`m6-heatmap-3d`): Windows run of the same commit (`npm.cmd ci`,
-`npm.cmd test` 103 API + 11 web, `npm.cmd run build`, the 3D view at
-desktop and phone width). Final acceptance of the whole: after the next
-extensions (D-014).
+3D heatmap (`m6-heatmap-3d`): nothing required pending (Windows run and
+review of `3ec45ca` reported by the author; outputs not shared). Final
+acceptance of the whole: after the next extensions (D-014).
 
 Later or optional:
 

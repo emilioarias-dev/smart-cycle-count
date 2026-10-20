@@ -354,15 +354,15 @@ migration, rule, formula or data change.
 
 | Item | Where | CC verified | WIN verified |
 |---|---|---|---|
-| Same bins, plan, scores, bands and reference as the 2D view | `lib/heatmap3d.ts`, `app/page.tsx` | Yes (`node --test`; each of the 30 selections = `GET /warehouse`) | Pending |
-| Short columns on a fixed 0–100 scale, 0 kept as a base, no score as a dashed tile, no hidden bin | `lib/heatmap3d.ts` | Yes (≥ 91 % of every top visible in the extreme cases; 30/30 selected in the browser with all 0, all 100, alternating, checkerboard, no score) | Pending |
-| Direct selection by mouse and touch, details kept, list selects the same bin | `components/Heatmap3D.tsx` | Yes (30/30 at 320, 390, 768 and 1440 px, both themes, mouse and touch) | Pending |
-| Fixed orthographic camera, limited zoom, pan, Reset for the current size | `components/Heatmap3D.tsx` | Yes (36 interaction checks) | Pending |
-| Page scrolling kept (one finger, plain wheel); two fingers pan / zoom | `components/Heatmap3D.tsx` | Yes | Pending |
-| 2D first; back to 2D without WebGL, on a lost context or a failed download; 20 switches without leaks | `components/HeatmapViews.tsx` | Yes | Pending |
-| Data updates with the 3D view open (recompute, new plan) | dashboard | Yes | Pending |
-| Layout of the 3D view and 2D checks kept | all | Yes (8 views 0 issues; 2D: 33 flows, Count fields, chart, 56 views) | Pending |
-| Tests and builds, clean `npm ci` | `npm test`, `npm run build` | Yes (103 API + 11 web; builds, also without network) | Pending |
+| Same bins, plan, scores, bands and reference as the 2D view | `lib/heatmap3d.ts`, `app/page.tsx` | Yes (`node --test`; each of the 30 selections = `GET /warehouse`) | Reported by the author |
+| Short columns on a fixed 0–100 scale, 0 kept as a base, no score as a dashed tile, no hidden bin | `lib/heatmap3d.ts` | Yes (≥ 91 % of every top visible in the extreme cases; 30/30 selected in the browser with all 0, all 100, alternating, checkerboard, no score) | Reported by the author |
+| Direct selection by mouse and touch, details kept, list selects the same bin | `components/Heatmap3D.tsx` | Yes (30/30 at 320, 390, 768 and 1440 px, both themes, mouse and touch) | Reported by the author |
+| Fixed orthographic camera, limited zoom, pan, Reset for the current size | `components/Heatmap3D.tsx` | Yes (36 interaction checks) | Reported by the author |
+| Page scrolling kept (one finger, plain wheel); two fingers pan / zoom | `components/Heatmap3D.tsx` | Yes | Reported by the author |
+| 2D first; back to 2D without WebGL, on a lost context or a failed download; 20 switches without leaks | `components/HeatmapViews.tsx` | Yes | Reported by the author |
+| Data updates with the 3D view open (recompute, new plan) | dashboard | Yes | Reported by the author |
+| Layout of the 3D view and 2D checks kept | all | Yes (8 views 0 issues; 2D: 33 flows, Count fields, chart, 56 views) | Reported by the author |
+| Tests and builds, clean `npm ci` | `npm test`, `npm run build` | Yes (103 API + 11 web; builds, also without network) | Reported by the author |
 
 Next, each on its own branch and pull request (D-014): Rivy (Gemini,
 read-only), then the author's data analysis. Delivery planned for Thursday
