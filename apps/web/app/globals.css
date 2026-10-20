@@ -523,3 +523,30 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
   .bin { padding: 0.4rem 0.15rem 0.4rem 0.42rem; }
   .bin-score .band-label { font-size: 0.68rem; }
 }
+
+/* 3D heatmap (D-015) */
+.view-switch { display: inline-flex; gap: 0.4rem; margin: 0 0 1rem; }
+.view-switch .btn { min-width: 4.2rem; }
+.view-switch + .callout { margin-bottom: 1rem; }
+.h3d-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem; }
+.h3d-select { width: auto; flex: 1 1 13rem; height: 2.75rem; font-size: 0.9rem; }
+.h3d-buttons { position: absolute; top: 0.4rem; right: 0.4rem; z-index: 2; display: inline-flex; gap: 0.35rem; }
+.h3d-buttons .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.h3d-stage { position: relative; height: 28rem; overflow: hidden; background: var(--surface); border: 1px solid var(--line); touch-action: pan-x pan-y; cursor: grab; user-select: none; -webkit-user-select: none; }
+.h3d-stage.dragging { cursor: grabbing; }
+.h3d-stage canvas { display: block; width: 100%; height: 100%; }
+.h3d-labels { position: absolute; inset: 0; pointer-events: none; }
+.h3d-label { position: absolute; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); white-space: nowrap; }
+.h3d-label.row { transform: translate(-100%, -50%); padding-right: 0.3rem; }
+.h3d-label.column { transform: translate(-50%, 0); }
+.h3d-tag { position: absolute; transform: translate(-50%, calc(-100% - 6px)); padding: 0.2rem 0.5rem; background: var(--rv-black); color: #f2f2f2; font-size: 0.74rem; font-weight: 600; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-lift); }
+.h3d-tag.hover { opacity: 0.92; }
+.h3d-note { margin-top: 0.6rem; }
+.h3d-detail { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; margin-top: 0.8rem; padding: 0.7rem 0.9rem; border-left: 3px solid var(--accent-fill); background: var(--surface-2); font-size: 0.88rem; min-height: 3.6rem; }
+.h3d-detail-main { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.8rem; }
+.h3d-detail-main .subline { width: 100%; }
+.h3d-detail-actions { display: inline-flex; gap: 0.4rem; align-items: center; }
+@media (max-width: 40rem) {
+  .h3d-stage { height: 21rem; }
+  .h3d-select { flex-basis: 100%; }
+}
