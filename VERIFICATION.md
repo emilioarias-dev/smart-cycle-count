@@ -878,6 +878,55 @@ installed versions and the test and build counts are not recorded here
 from Windows output. This is the author's acceptance of the 3D view on
 real hardware (it was checked here only with software WebGL).
 
+## 2026-10-20 — CC: Gemini research and real calls through the CC proxy (before Rivy's code)
+
+**Real checks, from the Claude Code container only. They do not prove the
+connection from Windows**: here the container's outbound proxy adds the
+API key header (the author stored the key as a network secret; it was never
+shown or written to a file), so neither the key in `apps/api/.env` nor the
+network on the author's PC was involved. Synthetic data only; billing not
+enabled.
+
+| Check | Result |
+|---|---|
+| Official docs read (ai.google.dev, 2026-10-20): models, Gemini 3.5 Flash-Lite, function calling, thought signatures, thinking, rate limits, pricing, terms | 3.5 Flash-Lite: model code `gemini-3.5-flash-lite`, stable, function calling supported, free tier. Rate limits are per project, not per key, shown only in AI Studio. Free tier: content used to improve Google's products, human reviewers may read it, "do not submit sensitive, confidential, or personal information"; only paid services for API clients offered to users in the EEA, Switzerland or the UK |
+| `@google/genai` SDK considered | Not used: it adds dependencies; REST with `fetch` needs none |
+| List models (`GET …/v1beta/models`) through the proxy | HTTP 200 |
+| `node fetch` without `NODE_USE_ENV_PROXY=1` | HTTP 403 `PERMISSION_DENIED` (the request bypassed the proxy, so no key): Node's `fetch` ignores `HTTPS_PROXY` unless told |
+| Function-calling round trip, `gemini-3.5-flash-lite`, run 1 | Call 1: HTTP 200 in 14.0 s, a `functionCall` with a thought signature, 105 tokens. Call 2: HTTP 503 `UNAVAILABLE` (high demand) in 0.6 s |
+| Same, run 2 | Call 1: HTTP 200 in 15.7 s, 105 tokens, signature present. Call 2 (signature sent back): HTTP 200 in 12.8 s, `STOP`, 264 tokens; the answer used the score 68 given by the tool |
+| `gemini-3.8-flash` | HTTP 503 `UNAVAILABLE` (high demand) to each of the three requests |
+
+Not checked here: the TPM limit, the project behind the key and its tier
+(only AI Studio shows them). **Reported by the author** (visible in AI
+Studio): 15 RPM and 500 RPD for Gemini 3.5 Flash-Lite; nothing else about
+the quota is recorded as confirmed.
+
+## 2026-10-20 — CC: Rivy implementation, simulated tests (code `a355798` API, `420f514` web)
+
+**Simulated**: a local fake Gemini with scripted replies stands in for the
+model; it checks the app's side (requests, tools, limits, errors, page),
+not the quality of real answers. No request in this section reached
+Google. Production build; Playwright with Chromium; data:
+`SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo`, then the 2D flows
+(plan 1 with counts; B-02-03 counted FAIL). Scripts were scratch files.
+
+| Command / check | Result |
+|---|---|
+| `npm test` (API, then web) | API **113/113** (103 + 10 in `test/assistant.e2e-spec.ts`); web **11/11** |
+| `test/assistant.e2e-spec.ts` with `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_KEY_VIA_PROXY` and `GEMINI_API_BASE` set to other values in the environment | 10/10: the tests use their own fake Gemini and ignore those settings |
+| What the 10 tests cover | URL, key header, `AUTO` then `NONE`, 800 output tokens, model's turn sent back with its signature, figures equal to `BinsService`, references, usage summed; comparison decided by "never audited" at 57 and availability for a new plan after `createPlan(3)`; history after a FAIL (variance −2, score at selection 68 ≠ current); rules; missing bin; no history = unknown, not PASS; write request refused with plans, tasks and counts unchanged; six exchanges sent as history, answer cut at 2000 characters, language rule in the instructions; 501 characters, 7 exchanges and a blank question refused; 3 tool calls → 2 run; a tool asked in call 2 → `LIMIT`; 429, 503, call timeout, total timeout, refused key, blocked question, each with its status, while `/warehouse` and `/bins` still answer; no key → no request; local RPM guard |
+| Mutations of the API, each restored | Tool limit 2 → 3; signatures dropped; tools allowed in call 2; no history reported as PASS; quota mapped to 503; language rule replaced by "always English": **each one fails the Rivy tests** |
+| `npx tsc --noEmit` in `apps/api` and `apps/web` | Exit 0, exit 0 |
+| `npm run build` | API and web OK; `/rivy` static |
+| `/rivy` in the browser against the fake Gemini, 67 checks | All passed: 4 suggestions; Ask and Clear disabled when empty; explain (score 60 = `GET /bins/B-02-03`, `/bins/B-02-03` linked in the text and as a chip, meta line "Data as of … UTC · read: get_bin · 2 Gemini calls · 380 tokens · 0.6 s", `AUTO` then `NONE`, no history); compare (rule and both codes; first exchange sent as history); counts (score at selection 68, `FAIL`, line variance −2, `/tasks` link); rules (versioned; a "/" in the text is not a link); missing bin (Spanish question, no link); a bin with no task ("unknown, not PASS"); write request refused, plans 1 and tasks 5 before and after; 7th question → six on screen with a note, 13 contents sent; 8th question still 13; Shift + Enter adds a line; the field stops at 500 and shows 500/500; Clear empties and the next question sends no history; reload empties; 429 and 503 messages with Try again, then Try again succeeds, one request per failed attempt (no automatic retries); `/`, `/count`, `/tasks`, `/bins/B-02-03` 200 while Gemini fails; a slow Gemini ends after 30.2 s with "Gemini did not answer in time."; local guard with `GEMINI_RPM=2`; no key: "Rivy is not configured: set GEMINI_API_KEY in apps/api/.env and restart the API.", no Try again, no request to Gemini, other pages 200; API stopped: "The API did not answer." |
+| Layout at 320 dark, 390 light, 768 dark, 1440 light, empty and with answers | No horizontal scroll; four tabs on phones with Rivy current; Rivy current in the top navigation; Ask above the tab bar |
+| Contrast of Rivy's text, both themes, with an answer and with an error | Lowest 5.41:1 (Ask button); all ≥ 4.5 |
+| Found and fixed while checking | The "/" reference (Warehouse) turned every slash in an answer ("input / cap") into a link: the bare "/" is now only a chip, and paths must stand alone to become links |
+
+Not checked: the real model through the app (the six real queries are
+pending with the author), Safari, Firefox, real phones and Windows.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -901,8 +950,20 @@ Merged through PR #7 as `d8150d3`. Optional: each flow confirmed one by one
 on Windows.
 
 3D heatmap (`m6-heatmap-3d`): nothing required pending (Windows run and
-review of `3ec45ca` reported by the author; outputs not shared). Final
-acceptance of the whole: after the next extensions (D-014).
+review of `3ec45ca` reported by the author; outputs not shared). Merged
+through PR #8 as `53628f1`. Final acceptance of the whole: after the next
+extensions (D-014).
+
+Rivy (`m6-rivy`), pending on Windows (WIN):
+
+- In AI Studio: the TPM limit of Gemini 3.5 Flash-Lite, the project behind
+  the key and its tier (Free), without enabling billing.
+- `npm.cmd ci`, `npm.cmd test` (expected 113 API + 11 web), `npm.cmd run
+  build`, with the key in `apps/api/.env` only.
+- Six real questions through `/rivy` (the four capabilities, a follow-up
+  and one without data; English and Spanish), recording for each the Gemini
+  calls, tokens, time and whether the answer matches the app's pages. The
+  quota is not exhausted on purpose: quota errors were tested simulated.
 
 Later or optional:
 

@@ -345,7 +345,7 @@ no network. No dependency, migration, rule, formula or data change.
 | Layout: 4 widths × 2 themes, contrast, overflow, targets | all pages | Yes (56 views, 0 issues) | Visual review only (not each flow) |
 | Tests and builds | `npm test`, `npm run build` | Yes (103/103; builds, also without network) | Yes (103/103, builds; `578820c`) |
 
-### 3D heatmap (branch `m6-heatmap-3d`, from `main`)
+### 3D heatmap (branch `m6-heatmap-3d`, from `main`; PR #8, merged as `53628f1`)
 
 The first extension of D-014, decided in D-015: a 3D view of the same
 heatmap, 2D first and as fallback. New dependency: `three` 0.186.1 (and
@@ -364,7 +364,27 @@ migration, rule, formula or data change.
 | Layout of the 3D view and 2D checks kept | all | Yes (8 views 0 issues; 2D: 33 flows, Count fields, chart, 56 views) | Reported by the author |
 | Tests and builds, clean `npm ci` | `npm test`, `npm run build` | Yes (103 API + 11 web; builds, also without network) | Reported by the author |
 
-Next, each on its own branch and pull request (D-014): Rivy (Gemini,
-read-only), then the author's data analysis. Delivery planned for Thursday
-2026-10-22; final acceptance of the whole (clean clones, version tag) after
-the extensions.
+### Rivy (branch `m6-rivy`, from `main` after PR #8)
+
+The second extension of D-014, decided in D-016: a read-only assistant on
+Gemini (`gemini-3.5-flash-lite`) at `/rivy`. REST with `fetch`, no new
+dependency; no migration, rule, formula or data change. "Simulated" below
+means against a local fake Gemini with scripted replies: it checks the
+app's side (requests, tools, limits, errors, page), not the model's
+answers.
+
+| Item | Where | CC verified | WIN verified |
+|---|---|---|---|
+| Four read tools: stored score and breakdown; comparison with the D-011 rule and availability for a new plan; tasks and counts (score at selection apart from current, no history ≠ PASS); versioned rules | `apps/api/src/assistant/tools.ts` | Yes, simulated (figures equal to the API's; tie decided by "never audited") | Pending |
+| Read-only: no write tool, no model SQL, unknown tools refused | `tools.ts`, `assistant.service.ts` | Yes, simulated (`create_plan` refused, database unchanged) | Pending |
+| Gemini REST client: key header, model's turn sent back unchanged (thought signatures), errors mapped | `gemini.ts` | Yes, simulated; one real round trip from CC through its proxy (not Windows) | Pending |
+| Limits: 2 calls, 2 tool runs, 500 characters, 800 output tokens, 30 s / 60 s, local 15 RPM guard, no automatic retry | `assistant.service.ts` | Yes, simulated | Pending |
+| Errors: no key, 429, 503, timeout, refused key, blocked; rest of the app unaffected | `assistant.controller.ts`, `/rivy` | Yes, simulated (API and page) | Pending |
+| Page: suggestions, answer with links only from the API, "Data as of", tools, calls, tokens, time; Try again; window of six and Clear; Enter / Shift + Enter; counter | `components/RivyChat.tsx` | Yes, simulated (67 browser checks) | Pending |
+| Layout: 320, 390, 768, 1440 px, both themes; four tabs on phones; contrast | `globals.css`, `Navigation.tsx` | Yes, simulated (no overflow; contrast ≥ 5.41) | Pending |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 113/113 incl. 10 Rivy; web 11/11; builds; 6 mutations caught) | Pending |
+| Real answers: the four capabilities, a follow-up and a case without data, in English and Spanish | `/rivy` with the author's key | No (not run against the real model through the app) | Pending, with the author |
+
+Next: the author's data analysis, on its own branch. Delivery planned for
+Thursday 2026-10-22; final acceptance of the whole (clean clones, version
+tag) after the extensions.
