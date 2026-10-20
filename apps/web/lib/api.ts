@@ -129,6 +129,9 @@ export type CountOutcome =
   // No answer, or an unexpected one: the count may or may not be saved.
   | { status: 'unconfirmed'; message: string };
 
+// One bar of the dashboard chart: the Top 5 of all bins in the D-011 order.
+export type TopScore = { rank: number; binCode: string; score: ScoreDetail };
+
 export type ApiResult<T> = { status: 'ok'; data: T } | { status: 'not-found' } | { status: 'error'; reason: string };
 
 export function getWarehouse(): Promise<ApiResult<WarehouseLayout>> {
@@ -137,6 +140,10 @@ export function getWarehouse(): Promise<ApiResult<WarehouseLayout>> {
 
 export function getBin(code: string): Promise<ApiResult<BinDetail>> {
   return getJson<BinDetail>(`/bins/${encodeURIComponent(code)}`);
+}
+
+export function getTopScores(): Promise<ApiResult<TopScore[]>> {
+  return getJson<TopScore[]>('/scores/top');
 }
 
 export function recomputeScores(): Promise<ApiResult<RecomputeSummary>> {
