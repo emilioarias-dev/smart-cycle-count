@@ -312,12 +312,16 @@ on the page background it measured 4.32:1, below 4.5:1.
   the previous code. `NODE_OPTIONS=--throw-deprecation npm test` passes as
   an extra check.
 
+  Windows (2026-10-20, `350e1db`): 100/100; before the correction, on
+  `main`, 98/98 with the warning from the count tests. With the correction
+  the only warning left comes from the detector's self-test, which provokes
+  it on purpose (VERIFICATION.md).
 - Visual direction (D-013): Rivero identity approved on a static dashboard
-  mockup (v3, 2026-10-20); refinements and the other screens (bin details,
-  tasks, count, interaction states) are being mocked up before any change
-  to the application.
+  mockup (v3), then the refined mockups (v4: dashboard, bin details, tasks,
+  count, interaction states) approved on 2026-10-20. Not in the
+  application yet.
 
-Pending: Windows run of the `pg` correction; the redesign implementation
-after the mockups are approved; the delivery scope (final acceptance from
-clean clones, version tag). Next extensions, not started: 3D heatmap,
-Rivvy, the author's data analysis.
+This preparation is complete: nothing pending. Next, after it is merged:
+the redesign, on a new branch from `main`. Then the next extensions (3D
+heatmap, Rivvy, the author's data analysis; not started). Final acceptance
+of the whole (clean clones, version tag) comes after the extensions.

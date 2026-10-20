@@ -435,7 +435,9 @@ yet. Presentation only: no formula, rule or data changes.
 - **Interface text stays in English**; a short "prototype, synthetic data"
   notice stays visible.
 - The design is reviewed as static mockups (dashboard, bin details, tasks,
-  count, interaction states) before it reaches the application.
+  count, interaction states) before it reaches the application. The
+  refined mockups (v4) were approved on 2026-10-20; the implementation
+  goes on its own branch from `main`.
 
 **Next extensions (registered 2026-10-20, not started):** an interactive 3D
 heatmap as an alternative view; Rivvy, an AI assistant to query the data

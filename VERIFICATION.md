@@ -736,6 +736,46 @@ this message (to be checked to fail without the correction), plus
 | Regression file with `--throw-deprecation` and the previous `readCount` | Exit 1: the regression fails and the thrown deprecation is reported |
 | `npm run build -w apps/api` | OK |
 
+## 2026-10-20 — WIN: `pg` correction on `350e1db` (code `137afc9`) — **PASSED** (shared by the author, PowerShell transcript)
+
+The transcript holds two runs of `npm.cmd test` in `C:\Users\manue\smart-cycle-count`
+(three earlier commands typed in `C:\Windows\system32`, outside the
+repository, failed with "not a git repository" / `ENOENT package.json` and
+are not part of the evidence).
+
+| Run | Commit | Result | `pg` DeprecationWarning |
+|---|---|---|---|
+| Before the correction | `main`, `690db87` (`git pull --ff-only`: "Already up to date"; it only fetched `origin/m6-delivery`) | 11 files, **98/98 passed**, 207.90 s | Printed once, by process 16472: the same process that logs the expected `simulated failure while recomputing` error of `counts.e2e-spec.ts` ("if the recompute fails, nothing of the count is kept") |
+| With the correction | `m6-delivery`, `350e1db5228ac3151498406317676b532f210028` (`git switch m6-delivery`, `git pull --ff-only`: "Already up to date") | 12 files, **100/100 passed**, 184.66 s (`pg-queue.e2e-spec.ts` 2/2) | Printed once, by process 43672, right before the `pg-queue.e2e-spec.ts` report; the `counts.e2e-spec.ts` process (45228, with the same expected error log) printed none |
+
+**The remaining warning comes only from the detector's self-test** ("the
+watcher detects a query queued behind another one"), which queues a query
+on purpose:
+
+- Vitest runs each test file in its own process (default `forks` pool with
+  isolation; `vitest.config.ts` only disables file parallelism), as the
+  distinct process ids show, and `pg` prints the warning at most once per
+  process. Only one process printed it, and it is not the count process
+  that printed it on `main`.
+- In that same process, the regression test ("opening, saving and
+  recovering a count never queue a query on the transaction client")
+  passed: it checks `pg`'s queueing condition on every query, so it would
+  fail even though a second warning could not be printed there.
+- This matches the Linux check per file (`--trace-deprecation`: 1 warning
+  in `pg-queue.e2e-spec.ts`, 0 elsewhere) and the full suite with
+  `--throw-deprecation` (exit 0, the self-test skipped).
+
+The "Pending" note expected the run "without the DeprecationWarning"; the
+precise expectation was "only from the detector's self-test", which is what
+Windows shows.
+
+Other lines in both runs, expected: the `[Nest] ERROR … simulated failure
+while recomputing` log of the recompute-failure test (it passes); in the
+`main` run, Prisma's "Update available 7.10.1 -> 8.0.0-rc.23" notice, which
+is informational (no dependency was changed). Not run on Windows for this
+branch: `npm.cmd run build` (CC: API build OK on `137afc9`; the web app is
+unchanged since `690db87`).
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -750,7 +790,10 @@ Milestone 4: nothing pending (merged as `0f6d2be`).
 
 Milestone 5: nothing pending (merged as `690db87`).
 
-Milestone 6 (in preparation): Windows run of the `pg` correction (`npm.cmd test`, 100/100 expected, without the DeprecationWarning).
+Milestone 6 preparation (README, `pg` correction, D-013): nothing pending
+(Windows: 100/100 on `350e1db`, 2026-10-20). Next on milestone 6: the
+redesign, on a new branch from `main` after this preparation is merged.
+Final acceptance of the whole: after the next extensions.
 
 Later or optional:
 
