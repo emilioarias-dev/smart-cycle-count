@@ -39,7 +39,7 @@ in the dated tables kept below).
 | D-010 | Risk score: factors, caps, window and stored breakdown | Accepted |
 | D-011 | Audit plans (Top N) and tasks | Accepted |
 | D-012 | Count flow: access, unexpected pallets, retries, conflicts and results | Accepted |
-| D-013 | Visual direction: Rivero identity and dashboard additions | Accepted; implemented (milestone 6 redesign) |
+| D-013 | Visual direction: Rivero identity and dashboard additions | Accepted; implemented on `m6-redesign`, not merged yet |
 | D-014 | Next extensions: 3D heatmap, Rivvy, data analysis | Accepted as direction; not implemented |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |

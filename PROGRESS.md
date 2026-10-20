@@ -321,7 +321,7 @@ on the page background it measured 4.32:1, below 4.5:1.
   count, interaction states) approved on 2026-10-20. Not in the
   application yet.
 
-This preparation is complete: nothing pending (merged through PR #6).
+This preparation is complete: nothing pending (PR #6, merged as `e407ebc`).
 
 ### Redesign (branch `m6-redesign`, from `main`)
 

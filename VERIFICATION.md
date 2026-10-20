@@ -830,7 +830,7 @@ Milestone 4: nothing pending (merged as `0f6d2be`).
 Milestone 5: nothing pending (merged as `690db87`).
 
 Milestone 6 preparation (README, `pg` correction, D-013): nothing pending
-(Windows: 100/100 on `350e1db`, 2026-10-20; merged through PR #6).
+(Windows: 100/100 on `350e1db`, 2026-10-20; PR #6, merged as `e407ebc`).
 
 Milestone 6 redesign (`m6-redesign`): Windows run of the same commit
 (`npm.cmd test` 103/103, `npm.cmd run build`, the main flow at desktop and
