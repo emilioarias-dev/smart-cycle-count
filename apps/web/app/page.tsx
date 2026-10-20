@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { BreakdownChart } from '../components/BreakdownChart';
+import { HeatmapViews } from '../components/HeatmapViews';
 import { Icon } from '../components/Icon';
 import { StatusCard } from '../components/StatusCard';
 import { TaskState } from '../components/TaskState';
 import { WarehouseHead } from '../components/WarehouseHead';
 import { type ApiResult, type AuditTask, type Priority, type ScoreSummary, type TopScore, type WarehouseLayout, getAuditTasks, getTopScores, getWarehouse } from '../lib/api';
 import { plural, twoDigits, utcDateTime } from '../lib/format';
+import type { Bin3D } from '../lib/heatmap3d';
 
 type Bin = WarehouseLayout['aisles'][number]['racks'][number]['bins'][number];
 
@@ -52,7 +54,8 @@ export default async function WarehousePage() {
   }
 
   const latest = tasks.status === 'ok' ? latestPlan(tasks.data) : null;
-  const pendingBins = new Set(tasks.status === 'ok' ? tasks.data.filter((t) => t.status === 'PENDING').map((t) => t.bin.code) : []);
+  const pendingPlan = new Map(tasks.status === 'ok' ? tasks.data.filter((t) => t.status === 'PENDING').map((t) => [t.bin.code, t.plan.id]) : []);
+  const pendingBins = new Set(pendingPlan.keys());
   const latestByBin = new Map((latest ?? []).map((t) => [t.bin.code, t]));
   const current = new Map(bins.map((b) => [b.code, b.score]));
   const bands = { high: 0, medium: 0, low: 0 };
@@ -62,6 +65,29 @@ export default async function WarehousePage() {
     }
   }
   const scored = bins.filter((b) => b.score).length;
+  // The same bins, scores and task information for the 3D view.
+  const bins3d: Bin3D[] = aisles.flatMap((aisle) =>
+    aisle.racks.flatMap((rack) =>
+      rack.bins.map((bin) => {
+        const pending = pendingPlan.get(bin.code);
+        const counted = latestByBin.get(bin.code);
+        return {
+          code: bin.code,
+          aisle: aisle.aisle,
+          rack: rack.rack,
+          position: bin.position,
+          palletCount: bin.palletCount,
+          score: bin.score ? { value: bin.score.value, priority: bin.score.priority, label: bin.score.label } : null,
+          task:
+            pending !== undefined
+              ? { kind: 'pending' as const, planId: pending }
+              : counted?.status === 'DONE' && counted.count
+                ? { kind: 'counted' as const, planId: counted.plan.id, result: counted.count.result }
+                : null,
+        };
+      }),
+    ),
+  );
 
   return (
     <main className="shell">
@@ -126,47 +152,49 @@ export default async function WarehousePage() {
             </ul>
           </div>
           <div className="panel-body">
-            {aisles.map((aisle) => (
-              <section key={aisle.aisle} className="aisle" aria-label={`Aisle ${aisle.aisle}`}>
-                <p className="rule">
-                  Aisle {aisle.aisle}
-                  <span className="count">
-                    {plural(aisle.racks.reduce((n, r) => n + r.bins.length, 0), 'bin')} · {plural(aisle.racks.length, 'rack')}
-                  </span>
-                </p>
-                {aisle.racks.map((rack) => (
-                  <ul key={rack.rack} className="rack" aria-label={`Rack ${aisle.aisle}-${twoDigits(rack.rack)}`}>
-                    <li className="rack-label" aria-hidden="true">
-                      <span className="rack-short">Rack {twoDigits(rack.rack)}</span>
-                      <span className="rack-full">
-                        Rack {aisle.aisle}-{twoDigits(rack.rack)}
-                      </span>
-                    </li>
-                    {rack.bins.map((bin) => (
-                      <li key={bin.code}>
-                        <BinTile bin={bin} pending={pendingBins.has(bin.code)} latest={latestByBin.get(bin.code)} />
+            <HeatmapViews bins={bins3d} scoresAsOf={scoresAsOf(bins)}>
+              {aisles.map((aisle) => (
+                <section key={aisle.aisle} className="aisle" aria-label={`Aisle ${aisle.aisle}`}>
+                  <p className="rule">
+                    Aisle {aisle.aisle}
+                    <span className="count">
+                      {plural(aisle.racks.reduce((n, r) => n + r.bins.length, 0), 'bin')} · {plural(aisle.racks.length, 'rack')}
+                    </span>
+                  </p>
+                  {aisle.racks.map((rack) => (
+                    <ul key={rack.rack} className="rack" aria-label={`Rack ${aisle.aisle}-${twoDigits(rack.rack)}`}>
+                      <li className="rack-label" aria-hidden="true">
+                        <span className="rack-short">Rack {twoDigits(rack.rack)}</span>
+                        <span className="rack-full">
+                          Rack {aisle.aisle}-{twoDigits(rack.rack)}
+                        </span>
                       </li>
-                    ))}
-                  </ul>
-                ))}
-              </section>
-            ))}
-            <div className="keyline">
-              <span className="marker">
-                <Icon name="clock" />
-                TASK
-              </span>
-              Pending task
-              <span className="marker">
-                <Icon name="check" />
-                PASS
-              </span>
-              <span className="marker">
-                <Icon name="x" />
-                FAIL
-              </span>
-              <span>Last count {latest ? `in plan #${latest[0].plan.id}` : 'in the latest plan'}</span>
-            </div>
+                      {rack.bins.map((bin) => (
+                        <li key={bin.code}>
+                          <BinTile bin={bin} pending={pendingBins.has(bin.code)} latest={latestByBin.get(bin.code)} />
+                        </li>
+                      ))}
+                    </ul>
+                  ))}
+                </section>
+              ))}
+              <div className="keyline">
+                <span className="marker">
+                  <Icon name="clock" />
+                  TASK
+                </span>
+                Pending task
+                <span className="marker">
+                  <Icon name="check" />
+                  PASS
+                </span>
+                <span className="marker">
+                  <Icon name="x" />
+                  FAIL
+                </span>
+                <span>Last count {latest ? `in plan #${latest[0].plan.id}` : 'in the latest plan'}</span>
+              </div>
+            </HeatmapViews>
             {bands.high === 0 && (
               <p className="note">
                 <Icon name="info" />

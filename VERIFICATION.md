@@ -835,6 +835,49 @@ The check marks show as `Ô£ô` because of the console encoding through
 earlier, this completes what PR #7 needed on Windows. The individual flows
 were not confirmed one by one on Windows; they are covered by the CC checks.
 
+## 2026-10-20 — CC: 3D heatmap (code `d69ac3d` geometry, `34b2a0c` view, `588566e` labels)
+
+Production build; Playwright with Chromium (headless, software WebGL: its
+"software WebGL" and "GPU stall due to ReadPixels" console lines come from
+the browser, not the app, and were left out of the error counts). Data:
+`SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo`, then the 2D flows
+(plan 1 with counts). Scripts were scratch files. The earlier prototype
+(perspective camera, `OrbitControls`, a separate copy) is **not** evidence
+for this implementation; nothing below was measured on it. The checks ran
+on local commits with the same trees, before the branch was created from
+`main` after PR #7 (`git diff` between them on `apps/`: empty).
+
+| Command / check | Result |
+|---|---|
+| Fresh copy at `34b2a0c`: `npm ci` | Exit 0, 458 packages, lockfile unchanged; `three@0.186.1`, `@types/three@0.186.0` |
+| Same copy: web build with the network blocked; `npm test -w apps/web` | Build OK; 11/11 |
+| `npm test` (API, then web) | API **103/103**; web **11/11** (`node --test`) |
+| `npm run build` | API and web OK |
+| Camera and height search (`node`, raycaster), worst visible share of a top face over the extreme cases | rise 0.9, 56°, 22° → 83 %; 1.3, 50°, 12° → 28 %; 1.4, 48°, 10° → 17 %; chosen: rise 1.3, 60°, 14°, wider rows → **91 %** |
+| Mutation: rise 3 with the chosen camera | 4 of the 9 occlusion tests fail; restored |
+| Direct selection, grid of clicks or taps over the view, each selection's details against `GET /warehouse` | **30/30** and details 30/30 at 320, 390, 768 and 1440 px, light and dark, with touch and with the mouse (16 runs), no console errors |
+| Extreme scores in the browser (stored scores replaced, then restored): all 0; all 100; alternating rows (both phases); checkerboard (both phases); 15 bins without a score next to 15 at 100 | **30/30** selected directly at 1440 px (mouse) and 390 px (touch) in each case; scores restored (30 rows) |
+| Interaction, 36 checks | All passed: keyboard (Enter on 3D, Tab to the list, the list selects and marks the bin, Tab to +, −, Reset); − disabled at 1×, + disabled at the limit; click selects and keeps; empty floor keeps it; hover tag; Ctrl + wheel zooms, a plain wheel scrolls the page; drag pans without selecting; orientation unchanged by zoom and pan; Reset restores; after a resize Reset frames as a fresh view of that size; tap selects; one finger on the view scrolls the page and leaves the view; two fingers apart zoom around their centre without scrolling; two fingers together pan with them; a pinch keeps the selection; zoomed in, a tap selects; +, −, Reset 44 px; 20 switches 2D ↔ 3D with one canvas and no context warnings; back to 2D without WebGL, on a lost context and when the 3D code cannot download, each with its notice; recompute and a new plan with 3D open update the details and the list |
+| 3D layout at 320, 390, 768 and 1440 px, light and dark | 8 views, **0 issues**: no page overflow, controls not overlapping, buttons inside the view and over no label, 11 labels whole inside the view, phone targets ≥ 44 px, contrast ≥ 4.83 (light) and 5.41 (dark) |
+| 2D checks kept (code `34b2a0c`; `588566e` changes only the 3D labels' CSS) | Real flows 33/33; Count fields 7 viewports; chart 10/10; layout 56 views, 0 issues |
+| Dashboard JavaScript | Initial 468 KB (463 KB without the 3D view); 543 KB more only when 3D is chosen |
+| Found and fixed while checking | Taps next to the overlaid buttons land on them (Chrome's touch adjustment): a band is kept free for them at 1×; a pale highlight could read as another band: replaced by an accent frame; labels over blocks when zoomed: given a background |
+
+Not checked: Safari, Firefox, real phones and GPUs (two-finger gestures
+were synthesised through the DevTools protocol), and Windows.
+
+## 2026-10-20 — WIN: 3D heatmap on `3ec45ca` (reported by the author)
+
+The author ran the steps given for this commit (`git switch m6-heatmap-3d`,
+`git pull --ff-only`, `npm.cmd ci`, `npm.cmd ls three @types/three`,
+`npm.cmd run db:up`, `npm.cmd test`, `npm.cmd run build`, the demo reset
+with `SEED_NOW`, `npm.cmd run dev`) and reviewed the 3D view on Windows:
+everything worked and the interaction felt smooth. **Reported by the
+author; the terminal output was not shared**, so the commit hash, the
+installed versions and the test and build counts are not recorded here
+from Windows output. This is the author's acceptance of the 3D view on
+real hardware (it was checked here only with software WebGL).
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -854,8 +897,12 @@ Milestone 6 preparation (README, `pg` correction, D-013): nothing pending
 
 Milestone 6 redesign (`m6-redesign`): nothing required pending (Windows:
 103/103 and builds on `578820c`, plus the author's visual review).
-Optional: each flow confirmed one by one on Windows. Final acceptance of
-the whole: after the next extensions (D-014).
+Merged through PR #7 as `d8150d3`. Optional: each flow confirmed one by one
+on Windows.
+
+3D heatmap (`m6-heatmap-3d`): nothing required pending (Windows run and
+review of `3ec45ca` reported by the author; outputs not shared). Final
+acceptance of the whole: after the next extensions (D-014).
 
 Later or optional:
 
