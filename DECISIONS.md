@@ -39,8 +39,9 @@ in the dated tables kept below).
 | D-010 | Risk score: factors, caps, window and stored breakdown | Accepted |
 | D-011 | Audit plans (Top N) and tasks | Accepted |
 | D-012 | Count flow: access, unexpected pallets, retries, conflicts and results | Accepted |
-| D-013 | Visual direction: Rivero identity and dashboard additions | Accepted; implemented on `m6-redesign`, not merged yet |
-| D-014 | Next extensions: 3D heatmap, Rivy, data analysis | Accepted as direction; not implemented |
+| D-013 | Visual direction: Rivero identity and dashboard additions | Accepted; implemented (PR #7, merged as `d8150d3`) |
+| D-014 | Next extensions: 3D heatmap, Rivy, data analysis | Accepted as direction; 3D implemented (D-015), the rest not started |
+| D-015 | 3D heatmap: view, scale, camera and interaction | Accepted; implemented on `m6-heatmap-3d`, not merged yet |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -415,6 +416,56 @@ Limitations: one level per rack; no capacity per bin (see D-007).
 
 ---
 
+## D-015 — 3D heatmap: view, scale, camera and interaction
+
+**Status:** Accepted (2026-10-20); implemented on branch `m6-heatmap-3d`
+(D-014's first extension). Presentation only: no formula, rule or data
+change. Only the 3D view is in this branch; Rivy and the data analysis
+follow in their own branches.
+
+- **Same data as the 2D heatmap:** the 30 bins of `GET /warehouse` in the
+  same plan (one row per rack, aisle by aisle; one column per position),
+  the same scores, bands, colors and "Scores as of", and the task
+  information the 2D view uses (pending task; result in the latest plan).
+  No levels, shelves or capacity are drawn: the data has none.
+- **2D first:** the heatmap opens in 2D. The 3D view is a client component
+  loaded only when chosen (`next/dynamic`, no server rendering). Without
+  WebGL, on a lost WebGL context, a failed download or a render error, the
+  2D view comes back with a notice. Leaving 3D frees geometries,
+  materials, the renderer (and its context) and every listener.
+- **Library:** Three.js only, `three` 0.186.1 (2026-09-24, MIT, no runtime
+  dependencies) and `@types/three` 0.186.0 (development), exact versions
+  in the lockfile. React Three Fiber and drei were not used: they add over
+  20 packages that a fixed-orientation view does not need.
+- **Scale (choice documented as asked):** short columns proportional to the
+  score on one fixed linear 0–100 scale were tried first and kept: height
+  = 0.14 + 1.3 × score / 100 (footprint 0.8). A score of 0 keeps the 0.14
+  base (visible, selectable, in its band color); a bin without a score is
+  a lower flat tile with a dashed outline; an empty bin is not a geometry
+  case (its pallets are in the details). Uniform low blocks were not
+  needed: with this camera, at least 91 % of every top face stays visible
+  with all scores at 0, all at 100, alternating by row and by column and as
+  a checkerboard (computed with three's raycaster in `node --test`); the
+  same cases were checked in the browser (30 of 30 bins selected directly).
+- **Camera:** orthographic, fixed orientation (60° down, turned 14°), no
+  rotation. Zoom from the whole plan (1×) to 4×, around the pointer or the
+  fingers. Reset frames the whole plan for the current size of the view
+  (also after a resize). A band at the top of the view is kept free at
+  zoom 1 for the +, − and Reset buttons, which stay in the view's corner.
+- **Interaction:** a click or a tap selects and keeps the details (code,
+  score, band, pallets, task or last result, link to Bin details); the bin
+  list selects and marks the same bin (keyboard). A move of more than 6 px
+  is a drag, not a selection. Mouse: drag pans; Ctrl + wheel (or a trackpad
+  pinch) zooms; a plain wheel scrolls the page. Touch: one finger scrolls
+  the page; two fingers pan and zoom. Hover shows the code and score; the
+  selected bin shows them as a tag. Rows (`A-01` … `C-02`) and positions
+  (`01`–`05`) are labelled at the edges of the plan, kept whole inside the
+  view.
+- **Left out:** markers floating over every block, decorative animations
+  and free rotation.
+
+---
+
 ## D-014 — Next extensions: 3D heatmap, Rivy, data analysis
 
 **Status:** Accepted as direction (2026-10-20); **not implemented**. Each
@@ -425,8 +476,8 @@ delivery is planned for Thursday 2026-10-22. Final acceptance of the whole
 
 - **Interactive 3D heatmap**, as an alternative view of the same data: fixed
   orientation; select a bin with mouse or touch; zoom; a camera reset; and
-  the 2D heatmap kept as the alternative (and for accessibility). Its
-  dependencies are decided when it starts.
+  the 2D heatmap kept as the alternative (and for accessibility).
+  Implemented as D-015.
 - **Rivy**, an assistant to query the data and explain decisions: Google
   **Gemini**, **read-only** (it never creates plans, counts or movements).
   The model and its effective quota are still to be checked before
@@ -439,7 +490,7 @@ delivery is planned for Thursday 2026-10-22. Final acceptance of the whole
 ## D-013 — Visual direction: Rivero identity and dashboard additions
 
 **Status:** Accepted (2026-10-20); implemented on branch `m6-redesign`
-(milestone 6). Presentation only: no formula, rule or data changes.
+(milestone 6), merged through PR #7 (`d8150d3`). Presentation only: no formula, rule or data changes.
 
 - **Identity (Rivero, from riveroco.com):** the official logo file, the
   Onest typeface, brand blue `#235cf2`, black `#070707` / `#040404` and its
@@ -944,9 +995,9 @@ History before 2026-10-18:
 
 To be decided when the corresponding milestone starts:
 
-Deferred to their own branches (D-014): the interactive 3D heatmap, the
-Rivy assistant (Gemini, read-only; model and effective quota to be
-checked) and the author's data analysis contribution.
+Deferred to their own branches (D-014): the Rivy assistant (Gemini,
+read-only; model and effective quota to be checked) and the author's data
+analysis contribution. The 3D heatmap was decided in D-015.
 
 Decided in milestone 5: unexpected pallet capture, retries, conflicts and
 results in scoring (D-012, D-010 v2); demo reset with counts (D-009).

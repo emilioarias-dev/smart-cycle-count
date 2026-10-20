@@ -323,7 +323,7 @@ on the page background it measured 4.32:1, below 4.5:1.
 
 This preparation is complete: nothing pending (PR #6, merged as `e407ebc`).
 
-### Redesign (branch `m6-redesign`, from `main`)
+### Redesign (branch `m6-redesign`, from `main`; PR #7, merged as `d8150d3`)
 
 The approved v4 design in the app (D-013), with the choices confirmed on
 2026-10-20: the pending-quantity helper in Count (a typed `0` is an answer,
@@ -345,7 +345,26 @@ no network. No dependency, migration, rule, formula or data change.
 | Layout: 4 widths × 2 themes, contrast, overflow, targets | all pages | Yes (56 views, 0 issues) | Visual review only (not each flow) |
 | Tests and builds | `npm test`, `npm run build` | Yes (103/103; builds, also without network) | Yes (103/103, builds; `578820c`) |
 
-Next, each on its own branch and pull request (D-014, not started): the 3D
-heatmap, Rivy (Gemini, read-only) and the author's data analysis. Delivery
-planned for Thursday 2026-10-22; final acceptance of the whole (clean
-clones, version tag) after the extensions.
+### 3D heatmap (branch `m6-heatmap-3d`, from `main`)
+
+The first extension of D-014, decided in D-015: a 3D view of the same
+heatmap, 2D first and as fallback. New dependency: `three` 0.186.1 (and
+`@types/three` 0.186.0 for development), exact versions. No API,
+migration, rule, formula or data change.
+
+| Item | Where | CC verified | WIN verified |
+|---|---|---|---|
+| Same bins, plan, scores, bands and reference as the 2D view | `lib/heatmap3d.ts`, `app/page.tsx` | Yes (`node --test`; each of the 30 selections = `GET /warehouse`) | Pending |
+| Short columns on a fixed 0–100 scale, 0 kept as a base, no score as a dashed tile, no hidden bin | `lib/heatmap3d.ts` | Yes (≥ 91 % of every top visible in the extreme cases; 30/30 selected in the browser with all 0, all 100, alternating, checkerboard, no score) | Pending |
+| Direct selection by mouse and touch, details kept, list selects the same bin | `components/Heatmap3D.tsx` | Yes (30/30 at 320, 390, 768 and 1440 px, both themes, mouse and touch) | Pending |
+| Fixed orthographic camera, limited zoom, pan, Reset for the current size | `components/Heatmap3D.tsx` | Yes (36 interaction checks) | Pending |
+| Page scrolling kept (one finger, plain wheel); two fingers pan / zoom | `components/Heatmap3D.tsx` | Yes | Pending |
+| 2D first; back to 2D without WebGL, on a lost context or a failed download; 20 switches without leaks | `components/HeatmapViews.tsx` | Yes | Pending |
+| Data updates with the 3D view open (recompute, new plan) | dashboard | Yes | Pending |
+| Layout of the 3D view and 2D checks kept | all | Yes (8 views 0 issues; 2D: 33 flows, Count fields, chart, 56 views) | Pending |
+| Tests and builds, clean `npm ci` | `npm test`, `npm run build` | Yes (103 API + 11 web; builds, also without network) | Pending |
+
+Next, each on its own branch and pull request (D-014): Rivy (Gemini,
+read-only), then the author's data analysis. Delivery planned for Thursday
+2026-10-22; final acceptance of the whole (clean clones, version tag) after
+the extensions.

@@ -20,7 +20,8 @@ in the app are real records of this app.
   of the latest plan, bins never audited), a heatmap of the 30 bins by aisle
   and rack colored by audit priority (green low, yellow medium, red high),
   the latest plan with each bin's score at selection and now, and a
-  **Score breakdown · Top 5 bins** chart.
+  **Score breakdown · Top 5 bins** chart. The heatmap opens in 2D; a **3D**
+  view of the same bins can be chosen.
 - **Bin detail** (`/bins/A-01-03`): the score and why it got it, the last
   audit date and the pallets stored in the bin.
 - **Create plan → Top N** (on the dashboard): saves the riskiest bins as
@@ -164,6 +165,18 @@ With the demo data loaded and `npm run dev` running:
    **Score breakdown · Top 5 bins** chart stacks the points of each factor
    on one 0–100 scale: hover or focus a bar for its values, or click / tap
    it to open them under the bar.
+
+   **3D** (above the heatmap) shows the same 30 bins, scores, bands and
+   "Scores as of" as short columns: height and color give the score on one
+   0–100 scale; a 0 keeps a base; a dashed flat tile has no score. Rows are
+   racks (`A-01` … `C-02`), columns positions (`01`–`05`). A click, a tap or
+   the bin list selects a bin and keeps its details (score, band, pallets,
+   task or last result in the latest plan, link to the bin). With a mouse,
+   drag to move and Ctrl + scroll to zoom; on a phone, one finger scrolls
+   the page as usual and two fingers move and zoom. **+**, **−** and the
+   house button (Reset view) stay in the corner of the view. **2D** goes
+   back; if 3D cannot start (no WebGL), the 2D heatmap comes back with a
+   notice.
 2. **Why a score** — select a bin. Its page shows the score with each
    factor (input, cap, weight, points, and a bar on the same 0–100 scale),
    the last audit date, the last count result and the pallets in the bin.
@@ -344,10 +357,17 @@ stored in the repository (`apps/web/app/fonts/`, SIL Open Font License), so
 the build needs no network and the browser loads no external font. A
 "Prototype · synthetic demo data" notice stays in the top bar.
 
+The 3D heatmap (decision D-015) uses Three.js (`three` 0.186.1, exact
+version), downloaded only when the 3D view is chosen: the dashboard's
+initial JavaScript grows by about 5 KB.
+
 ## Known limitations
 
 - The data is synthetic, and the last audit dates before the first count
   are simulated (see [Demo data](#demo-data)).
+- The 3D view was checked in Chromium (desktop and phone emulation) with
+  software WebGL; other browsers and real phones were not tested here. It
+  needs WebGL; without it the 2D heatmap is shown.
 - There is no way to record movements from the app: movements only come
   from the demo generator, so the "inventory changed" path of the count is
   exercised by the tests rather than by normal use.
@@ -370,7 +390,7 @@ the build needs no network and the browser loads no external font. A
 
 | Command | What it does |
 |---|---|
-| `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
+| `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data), then the web tests (`node --test`: the 3D heatmap geometry, no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
 | `npm run build` | Type-checks and builds the API and the web app. Stop `npm run dev` first (see [Known limitations](#known-limitations)) |
 | `npm run db:down` | Stops PostgreSQL (data is kept in a Docker volume) |
 | `docker compose down -v` | Stops PostgreSQL and **deletes** its data |
