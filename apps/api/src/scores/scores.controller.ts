@@ -1,6 +1,6 @@
-import { Controller, HttpCode, Post } from '@nestjs/common';
+import { Controller, Get, HttpCode, Post } from '@nestjs/common';
 import type { RecomputeSummary } from '../scoring/recompute.js';
-import { ScoresService } from './scores.service.js';
+import { ScoresService, type TopScore } from './scores.service.js';
 
 @Controller('scores')
 export class ScoresController {
@@ -10,5 +10,10 @@ export class ScoresController {
   @HttpCode(200)
   recompute(): Promise<RecomputeSummary> {
     return this.scoresService.recomputeNow();
+  }
+
+  @Get('top')
+  top(): Promise<TopScore[]> {
+    return this.scoresService.top();
   }
 }
