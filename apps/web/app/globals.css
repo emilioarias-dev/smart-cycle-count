@@ -540,7 +540,6 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
 /* A changed scope or selection fades in; the figures themselves never count up. */
 .ins-fade { animation: ins-fade 0.18s var(--ease); }
 @keyframes ins-fade { from { opacity: 0; } }
-@keyframes tab-pulse { to { transform: scale(0.6); opacity: 0.5; } }
 
 /* 6. RESPONSIVE */
 .only-sm { display: none !important; }
@@ -639,14 +638,17 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
   .table.stack-sm td.c-result { grid-row: 2; grid-column: 3; text-align: right; }
   .table.stack-sm td.c-result.is-empty { display: none; }
   .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); position: sticky; bottom: 0; z-index: 5; height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); background: var(--chrome); box-shadow: 0 -1px 0 var(--chrome-edge); padding: 0.3rem 0.5rem env(safe-area-inset-bottom); }
-  .tabbar a { position: relative; display: grid; justify-items: center; align-content: center; gap: 0.15rem; font-size: 0.64rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--chrome-muted); text-decoration: none; }
+  .tabbar a, .tabbar .tab-rivy { position: relative; display: grid; justify-items: center; align-content: center; gap: 0.15rem; font-size: 0.64rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--chrome-muted); text-decoration: none; }
+  .tabbar .tab-rivy { padding: 0; border: 0; background: none; font-family: inherit; cursor: pointer; }
   .tabbar a[aria-current] { color: var(--chrome-text); }
   .tabbar a[aria-current] .icon { color: var(--chrome-accent); }
   .tabbar .link-pending { top: 0; bottom: auto; left: 25%; right: 25%; }
   .tabbar .icon { width: 1.35rem; height: 1.35rem; }
-  .tab-icon { position: relative; display: inline-grid; }
-  .tab-dot { position: absolute; top: -0.15rem; right: -0.35rem; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--chrome-accent); border: 2px solid var(--chrome); }
-  .tab-dot.busy { animation: tab-pulse 1s var(--ease) infinite alternate; }
+  /* Rivy's avatar on its black circle, as on the floating button. */
+  /* 0.5rem taller than the other icons: it rises so the labels stay aligned. */
+  .tab-avatar { position: relative; display: grid; place-items: center; width: 1.85rem; height: 1.85rem; margin-top: -0.5rem; border-radius: 50%; background: var(--rv-black); border: 1px solid #2c2c2c; }
+  .tab-avatar.busy::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--rv-blue); border-right-color: transparent; animation: spin 1s linear infinite; }
+  .tab-dot { position: absolute; top: -0.2rem; right: -0.3rem; width: 0.65rem; height: 0.65rem; border-radius: 50%; background: var(--rv-blue); border: 2px solid var(--chrome); }
   .submit-bar { bottom: var(--tabbar-h); margin-inline: -1rem; padding: 0.7rem 1rem; }
   .submit-bar .btn { flex: 1; }
 }

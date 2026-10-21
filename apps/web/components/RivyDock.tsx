@@ -12,7 +12,8 @@ import { useRivy } from './RivyProvider';
 // conversation as /rivy. From 1100 px wide the panel is docked at the right
 // and the page narrows beside it (nothing is covered); below that it is a
 // modal drawer, nearly full screen on phones. The button is hidden on /rivy
-// and while a count is being entered (Rivy stays in the navigation).
+// and while a count is being entered (Rivy stays in the navigation), and on
+// phones, where Rivy's tab in the tab bar opens the panel instead.
 const WIDE = '(min-width: 1100px)';
 
 function useWide(): boolean {
@@ -67,7 +68,10 @@ export function RivyDock() {
       panel.current?.querySelector<HTMLElement>(modal ? '#rivy-panel-title' : '#rivy-question')?.focus();
     } else if (returnFocus.current) {
       returnFocus.current = false;
-      button.current?.focus();
+      // Back to whichever way in is shown: the floating button, or Rivy's
+      // tab on phones.
+      const launchers = [button.current, document.querySelector<HTMLElement>('.tabbar [data-rivy-launcher]')];
+      launchers.find((el) => el && el.getClientRects().length > 0)?.focus();
     }
   }, [shown, modal]);
 

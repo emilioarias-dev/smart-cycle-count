@@ -1,7 +1,7 @@
 // Modal keyboard, inert background, reduced motion on ::after, and the
 // waiting announcement (audit, point 5). Gemini SIMULATED (slow3 = 3 s).
-// The modal panel is checked on a tablet (800 px): on phones there is no
-// floating button, and Rivy's tab in the tab bar shows its state (step 5).
+// The modal panel is checked on a tablet (800 px); on phones (step 5) Rivy's
+// tab in the tab bar opens it instead of a floating button.
 const os = require('os');
 const path = require('path');
 // Runtime state (proxy and Gemini modes, request log), outside the repository.
@@ -82,28 +82,36 @@ const ok = (c, n, d = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS' : 
   await rm.waitForSelector('.rivy-button-dot', { timeout: 15000 });
   setGemini('ok');
 
-  // 5. Phone: no floating button over the page; the Rivy tab says when Rivy
-  // is answering and when a new answer is waiting, until /rivy is opened.
+  // 5. Phone: no floating button over the page; Rivy's tab (with the
+  // avatar) opens the same panel on the same page, shows that Rivy is
+  // answering and then a new answer, and gets the focus back on close.
   const ph = await (await b.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
-  await ph.goto(B + '/');
+  await ph.goto(B + '/tasks');
   await ph.waitForLoadState('networkidle');
-  ok((await ph.locator('.rivy-button').isVisible().catch(() => false)) === false, 'phone: no floating Rivy button');
+  const tab = ph.locator('.tabbar [data-rivy-launcher]');
+  ok((await ph.locator('.rivy-button').isVisible().catch(() => false)) === false && (await tab.locator('.rivy-avatar').count()) === 1, 'phone: no floating button; the Rivy tab has the avatar');
   setGemini('slow3');
-  await ph.locator('.tabbar a[href="/rivy"]').tap();
-  await ph.waitForURL('**/rivy');
+  await tab.tap();
+  await ph.waitForSelector('.rivy-panel.modal');
+  const samePage = ph.url().endsWith('/tasks');
   await ph.fill('#rivy-question', 'How is the risk score calculated?');
   await ph.press('#rivy-question', 'Enter');
-  await ph.locator('.tabbar a[href="/tasks"]').tap();
-  await ph.waitForURL('**/tasks');
-  const busy = await ph.locator('.tabbar a[href="/rivy"] .tab-dot.busy').count();
-  const busyName = await ph.locator('.tabbar a[href="/rivy"]').getAttribute('aria-label');
-  await ph.waitForSelector('.tabbar a[href="/rivy"] .tab-dot:not(.busy)', { timeout: 15000 });
-  const newName = await ph.locator('.tabbar a[href="/rivy"]').getAttribute('aria-label');
-  await ph.locator('.tabbar a[href="/rivy"]').tap();
-  await ph.waitForURL('**/rivy');
-  await ph.waitForTimeout(300);
-  const cleared = await ph.locator('.tabbar a[href="/rivy"] .tab-dot').count();
-  ok(busy === 1 && busyName === 'Rivy, answering' && newName === 'Rivy, new answer' && cleared === 0, 'phone: the Rivy tab shows answering, then a new answer, cleared on /rivy', `${busyName} → ${newName} → dots ${cleared}`);
+  await ph.keyboard.press('Escape');
+  await ph.waitForTimeout(200);
+  const tabFocused = await ph.evaluate(() => document.activeElement?.hasAttribute('data-rivy-launcher'));
+  const busy = await tab.locator('.tab-avatar.busy').count();
+  const busyName = await tab.getAttribute('aria-label');
+  ok(samePage && tabFocused && busy === 1 && busyName.endsWith(', answering'), 'phone: the tab opens the panel on the same page; Esc returns the focus to it; ring while answering', `${ph.url()} · ${busyName}`);
+  await ph.waitForSelector('.tabbar [data-rivy-launcher] .tab-dot', { timeout: 15000 });
+  const newName = await tab.getAttribute('aria-label');
+  await tab.tap();
+  await ph.waitForSelector('.rivy-panel.modal .rivy-text', { timeout: 5000 });
+  const answerShown = await ph.locator('.rivy-panel.modal .rivy-text').count();
+  await ph.locator('.rivy-panel.modal button[aria-label^="Close"]').tap();
+  await ph.waitForTimeout(200);
+  const backAfterClose = await ph.evaluate(() => document.activeElement?.hasAttribute('data-rivy-launcher'));
+  const cleared = await tab.locator('.tab-dot').count();
+  ok(newName.endsWith(', new answer') && answerShown > 0 && backAfterClose && cleared === 0, 'phone: a new answer shows a dot; the tab opens the same conversation; ✕ returns the focus; dot cleared', `${newName}`);
   setGemini('ok');
 
   await b.close();
