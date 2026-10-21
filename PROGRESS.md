@@ -364,7 +364,7 @@ migration, rule, formula or data change.
 | Layout of the 3D view and 2D checks kept | all | Yes (8 views 0 issues; 2D: 33 flows, Count fields, chart, 56 views) | Reported by the author |
 | Tests and builds, clean `npm ci` | `npm test`, `npm run build` | Yes (103 API + 11 web; builds, also without network) | Reported by the author |
 
-### Rivy (branch `m6-rivy`, from `main` after PR #8)
+### Rivy (branch `m6-rivy`, from `main` after PR #8; PR #9, merged as `4a3664c`)
 
 The second extension of D-014, decided in D-016: a read-only assistant on
 Gemini (`gemini-3.5-flash-lite`) at `/rivy`. REST with `fetch`, no new
@@ -392,7 +392,7 @@ answers.
 Asked on 2026-10-21, after the Rivy fix: Rivy from any page (D-018),
 transitions and action states (D-018) and a high-risk demo scenario
 (D-017). One migration (adds `demo_dataset`); no new dependency; no rule,
-formula, weight, band or color change. The pull request follows PR #9.
+formula, weight, band or color change. Opened after PR #9 was merged.
 
 | Item | Where | CC verified | WIN verified |
 |---|---|---|---|
