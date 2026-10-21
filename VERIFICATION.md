@@ -1113,6 +1113,25 @@ the items reviewed were not listed one by one, and no `npm.cmd test` or
 `npm.cmd run build` output on `eac93f2` was shared, so this entry confirms
 neither. The automated evidence for this commit is the CC run above.
 
+## 2026-10-21 — WIN: polish on `f864ddb` (code `eac93f2`), tests and builds — **PASSED** (shared by the author, PowerShell transcript)
+
+**Automated checks only**, apart from the visual review above. Commands
+in the transcript: `git fetch origin`, `git switch m6-polish` ("up to date
+with 'origin/m6-polish'"), `git pull --ff-only` ("Already up to date"),
+`git rev-parse HEAD` → `f864ddbec32c1392e940adfc8de29b80fa664880`
+(documentation only after code `eac93f2`), `npm.cmd run db:up`,
+`npm.cmd ci`, `npm.cmd test`, `npm.cmd run build`.
+
+| Command | Result |
+|---|---|
+| `npm.cmd run db:up` | Container healthy |
+| `npm.cmd ci` | 457 packages added, 460 audited, 0 vulnerabilities |
+| `npm.cmd test` (API) | **133/133**, 16 files, 119.78 s; test database: 6 migrations, none pending. Includes the audit regressions: "a recompute asked while a count holds the turn scores after the count: its FAIL is kept" and "compare_bins: a recompute during the comparison cannot mix states". The two expected messages: the `[Nest] ERROR … simulated failure while recomputing` log (rollback test) and one `pg` DeprecationWarning (the detector's self-test) |
+| `npm.cmd test` (web) | **14/14** (`node --test`): the three API client cases ("three unknown outcomes", refused connection, count answers) and the 3D geometry |
+| `npm.cmd run build` | API and web OK (Next.js 16.4.2, Turbopack); route `ƒ /api/rivy` present |
+
+Rivy's real questions are not in this transcript (see Pending).
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1154,12 +1173,12 @@ Windows (WIN):
   replaced. The quota is not exhausted on purpose: quota errors were
   tested simulated.
 
-Polish (`m6-polish`), on `eac93f2`: the author's visual review on Windows
-is recorded above. Still pending before the merge: the Windows outputs of
-`npm.cmd test` (133 API + 14 web) and `npm.cmd run build`, and whether
-Rivy's real questions (the global ranking, a follow-up with history, a
-comparison, a question that states a wrong value) were part of the review,
-with the text shown or replaced.
+Polish (`m6-polish`), code `eac93f2`: Windows tests and builds passed on
+`f864ddb` and the author's visual review is recorded (both above). Still
+pending: Rivy's real questions on this commit (the global ranking, a
+follow-up with history, a comparison, a question that states a wrong
+value), with the text shown or replaced; the author said they were run,
+but their results were not in the transcript shared.
 
 Later or optional:
 

@@ -405,7 +405,7 @@ formula, weight, band or color change. Opened after PR #9 was merged.
 | High-risk scenario: planned inputs for 8 high, 12 medium, 10 low, different scores per band, with the unchanged formula; original demo unchanged; scenario in the top bar | `src/demo-data/high-risk.ts`, `demo.controller.ts`, migration | Yes (tests: SQL formula, plan, fingerprint; a wrong plan fails) | Visual review reported on `eac93f2`, not itemized |
 | Earlier checks kept | — | Yes (2D flows 33/33, Count fields, chart, 56 views, 3D 30/30 + interaction + 8 views, Rivy 67/67 + 22/22) | — |
 | Audit fixes (2026-10-21): recompute time after the lock; ambiguous plan answers not confirmed, Retry guarded; exact count retry, fields locked; compare_bins in one snapshot; modal Shift+Tab, inert page, `::after` reduced motion, seconds not announced; Rivy through a route handler | `scoring/recompute.ts`, `lib/api.ts`, `app/actions.ts`, `WarehouseHead.tsx`, `CountForm.tsx`, `assistant/tools.ts`, `RivyDock.tsx`, `RivyProvider.tsx`, `app/api/rivy/route.ts` | Yes (each reproduced first, then fixed; API and web tests, 17 browser checks kept in `docs/browser-checks/`) | Visual review reported on `eac93f2`, not itemized |
-| Tests and builds | `npm test`, `npm run build` | Yes (API 133/133, web 14/14) | Pending (outputs on `eac93f2` not shared) |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 133/133, web 14/14) | Yes (on `f864ddb`: API 133/133, web 14/14, builds OK) |
 
 Next: the author's data analysis, on its own branch. Delivery planned for
 Wednesday 2026-10-21; final acceptance of the whole (clean clones, version
