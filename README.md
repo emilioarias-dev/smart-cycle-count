@@ -204,7 +204,7 @@ With the demo data loaded and `npm run dev` running:
    FAIL, the quantities and variances in the product's unit, and the bin's
    new score; **Tasks** shows the task as **Done** with its result.
 5. **Recompute** — on the dashboard, press **Recompute scores** (on a phone,
-   the circular arrow next to "Scores as of"): every bin is scored for the
+   the full-width button above Top N): every bin is scored for the
    current time and the heatmap updates. A counted bin's age is back to 0,
    and a FAIL adds 25 points.
 6. **Audit insights** — at the bottom of the dashboard (decision D-019),
@@ -442,8 +442,10 @@ project and shown in AI Studio (<https://aistudio.google.com/rate-limit>).
 
 **From any page.** The round Rivy button at the bottom right (Rivero's
 symbol with a smile) opens the same conversation in a panel: docked at the
-right on wide screens (the page narrows beside it, nothing is covered), a
-drawer on tablets and a nearly full-screen sheet on phones. Esc or ✕ closes
+right on wide screens (the page narrows beside it, nothing is covered) and
+a drawer on tablets. On phones there is no floating button (it would cover
+the page): the **Rivy** tab of the tab bar opens the conversation, and shows
+a pulsing dot while Rivy answers and a dot for a new answer. Esc or ✕ closes
 it; ⤢ opens the full page. The conversation is kept while you move between
 pages. The button is hidden on the Rivy page and while a count is being
 entered (Rivy stays in the navigation). A dot on the button means an answer
@@ -499,7 +501,10 @@ records wrongly, so **Records read** is the reference.
 ## Interface
 
 The look follows Rivero's identity (decision D-013): the Rivero logo, the
-Onest typeface, brand blue and black, light and dark themes. Onest is
+Onest typeface, brand blue and black, light and dark themes. In the light
+theme the top bar, the overview band and the phone tab bar are white, with
+a version of the logo with dark letters; in the dark theme they are black
+(D-018, adjustments of 2026-10-21). Onest is
 stored in the repository (`apps/web/app/fonts/`, SIL Open Font License), so
 the build needs no network and the browser loads no external font. A
 "Prototype" notice in the top bar names the demo scenario loaded (D-017).

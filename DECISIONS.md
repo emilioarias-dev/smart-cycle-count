@@ -561,6 +561,28 @@ data change; no new dependency.
   (the existing global rule, plus the cross-fade skipped); the focus never
   moves because of an animation.
 
+**Presentation adjustments (2026-10-21, after the author's review on
+Windows; branch `m6-audit-insights`).** Presentation only:
+
+- **Light chrome in the light theme:** the top bar, the overview band under
+  Warehouse and the phone tab bar are white with dark text, a thin line
+  separating them from the page; in the dark theme they stay brand black.
+  The logo has a second version with dark letters for the white bar
+  (`rivero-logo-ink.png`, the same file with its white letters turned
+  black); the blue symbol and the priority colors do not change.
+- **Recompute on phones:** the round icon next to "Scores as of" was hard
+  to read and off-center; phones now show the same **Recompute scores**
+  button as wide screens (icon and label together, a full row above Top N
+  and Create plan), with the same working and result states.
+- **Rivy on phones:** the floating button covered part of the heatmap
+  (the last bin of a rack). Where the tab bar is shown (up to 640 px) the
+  floating button is not shown: Rivy is the tab bar's **Rivy** tab, which
+  now carries the button's states (a pulsing dot while answering, a dot for
+  a new answer, both in its name), cleared when `/rivy` is opened. Tablets
+  and desktops keep the floating button and its panel unchanged.
+- **320 px:** the overview band's three figures are slightly smaller there
+  so the priority mix stays in its column.
+
 ---
 
 ## D-017 — Demo scenarios: the original demo and a high-risk one
@@ -842,7 +864,9 @@ delivery is planned for Wednesday 2026-10-21. Final acceptance of the whole
   hide a field: focusing or scrolling to a field keeps it above them
   (`scroll-padding`).
 - **Icon-only recompute (phones):** a real button named "Recompute scores",
-  with a tooltip, 44 px target and the same busy state.
+  with a tooltip, 44 px target and the same busy state. Replaced on
+  2026-10-21 (D-018, presentation adjustments): on phones the same
+  "Recompute scores" button as on wide screens, icon and label together.
 - **Font:** Onest is stored in the repository (latin subset, SIL Open Font
   License) and loaded with `next/font/local`, so the build needs no network.
 

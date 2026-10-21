@@ -1176,6 +1176,26 @@ acceptance of what was observed only: the commit, and the outputs of
 `npm.cmd test` and `npm.cmd run build`, were not shared, so this entry
 confirms neither.
 
+## 2026-10-21 — CC: presentation adjustments after the author's review (light chrome, phone recompute, Rivy on phones)
+
+Presentation only (D-018, adjustments of 2026-10-21), on `m6-audit-insights`.
+Production build; this container's development database (high-risk demo
+with a 10-bin plan for the screenshots, then the original demo for the
+flows); Gemini **simulated**.
+
+| Command / check | Result |
+|---|---|
+| Screenshots of Warehouse at 320, 375 and 1440 px, light and dark | Light: white top bar with the dark-letter logo (blue symbol unchanged), white overview band, white tab bar; dark: unchanged. At 320 px the priority mix overflowed into the plan column (also before this change): fixed |
+| Logo and the theme toggle | System light → ink logo, toggle → white logo on a black bar; system dark → the reverse: **2/2** |
+| Recompute scores on phones (320 and 375 px, light and dark) | Icon and label together, inside the screen; working (spinner, "Recomputing…") and result ("Scores recomputed"), same width, no horizontal scroll: **8/8** |
+| `docs/browser-checks/modal-keyboard-motion.cjs` (modal on a tablet now; phone step added) | **8/8**: modal keyboard, inert page, Esc and focus, announcements, reduced motion; phone: no floating button; the Rivy tab says "answering", then "new answer", cleared on `/rivy` |
+| Other repository checks | `audit-insights` **28/28** (no counts), `rivy-does-not-block` **3/3**, `ambiguous-plans` **4/4**, `count-retry` **4/4** |
+| Overlap (Rivy's button and docked panel over every control, pages × widths) | **40/40** |
+| 2D flows | **33/33**, after updating two expectations of the old icon-only phone button (its tooltip, and finding it by `aria-label`): it is now found by its visible label |
+| `npm test -w apps/web`; `npx tsc --noEmit` (web); `npm run build -w apps/web` | 14/14; exit 0; build OK. The API is unchanged since the 142/142 run above |
+
+Not checked: Safari, Firefox, real phones and Windows.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1218,10 +1238,12 @@ Windows (WIN):
 Polish (`m6-polish`): nothing pending (merged through PR #10 as `64e2fa4`).
 
 Audit insights (`m6-audit-insights`): the author's visual review and
-acceptance on Windows are recorded above. Still pending before the merge:
-the Windows outputs of `npm.cmd test` (142 API + 14 web) and
-`npm.cmd run build` on `94628af` or later, with the commit
-(`git rev-parse HEAD`).
+acceptance of the block on Windows are recorded above. Still pending before
+the merge, in one round on the final commit: `npm.cmd test` (142 API + 14
+web) and `npm.cmd run build`, with the commit (`git rev-parse HEAD`); and a
+look at the presentation adjustments (light top bar, band and tab bar with
+the dark logo; Recompute scores on a narrow window; no floating Rivy button
+on a narrow window, the Rivy tab instead).
 
 Later or optional:
 

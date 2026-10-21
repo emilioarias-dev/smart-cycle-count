@@ -420,6 +420,7 @@ dependency; no rule, formula, Top 5 or plan change.
 | Block: scope selector, three metrics, one stacked bar per aisle, list of a selected part, Clear selection, hint, empty selection, loading and error states, note on the data | `components/AuditInsights.tsx`, `app/page.tsx`, `globals.css` | Yes (browser check 40/40 on two data states, 28/28 without counts) | Visual review reported (aisle A), accepted by the author |
 | Keyboard, touch, focus, reduced motion, both themes, phone and desktop; nothing under Rivy's button | same | Yes (same check; overlap check 40/40) | Pending |
 | Earlier flows kept | — | Yes (2D flows 33/33) | — |
+| Presentation adjustments after the review: light top bar, band and tab bar (dark-letter logo); Recompute scores with its label on phones; no floating Rivy button on phones, its states on the Rivy tab; the overview band at 320 px | `globals.css`, `layout.tsx`, `WarehouseHead.tsx`, `Navigation.tsx`, `RivyProvider.tsx`, `public/rivero-logo-ink.png` | Yes (320 / 375 / 1440, both themes; repository checks, overlap 40/40, flows 33/33) | Pending |
 | Tests and builds | `npm test`, `npm run build` | Yes (API 142/142, web 14/14) | Pending (outputs not shared) |
 
 Delivery planned for Wednesday 2026-10-21; final acceptance of the whole
