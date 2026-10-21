@@ -416,11 +416,14 @@ it. Rivy does not retry by itself: after a failure, **Try again**. If
 Gemini is unavailable, the quota is reached or the key is missing, the
 page says so and the rest of the app keeps working.
 
-**Checked answers.** Before an answer is shown, the API checks that every
-bin code, pallet code, SKU, link, date, time and number in it comes from the
-records read for that question (not from earlier answers). If the model
-wrote anything else, the answer is not shown and the page says what it
-mentioned; try again or ask more specifically. Questions the records cannot
+**Checked answers.** Under each answer, **Records read** shows, from the
+API, the data Rivy used: scores with band and score time, factors,
+comparisons, the Top 5, tasks and count lines. Before the text is shown, the
+API checks that every bin code, pallet code, SKU, link, date, time and
+number in it comes from those records (not from the question or earlier
+answers), and that a figure written next to a bin is that bin's. If not,
+the text is replaced by a note naming what did not match; the records are
+still shown, and **Try again** asks again. Questions the records cannot
 answer (for example, the lowest scores) get "the records do not show it".
 
 ## Interface
@@ -440,9 +443,10 @@ initial JavaScript grows by about 5 KB.
 - Rivy depends on Gemini's free tier: answers can be slow, Gemini may be
   busy (503) and the quota is per project (429). The check covers codes,
   links, dates, times and numbers, not wording: a sentence can still
-  misread a figure that is in the records (check the linked pages), and a
-  number written in words is not checked. A correct answer that derives a new
-  number (a difference, a sum) is withheld. The conversation is not saved.
+  misread a figure that is in the records (the **Records read** table is
+  the reference), and a number written in words is not checked. A correct
+  text that derives a new number (a difference, a sum) or repeats a value
+  only the question gave is replaced. The conversation is not saved.
 - The data is synthetic, and the last audit dates before the first count
   are simulated (see [Demo data](#demo-data)).
 - The 3D view was checked in Chromium (desktop and phone emulation) with
@@ -525,7 +529,7 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
 | `GET /audit-tasks` | `200` with every task, newest plan first and by rank, each with its plan summary, bin code, status, the score copied at selection (with `computedAt` and `formulaVersion`) and its `count` (`result`, `countedAt`, or `null`) |
 | `GET /bins/:code/count-sheet` | `200` with the bin's pending task, `inventoryVersion`, expected lines (pallet code, product, expected quantity) and the product catalog, read in one snapshot. `404` `BIN_NOT_FOUND`; `409` `NO_PENDING_TASK` |
 | `POST /audit-tasks/:taskId/count` with JSON `{"inventoryVersion": 46, "lines": [{"palletCode": "P-0026", "countedQuantity": 33}], "unexpected": [{"code": "X-1", "quantity": 12, "productSku": null}]}` | `201` with the count (result, lines with expected, counted and variance, unexpected pallets) and the bin's new score; `200` with `recovered: true` and the stored count for an identical retry. `400` (`INVALID_COUNT`, `LINES_MISMATCH`, `UNEXPECTED_IS_EXPECTED`, `UNKNOWN_PRODUCT`); `404` `TASK_NOT_FOUND`; `409` `INVENTORY_CHANGED` (nothing saved; with the current version, lines and `changes`) or `TASK_ALREADY_COUNTED` (with the stored count) |
-| `POST /assistant/ask` with JSON `{"question": "Why does bin B-02-03 have its priority?", "history": [{"question": "…", "answer": "…"}]}` (`history`: at most the last 6 exchanges) | `200` with `answer`, `references` (label and path of the pages read), `queriedAt`, `tools` (name and arguments), `model`, `usage` (Gemini calls and tokens), `ms` and `truncated`. Errors have `code`, `message`, `retryable` and, for the local rate guard, `retryAfterSeconds`: `400` `INVALID_QUESTION`; `429` `RATE_LIMITED` or `QUOTA`; `503` `NOT_CONFIGURED` or `UNAVAILABLE`; `504` `TIMEOUT`; `502` `AUTH`, `BLOCKED`, `MODEL_ERROR`, `LIMIT` or `UNSUPPORTED` (the answer named codes, links, dates, times or numbers that the records read for this question do not contain; not shown). Read-only |
+| `POST /assistant/ask` with JSON `{"question": "Why does bin B-02-03 have its priority?", "history": [{"question": "…", "answer": "…"}]}` (`history`: at most the last 6 exchanges) | `200` with `answer`, `facts` (the records read, structured: `bin`, `missing`, `compare`, `top`, `history`, `rules`), `withheld` (`null`, or what the model's text stated without support; `answer` is then a note), `references` (label and path of the pages read), `queriedAt`, `tools` (name and arguments), `model`, `usage` (Gemini calls and tokens), `ms` and `truncated`. Errors have `code`, `message`, `retryable` and, for the local rate guard, `retryAfterSeconds`: `400` `INVALID_QUESTION`; `429` `RATE_LIMITED` or `QUOTA`; `503` `NOT_CONFIGURED` or `UNAVAILABLE`; `504` `TIMEOUT`; `502` `AUTH`, `BLOCKED`, `MODEL_ERROR`, `LIMIT` or `UNSUPPORTED` (the text named codes, links, dates, times or numbers that this question's records do not contain, and no record was read). Read-only |
 
 ## Project documents
 

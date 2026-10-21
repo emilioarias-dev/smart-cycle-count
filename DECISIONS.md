@@ -449,16 +449,30 @@ reads. The data analysis follows in its own branch.
   every figure is in a tool result; the instructions tell the model to use
   only those, to give times in UTC and to treat earlier answers as possibly
   outdated (it asks the tools again). Instructions alone are not relied on:
-  before an answer is returned, the API looks up every bin, pallet and SKU
-  code, link path, date, time and number in it (written forms accepted:
-  rounding to the shown decimals, a decimal comma, "22:38 UTC", whole
-  numbers up to 10) among **this question's tool results and the question
-  itself**; earlier answers are not a source. If anything is missing, the
-  answer is not shown: the page says what it mentioned that the records read
-  do not contain (`UNSUPPORTED`, retryable), and the API logs it. A bin's
-  page is listed as a source only if the answer names that bin; "Data as
-  of" is the query time of the API. When no tool returns what a question
-  needs, the expected answer says the records do not show it.
+  - **Structured records first:** the API returns the records each tool read
+    (`facts`: a bin's score, band, score time, factors and pallets; a
+    comparison; the Top 5; tasks with the score at selection and count
+    lines; the rules version), and the page shows them under the answer as
+    tables. Critical figures never depend on the model's wording.
+  - **The text is checked, not interpreted:** every bin, pallet and SKU
+    code, link path, date, time and number of the text must be in **this
+    question's tool results**; neither the question nor earlier answers are
+    a source. All numbers are checked, small ones included (a list's "1."
+    is not a number). A number written after a bin code in the same
+    sentence must belong to that bin's records (or to shared values such
+    as the rules, if no other bin read holds it), so figures swapped
+    between bins are caught. Written forms accepted: rounding to 0–2
+    decimals, a decimal comma, "22:38 UTC", a date in words.
+  - **When the text fails:** it is replaced by a note that names what did
+    not match, the records read are still shown, and the page offers Try
+    again (200 with `withheld`). If no record was read, the question fails
+    with `UNSUPPORTED` (502, retryable). The API logs what was withheld.
+  - Not a language checker: wording that misreads a correct figure, or a
+    number in words, is not caught; a correct sentence that repeats a value
+    only the question gave ("it is not 99") is withheld.
+  - A bin's page is listed as a source only if the answer names that bin;
+    "Data as of" is the query time of the API. When no tool returns what a
+    question needs, the expected answer says the records do not show it.
 
   *Why (2026-10-20, author's Windows run with the real model):* asked
   "que bins tienen la mayor puntuacion", with no ranking tool, the model

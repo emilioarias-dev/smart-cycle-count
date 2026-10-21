@@ -984,6 +984,33 @@ once, 6 Gemini calls in total, dev data of this container:
 | ¿Y cuál es la puntuación del primero ahora? Consulta nuevamente los datos. (with the answer above as history) | 200 in 12.0 s, `get_top_bins` read again (new query time), 2927 tokens: B-02-03, 60, score time; passed the check |
 | What makes a count PASS or FAIL? Does counting change inventory? | 200 in 14.9 s, `get_rules`, 2157 tokens: the rule, no invented time, links `/`, `/tasks`, `/count`; passed the check |
 
+## 2026-10-21 — CC: Rivy validator tightened, records shown as data (code `8621d05`)
+
+Asked by the author after the first fix: catch figures swapped between
+bins, values that only the question gave and small invented quantities,
+and show critical data from the API's structured results rather than a
+general language check.
+
+**Simulated** (fake Gemini, nothing sent to Google):
+
+| Command / check | Result |
+|---|---|
+| `npm test` | API **126/126** (15 Rivy e2e, 8 check tests); web **11/11**; `npm run build` OK |
+| New and changed Rivy tests | Swapped scores between A-02-01 and B-01-05 → text replaced, `withheld` = both figures with their bins, the records still returned; "Is the score of B-02-03 99?" answered with 99 → replaced; a pallet count that none of B-02-03's records holds → replaced; the right count → shown. The Windows case → text replaced, the `compare` records shown, no references. A no-tool answer with figures → still `UNSUPPORTED` |
+| Check tests | All numbers checked, small ones included (list markers excepted); a number after a code must be that bin's; shared rule values accepted unless another bin holds them; the question is not a source; numbers after a code inside the API's own texts (the not-found hint "A-01-03 … 01-02") count for that bin |
+| Mutations, each restored | Check off; history or question as a source; small numbers unchecked; figures not tied to their bin; codes, timestamps or links unchecked; numbers in the API's texts not tied; records not returned; Top 5 order; query time as score time; sources not limited: **13/13 fail the tests** |
+| `/rivy`, earlier 67 checks and the affected cases | **67/67** and **22/22**: the "Records read" table equals `GET /scores/top`; the invented answer replaced by a note with Try again, the Top 5 still shown |
+| Found while checking | The not-found hint ("Codes look like A-01-03 … racks 01-02") made a correct answer fail; fixed (numbers after a code in the API's texts belong to that bin) and covered by a test |
+
+**Real, from CC through its proxy (not Windows),** 8 Gemini calls:
+
+| Question | Result |
+|---|---|
+| que bins tienen la mayor puntuacion | 200 in 2.2 s, `get_top_bins`, 2786 tokens: the Top 5 in order with "B-02-03 (60)" style figures; shown |
+| ¿Y cuál es la puntuación del primero ahora? Consulta nuevamente los datos. (with the answer above as history) | 200 in 1.6 s, `get_bin` (re-read), 3069 tokens: 60, 59.5 before rounding, score time; shown |
+| Compare B-01-05 and A-02-01… | 200 in 1.8 s, `compare_bins`, 2963 tokens: "A-02-01 (57) … B-01-05 (55)", shown. Its wording also called 85.81 days "a longer time since the last audit" than never audited, which is wrong; the figures are right and the table shows them (wording is not checked) |
+| Is the score of B-02-03 99? How many pallets does it hold? | 200 in 1.4 s, `get_bin`, 2732 tokens: the text mentioned 99 and was replaced ("99 for B-02-03"); the records (score, pallets) shown |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1015,12 +1042,13 @@ Rivy (`m6-rivy`), pending on Windows (WIN):
 
 - In AI Studio: the TPM limit of Gemini 3.5 Flash-Lite, the project behind
   the key and its tier (Free), without enabling billing.
-- `npm.cmd ci`, `npm.cmd test` (expected 121 API + 11 web), `npm.cmd run
+- `npm.cmd ci`, `npm.cmd test` (expected 126 API + 11 web), `npm.cmd run
   build`, with the key in `apps/api/.env` only.
 - Real questions: the author's run on the PR's first commit is recorded
-  above. Pending: only the affected cases on `a941c18` or later (the global
-  ranking, a follow-up with history, the rules question), with calls,
-  tokens and time. The quota is not exhausted on purpose: quota errors were
+  above. Pending: only the affected cases on `8621d05` or later (the global
+  ranking, a follow-up with history, a comparison, a question that states a
+  wrong value), with calls, tokens, time and whether the text was shown or
+  replaced. The quota is not exhausted on purpose: quota errors were
   tested simulated.
 
 Later or optional:
