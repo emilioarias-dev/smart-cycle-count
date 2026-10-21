@@ -1283,6 +1283,29 @@ riscv64, s390x; only amd64 is downloaded here). The `16.15` tag on Docker
 Hub was republished on 2026-10-21 with another digest; the pin is
 unchanged. macOS itself was not run.
 
+## 2026-10-21 — WIN: delivery candidate `c36d5e3`, tests and builds — **PASSED** (shared outputs: PowerShell transcript pasted by the author)
+
+**Shared outputs (WIN).** Commands in the transcript: `git fetch origin`,
+`git switch m6-audit-insights` ("up to date with 'origin/m6-audit-insights'"),
+`git pull --ff-only` ("Already up to date"), `git rev-parse HEAD` →
+`c36d5e3361c14acfd823dbf7e24554fa1c9de67f`, `npm.cmd ci`,
+`npm.cmd run db:up`, `npm.cmd run db:migrate`, `npm.cmd test`,
+`npm.cmd run build`. The author's existing development database was used
+and not reset.
+
+| Command | Result |
+|---|---|
+| `npm.cmd ci` | `added 457 packages, and audited 460 packages`, `found 0 vulnerabilities` (458 / 461 on Linux: platform-specific optional packages) |
+| `npm.cmd run db:up` | Container `Healthy` |
+| `npm.cmd run db:migrate` | `smart_cycle_count`: 6 migrations found, none pending |
+| `npm.cmd test` (API) | **142/142**, 17 files, 160.37 s; test database: none pending. Includes `insights.e2e-spec.ts` (9). The two expected messages only: `[Nest] ERROR … simulated failure while recomputing` (rollback test) and one `pg` DeprecationWarning (the detector's self-test) |
+| `npm.cmd test` (web) | **19/19** (API client, 3D geometry, Rivy's button: tap or drag, kept inside) |
+| `npm.cmd run build` | API and web OK (Next.js 16.4.2, Turbopack); routes `/`, `/api/rivy`, `/bins/[code]`, `/count`, `/rivy`, `/tasks` |
+
+Not in the transcript: `npm.cmd run dev` and the short manual walk
+(Audit insights, light chrome, Recompute scores on a narrow window,
+dragging Rivy's button). They are not recorded as done.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1325,16 +1348,14 @@ Windows (WIN):
 Polish (`m6-polish`): nothing pending (merged through PR #10 as `64e2fa4`).
 
 Audit insights and delivery (`m6-audit-insights`, PR #11): the author's
-visual review of the block is recorded above, and the clean-clone
-acceptance here. Still pending before the merge, in **one round on Windows
-on the candidate commit**: `npm.cmd test` (142 API + 19 web) and
-`npm.cmd run build`, with `git rev-parse HEAD`; and a short walk through
-Audit insights and the latest Rivy adjustments (light chrome, Recompute
-scores on a narrow window, dragging Rivy's button). If only documentation
-changes afterwards to record the results, the code delivered is shown to
-be the one tested with `git diff <tested>..<final> -- apps
-docker-compose.yml package.json package-lock.json .npmrc .nvmrc
-.node-version` (empty), without repeating the suite.
+visual review of the block, the clean-clone acceptance (CC) and the
+Windows tests and builds on the candidate `c36d5e3` (shared outputs) are
+recorded above. Only the short manual walk on Windows remains unreported
+(Audit insights, light chrome, Recompute scores on a narrow window,
+dragging Rivy's button); it is not a test or build result. Code delivered =
+code tested: `git diff c36d5e3..<final> -- apps docker-compose.yml
+package.json package-lock.json .npmrc .nvmrc .node-version` is empty when
+only documentation changed after `c36d5e3`.
 
 Not run: macOS (Intel and Apple Silicon), Safari, Firefox, real phones.
 

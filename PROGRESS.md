@@ -421,8 +421,8 @@ dependency; no rule, formula, Top 5 or plan change.
 | Keyboard, touch, focus, reduced motion, both themes, phone and desktop; nothing under Rivy's button | same | Yes (same check; overlap check 40/40) | Pending |
 | Earlier flows kept | — | Yes (2D flows 33/33) | — |
 | Presentation adjustments after the review: light top bar, band and tab bar (dark-letter logo); Recompute scores with its label on phones; Rivy's floating button can be dragged aside (finger or mouse; tap or click opens, drag moves; kept on screen and while navigating; reset from the panel); the overview band at 320 px | `globals.css`, `layout.tsx`, `WarehouseHead.tsx`, `Navigation.tsx`, `RivyProvider.tsx`, `public/rivero-logo-ink.png` | Yes (320 / 375 / 1440, both themes; repository checks, overlap 40/40, flows 33/33) | Pending |
-| Tests and builds | `npm test`, `npm run build` | Yes (API 142/142, web 19/19) | Pending (outputs not shared) |
-| Delivery documentation: README for a fresh install (Git or ZIP, versions, configuration, compatibility, first downloads, Rivy optional), `docs/DECISIONS_SUMMARY.md` | `README.md`, `docs/DECISIONS_SUMMARY.md` | Yes (clean clone following only the README, new database: install, Prisma, migrations, demo, 142 + 19 tests, build, start, flows 33/33) | Pending (one round on the candidate) |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 142/142, web 19/19) | Yes, on `c36d5e3` (API 142/142, web 19/19, builds OK; shared outputs) |
+| Delivery documentation: README for a fresh install (Git or ZIP, versions, configuration, compatibility, first downloads, Rivy optional), `docs/DECISIONS_SUMMARY.md` | `README.md`, `docs/DECISIONS_SUMMARY.md` | Yes (clean clone following only the README, new database: install, Prisma, migrations, demo, 142 + 19 tests, build, start, flows 33/33) | `npm ci`, migrations, tests and build on `c36d5e3` (shared outputs); manual walk not reported |
 
 Delivery planned for Wednesday 2026-10-21. macOS was not run. Version tag
 after the merge and the Windows round.
