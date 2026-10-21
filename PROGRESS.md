@@ -401,8 +401,8 @@ formula, weight, band or color change. Opened after PR #9 was merged.
 | Button hidden on `/rivy` and while counting; nothing interactive under the button or the docked panel | `CountForm.tsx`, `globals.css` | Yes (40 page × width checks; fails without the rule) | Pending |
 | Create plan / Recompute: working, check with the real result (partial plans), rejected / failed + Retry / not confirmed | `WarehouseHead.tsx`, `app/actions.ts`, `lib/api.ts` | Yes (real API behind a proxy that cuts or drops answers) | Pending |
 | Count: "Result unknown", send again (recovered), focus on the result | `CountForm.tsx` | Yes (same proxy) | Pending |
-| Page fade, link loading bar, no motion with reduced motion | `app/template.tsx`, `Navigation.tsx`, `globals.css` | Yes | Pending |
-| High-risk scenario: 4 high, 3 medium, 23 low with the unchanged formula; original demo unchanged; scenario in the top bar | `src/demo-data/`, `demo.controller.ts`, migration | Yes (tests, SQL formula, fingerprint) | Pending |
+| Staggered entry of the main blocks, link loading bar, theme cross-fade, Rivy reading indicator, progressive reveal of a validated answer; no motion with reduced motion | `app/template.tsx`, `Navigation.tsx`, `ThemeToggle.tsx`, `RivyChat.tsx`, `globals.css` | Yes (20 checks) | Pending |
+| High-risk scenario: planned inputs for 8 high, 12 medium, 10 low, different scores per band, with the unchanged formula; original demo unchanged; scenario in the top bar | `src/demo-data/high-risk.ts`, `demo.controller.ts`, migration | Yes (tests: SQL formula, plan, fingerprint; a wrong plan fails) | Pending |
 | Earlier checks kept | — | Yes (2D flows 33/33, Count fields, chart, 56 views, 3D 30/30 + interaction + 8 views, Rivy 67/67 + 22/22) | — |
 | Tests and builds | `npm test`, `npm run build` | Yes (API 131/131, web 11/11) | Pending |
 

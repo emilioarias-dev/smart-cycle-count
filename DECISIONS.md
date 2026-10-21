@@ -458,10 +458,21 @@ data change; no new dependency.
   (the saved count comes back as recovered). Buttons stay focusable while
   working (`aria-disabled`, presses ignored); a saved count moves the focus
   to its result.
-- **Motion:** pages fade in over 0.18 s; the link followed shows a thin bar
-  while the next page loads (`useLinkStatus`); panels slide in. No delay is
-  added anywhere. With "reduce motion" there is no animation (the existing
-  global rule).
+- **Motion (refined the same day at the author's request):** on
+  navigation the page's main blocks enter one after another (0.26 s each,
+  40 ms apart, the sixth and later together: at most 0.2 s of offset); the
+  link followed shows a thin bar while the next page loads
+  (`useLinkStatus`); panels slide in; the theme switch cross-fades over
+  0.25 s where the browser has View Transitions (otherwise it is
+  immediate). While Rivy reads the records its avatar's outlines pulse next
+  to the real state only ("Rivy is reading the app's records… N s"); no
+  reasoning steps are shown, because there are none to show. A new answer
+  is complete and already validated when it arrives; it is in the page at
+  once (screen readers read it whole) and only its blocks fade in 45 ms
+  apart (at most 12 steps); answers shown again later appear at once.
+  Nothing waits on purpose. With "reduce motion" there is no animation
+  (the existing global rule, plus the cross-fade skipped); the focus never
+  moves because of an animation.
 
 ---
 
@@ -473,18 +484,26 @@ without changing weights, thresholds or colors, keeping the original demo
 and showing which scenario is loaded, reproducibly, and without resetting
 the author's current data to prepare it.
 
-- **High-risk scenario:** the same generator (version 1, same seed) with
-  four "hotspot" bins (the first four of its own shuffled order) that are
-  never audited, weighted more for activity (24 instead of 6 for busy bins)
-  and for adjustments (30 instead of 8). Everything else is the same
-  simulation through the movement function. At `SEED_NOW =
-  2026-10-18T12:00:00Z`: A-01-04, A-02-01 and C-01-01 at 75 and B-02-03 at
-  71 (high), 3 medium, 23 low; equal to the formula written independently
-  in SQL (test). The values are reached by real inputs, not by setting
-  scores.
-- **The original demo is unchanged:** the hotspot choice uses no random
-  draw, so the standard sequence is the same; a test pins the fingerprint
-  of its data taken before the change.
+- **High-risk scenario (revised the same day at the author's request: too
+  many green bins, too few yellow):** a target to illustrate the demo, not
+  a real warehouse distribution: about **8 high, 12 medium and 10 low**,
+  with different scores within each band. Its own generator
+  (`src/demo-data/high-risk.ts`, version 2) plans each bin's inputs (days
+  since the simulated last audit, or never audited; movements and
+  adjustments in the 30 days before the reference) and produces them as
+  ordinary putaways, picks and adjustments of real pallets through the
+  movement function (no pallet goes negative, at most 4 per bin). Bins get
+  their plans through a seeded shuffle, so the bands are spread over the
+  warehouse. At the reference the unchanged formula gives high 75, 74, 73,
+  73, 72, 71, 71, 70; medium 67 to 41 (12 different); low 38 to 4 (10
+  different); no count result. Equal to the formula written independently
+  in SQL and to the plan (tests). Every planned total is at least 0.1 from
+  a .5, so rounding cannot flip it. The first version (four "hotspot"
+  bins weighted in the random simulation: 4 high, 3 medium, 23 low) was
+  replaced before merging.
+- **The original demo is unchanged:** its generator is back to the code of
+  `main` plus the scenario routing; a test pins the fingerprint of its data
+  taken before the scenarios.
 - **Which scenario is loaded:** a new one-row table, `demo_dataset`
   (scenario, generator version, seed, reference, load time), written by
   the reset in its transaction. Checked first: no existing table or column
@@ -496,9 +515,15 @@ the author's current data to prepare it.
 - **Commands:** `npm run db:reset-demo` (original, as before) and
   `npm run db:reset-demo-high-risk`; both delete the same data, with the
   same protections (D-009). Nothing runs them automatically.
-- **Limit:** the hotspots are high at the reset's reference; a later
-  recompute moves the 30-day window and they may fall back as their
-  activity ages.
+- **Reference time and recomputing:** the distribution holds at the
+  reset's reference (`SEED_NOW`, or the time of the reset without it),
+  shown as "Scores as of" and in the top bar's title. A recompute or a
+  saved count scores every bin for the current time, which moves the
+  30-day window: measured from the fixed reference, +1 day gives 8 → 7
+  high, +3 days 1 high (18 medium, 11 low), +7 days 0 high, +30 days all
+  low. For a live demo, load the scenario without `SEED_NOW` on the day it
+  is shown; with `SEED_NOW` the data is exactly reproducible but any
+  recompute moves it to the current date.
 
 ---
 

@@ -1053,6 +1053,27 @@ files and counts are those of code `8621d05` (docs `a839f49`):
 | `npm.cmd test` (web) | **11/11** (`node --test`, 3D geometry) |
 | `npm.cmd run build` | API and web OK (Next.js 16.4.2, Turbopack); `/rivy` static, the other pages dynamic |
 
+## 2026-10-21 — CC: polish, second round (code `689741e` scenario, `d517568` web)
+
+Asked by the author after reviewing the first round: a more varied
+high-risk scenario (about 8 high, 12 medium, 10 low) and refined motion.
+Same setup as the first round (production build, Chromium, Gemini
+**simulated**, this container's database only).
+
+| Command / check | Result |
+|---|---|
+| Plan search (formula replicated with the same floating point) | 30 targets: high 75, 74, 73, 73, 72, 71, 71, 70; medium 67, 64, 61, 58, 55, 52, 50, 48, 46, 44, 42, 41; low 38, 35, 31, 27, 23, 19, 15, 11, 7, 4; each total ≥ 0.1 from a .5 |
+| `npm test` | API **131/131** (the high-risk test now checks 8 / 12 / 10, every score = SQL formula = plan, 6 / 12 / 10 different scores per band, no negative pallet, ≤ 4 pallets per bin, version 2); web **11/11** |
+| Mutation: one planned audit age changed | The scenario test fails; restored |
+| `npx tsc --noEmit` (API, scripts, web); `npm run build` | Exit 0; builds OK |
+| `SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo-high-risk` | "High-risk demo (high-risk), generator v2 … 8 high, 12 medium, 10 low"; the original demo still "0 high, 9 medium, 21 low" |
+| Recompute after the fixed reference (test database) | +0 d: 8 / 12 / 10; +1 d: 7 / 12 / 11; +3 d: 1 / 18 / 11; +7 d: 0 / 18 / 12; +30 d: 0 / 0 / 30 (high / medium / low) |
+| New browser checks, **20/20** | Heatmap and priority mix 8 / 12 / 10 = API; reference shown ("Scores as of", top bar title). Main blocks enter 0, 40, 80 ms … (≤ 0.2 s), also after navigating; after 0.6 s all in place, no transform left. Theme toggle by keyboard: one View Transition, theme changed, focus kept. Rivy while reading: avatar outlines animated, only "Rivy is reading the app's records…", no answer text, focus in the question; the answer's whole text is in the page at once and its blocks are revealed 45 ms apart (≤ 12 steps), focus kept; reopened later, not revealed again. Reduced motion: no entry, no cross-fade, still indicator, answer at once. Phone sheet: revealed, no sideways scroll. No page errors |
+| Earlier checks, again | Polish round 1 **56/56** (with 8 high now) and overlap **40/40**; 2D flows **33/33**; Count fields; chart; layout **56 views, 0 issues**; 3D selection **30/30**, interaction, **8 views, 0 issues**; `/rivy` **67/67**; Rivy affected cases **22/22** |
+
+Not checked: Safari and Firefox (no View Transitions in some versions: the
+theme then switches at once), real phones, Windows.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).

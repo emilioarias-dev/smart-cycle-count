@@ -233,11 +233,21 @@ log can rebuild every pallet and every bin's `inventoryVersion`.
 | Scenario | Command | At `SEED_NOW=2026-10-18T12:00:00Z` |
 |---|---|---|
 | Original demo | `npm run db:reset-demo` | 0 high, 9 medium, 21 low (unchanged) |
-| High-risk demo | `npm run db:reset-demo-high-risk` | 4 high (A-01-04, A-02-01, B-02-03, C-01-01), 3 medium, 23 low |
+| High-risk demo | `npm run db:reset-demo-high-risk` | 8 high (75 to 70), 12 medium (67 to 41), 10 low (38 to 4) |
 
-The high-risk scenario runs the same simulation with four "hotspot" bins
-that are never audited, busier and more prone to adjustments: the
-unchanged formula, weights, bands and colors put them in the high band.
+The high-risk scenario is a target to illustrate the demo, not a real
+warehouse distribution: it plans each bin's inputs (days since the last
+audit, movements and adjustments in the last 30 days) and produces them as
+ordinary movements of real pallets. The unchanged formula, weights, bands
+and colors give the spread; the tests check every score against the formula
+written in SQL.
+
+**Its reference time matters.** The spread holds at the reference ("Scores
+as of"). **Recompute scores** or a count scores every bin for the current
+time and moves the 30-day window: one day later about 7 bins are high,
+three days later about 1, a week later none. For a live demo, load it on
+the day without `SEED_NOW`; with `SEED_NOW` the data is exactly
+reproducible, but a recompute moves it to today.
 After a database update, the top bar shows "Scenario not recorded" until
 the next reset.
 
@@ -462,8 +472,11 @@ stored in the repository (`apps/web/app/fonts/`, SIL Open Font License), so
 the build needs no network and the browser loads no external font. A
 "Prototype" notice in the top bar names the demo scenario loaded (D-017).
 
-**Motion and states (decision D-018).** Pages fade in briefly and the link
-followed shows a thin bar while the next page loads. **Create plan** and
+**Motion and states (decision D-018).** A page's main blocks enter one
+after another (at most 0.2 s apart in total), the link followed shows a
+thin bar while the next page loads, and the theme switch cross-fades. While
+Rivy reads the records its avatar pulses; a new answer, already checked, is
+revealed block by block. **Create plan** and
 **Recompute scores** show that they are working, then a check with the
 server's own result (for example "25 of 30 tasks created" when 5 bins
 already have a pending task), or an error: **Retry** when nothing was done;
@@ -480,9 +493,9 @@ initial JavaScript grows by about 5 KB.
 
 ## Known limitations
 
-- The high-risk scenario is high at its reference time: a later
-  **Recompute scores** (or a count) moves the 30-day window, and its
-  hotspots may fall back to medium as their activity ages.
+- The high-risk scenario's spread (8 / 12 / 10) holds at its reference
+  time: a later **Recompute scores** or a count moves the 30-day window and
+  changes it (see [Demo data](#demo-data)).
 - Rivy depends on Gemini's free tier: answers can be slow, Gemini may be
   busy (503) and the quota is per project (429). The check covers codes,
   links, dates, times and numbers, not wording: a sentence can still
