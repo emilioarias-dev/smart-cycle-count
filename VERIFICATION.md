@@ -1036,6 +1036,22 @@ touched. Scripts were scratch files.
 
 Not checked: Safari, Firefox, real phones, the real Gemini through the
 panel, and Windows.
+## 2026-10-21 — WIN: Rivy branch, tests and builds (shared by the author, PowerShell transcript)
+
+**Automated checks only.** The visual checks and the real questions on
+Windows are separate and still pending (see Pending). Commands in the
+transcript: `git switch m6-rivy` ("up to date with 'origin/m6-rivy'"),
+`npm.cmd run db:up`, `npm.cmd test`, `npm.cmd run build`. Neither `git log`
+nor `npm.cmd ci` appears in it, so the commit is not printed; the test
+files and counts are those of code `8621d05` (docs `a839f49`):
+`assistant.e2e-spec.ts` 15 tests and `grounding.spec.ts` 8.
+
+| Command | Result |
+|---|---|
+| `npm.cmd run db:up` | Container healthy |
+| `npm.cmd test` (API) | **126/126**, 15 files, 112.95 s; test database: 5 migrations, none pending. The two expected messages: the `[Nest] ERROR … simulated failure while recomputing` log (rollback test) and one `pg` DeprecationWarning (the detector's self-test) |
+| `npm.cmd test` (web) | **11/11** (`node --test`, 3D geometry) |
+| `npm.cmd run build` | API and web OK (Next.js 16.4.2, Turbopack); `/rivy` static, the other pages dynamic |
 
 ## Pending
 
@@ -1064,14 +1080,15 @@ review of `3ec45ca` reported by the author; outputs not shared). Merged
 through PR #8 as `53628f1`. Final acceptance of the whole: after the next
 extensions (D-014).
 
-Rivy (`m6-rivy`), pending on Windows (WIN):
+Rivy (`m6-rivy`): merged through PR #9 as `4a3664c`. Still pending on
+Windows (WIN):
 
 - In AI Studio: the TPM limit of Gemini 3.5 Flash-Lite, the project behind
   the key and its tier (Free), without enabling billing.
-- `npm.cmd ci`, `npm.cmd test` (expected 126 API + 11 web), `npm.cmd run
-  build`, with the key in `apps/api/.env` only.
-- Real questions: the author's run on the PR's first commit is recorded
-  above. Pending: only the affected cases on `8621d05` or later (the global
+- Done: `npm.cmd test` 126 + 11 and `npm.cmd run build` (2026-10-21,
+  above).
+- Visual and real questions (separate from the automated checks): the
+  author's run on the PR's first commit is recorded above. Pending: only the affected cases on `8621d05` or later (the global
   ranking, a follow-up with history, a comparison, a question that states a
   wrong value), with calls, tokens, time and whether the text was shown or
   replaced. The quota is not exhausted on purpose: quota errors were

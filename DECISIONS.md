@@ -42,7 +42,7 @@ in the dated tables kept below).
 | D-013 | Visual direction: Rivero identity and dashboard additions | Accepted; implemented (PR #7, merged as `d8150d3`) |
 | D-014 | Next extensions: 3D heatmap, Rivy, data analysis | Accepted as direction; 3D (D-015) and Rivy (D-016) implemented, data analysis not started |
 | D-015 | 3D heatmap: view, scale, camera and interaction | Accepted; implemented (PR #8, merged as `53628f1`) |
-| D-016 | Rivy: read-only assistant on Gemini | Accepted; implemented on `m6-rivy`, not merged yet |
+| D-016 | Rivy: read-only assistant on Gemini | Accepted; implemented (PR #9, merged as `4a3664c`) |
 | D-017 | Demo scenarios: the original demo and a high-risk one | Accepted; implemented on `m6-polish`, not merged yet |
 | D-018 | Rivy from any page, motion and action states | Accepted; implemented on `m6-polish`, not merged yet |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
