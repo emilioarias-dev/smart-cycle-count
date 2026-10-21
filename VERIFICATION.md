@@ -1011,6 +1011,32 @@ general language check.
 | Compare B-01-05 and A-02-01… | 200 in 1.8 s, `compare_bins`, 2963 tokens: "A-02-01 (57) … B-01-05 (55)", shown. Its wording also called 85.81 days "a longer time since the last audit" than never audited, which is wrong; the figures are right and the table shows them (wording is not checked) |
 | Is the score of B-02-03 99? How many pallets does it hold? | 200 in 1.4 s, `get_bin`, 2732 tokens: the text mentioned 99 and was replaced ("99 for B-02-03"); the records (score, pallets) shown |
 
+## 2026-10-21 — CC: polish branch (code `37c916a` scenario, `5e70c8b` web)
+
+Production build, Playwright with Chromium. Gemini **simulated** (fake on
+:4010). For the error and lost-answer cases the API ran on :3002 behind a
+scratch proxy on :3001 that could delay GETs, cut connections, or forward a
+POST and drop its answer. Data: `SEED_NOW=2026-10-18T12:00:00Z`; the
+high-risk scenario for the new checks, the original demo for the earlier
+ones. Only this container's database was reset; the author's data was not
+touched. Scripts were scratch files.
+
+| Command / check | Result |
+|---|---|
+| Fingerprint of the original demo's data before the change | `4772127561d7…a8b7`, pinned in `test/demo-scenario.e2e-spec.ts`; unchanged after |
+| Hotspot weights tried (activity / adjustments), high-risk at the fixed reference | 18 / 30 → 3 high, 5 medium, 22 low; 24 / 30 → **4 high, 3 medium, 23 low** (chosen); 24 / 45 → 4, 2, 24; 30 / 40 → 4, 3, 23 |
+| `npm test` | API **131/131** (5 scenario tests: fingerprint, formula constants, high-risk = SQL formula with 4 high, original reloaded and shown, one row at most); web **11/11** |
+| `npx tsc --noEmit` (API, scripts, web); `npm run build` | Exit 0; builds OK; every page now dynamic (the scenario is read per request) |
+| `npm run db:migrate` on this container's development database (plan, tasks and counts present) | Applied `20261021090000_demo_dataset`; bins, movements, plans, tasks, counts and the sum of scores identical before and after; the top bar says "Scenario not recorded" |
+| `SEED_NOW=… npm run db:reset-demo-high-risk`, then `db:reset-demo` | "High-risk demo … 4 high, 3 medium, 23 low"; then "Original demo … 0 high, 9 medium, 21 low"; `GET /demo` follows |
+| Browser checks, **56/56** | Scenario: top bar "High-risk demo" with its reference, 4 high bins on the heatmap = API, mix 4/3/23. Button: named, hover and keyboard focus show "Ask Rivy" and move the avatar. Docked at 1440: 416 px, page and 3D view (with +, −, Reset) left of it, focus on the question, still narrowed after navigating; conversation kept across Tasks, `/rivy` (no button, same conversation) and back; Esc closes and returns focus. Closed while answering: ring and "answering", then a dot and "new answer", cleared on opening. Phone: button above the tab bar; sheet `role=dialog`, top 12 px, full width, page locked, focus on the title, 25 Tab / Shift+Tab stay inside; a link in an answer opens its page and closes the sheet; conversation kept; ✕ returns focus. Tablet: 448 px drawer, backdrop click closes. Plans: "Creating…" then "5 of 5 tasks created" (focus kept, back to "Create plan" after 4 s); API unreachable → "No plan created" + Retry → "3 of 3"; answer dropped → "Plan not confirmed", check Tasks, no Retry (the plan did exist); connection cut → "not confirmed" (none created); N = 30 → "20 of 30 tasks created" with "Skipped: 10 with a pending task"; none available → the API's message, no Retry. Recompute: working then confirmed; unreachable then Retry. Count: button hidden while counting, Rivy in the tab bar; cut → "Result unknown", nothing saved, sent again → saved, focus on the result, button back; answer dropped → saved on the server, "Result unknown", sent again → "Recovered". Page fade; loading bar under the link (slow GETs); reduced motion: no fade, no button, avatar or panel animation. No page errors |
+| Overlap, **40/40** | 320, 390, 768, 1100 and 1440 px (and docked at 1100 and 1440): `/`, 3D view, `/tasks`, `/count`, a bin, a count form: every visible control focused and scrolled as by the keyboard is clear of the button and the panel; the end of each page clears the button; no sideways scroll. Without the `scroll-padding` rule: 10 fail |
+| Earlier checks on this branch | 2D flows **33/33**; Count fields reachable (7 viewports); chart **10/10**; layout **56 views, 0 issues**; 3D direct selection **30/30**, interaction checks all passed, 3D layout **8 views, 0 issues**; `/rivy` **67/67** (5 suggestions now) and affected cases **22/22** |
+| Found and fixed while checking | Esc did not close the panel while Rivy answered (the field was disabled and lost the focus): the field is read-only while answering and Esc works window-wide. Classes set on `<html>` were wiped by React on navigation and missing before hydration: replaced by CSS `:has()`. The page wrapper of the fade took `main` out of the body's column, so the phone tab bar floated on short pages: the wrapper now carries the column. In the docked panel, bin codes wrapped in the records table: kept on one line |
+
+Not checked: Safari, Firefox, real phones, the real Gemini through the
+panel, and Windows.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1050,6 +1076,11 @@ Rivy (`m6-rivy`), pending on Windows (WIN):
   wrong value), with calls, tokens, time and whether the text was shown or
   replaced. The quota is not exhausted on purpose: quota errors were
   tested simulated.
+
+Polish (`m6-polish`), pending on Windows: see the checklist in its pull
+request (tests, the migration on the author's database without a reset,
+the floating panel, the action states, and the high-risk scenario only when
+the author chooses to load it).
 
 Later or optional:
 

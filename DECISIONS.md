@@ -13,7 +13,7 @@ accepted by the author; D-006 to D-009 accepted for milestone 2; D-010 for
 milestone 3; E-004 and E-009 table statuses brought up to date; D-011 and
 the D-009 reset scope for plans accepted for milestone 4; 2026-10-19: D-012,
 D-010 formula v2 and the D-009 reset scope for counts accepted for
-milestone 5; 2026-10-20: D-013 to D-016). Milestone 1
+milestone 5; 2026-10-20: D-013 to D-016; 2026-10-21: D-017, D-018). Milestone 1
 implements E-002 to E-008; see `PROGRESS.md` for what milestone 2
 implements. "Claude's Linux workspace"
 below means the claude.ai session's cloud workspace where these decisions were
@@ -43,6 +43,8 @@ in the dated tables kept below).
 | D-014 | Next extensions: 3D heatmap, Rivy, data analysis | Accepted as direction; 3D (D-015) and Rivy (D-016) implemented, data analysis not started |
 | D-015 | 3D heatmap: view, scale, camera and interaction | Accepted; implemented (PR #8, merged as `53628f1`) |
 | D-016 | Rivy: read-only assistant on Gemini | Accepted; implemented on `m6-rivy`, not merged yet |
+| D-017 | Demo scenarios: the original demo and a high-risk one | Accepted; implemented on `m6-polish`, not merged yet |
+| D-018 | Rivy from any page, motion and action states | Accepted; implemented on `m6-polish`, not merged yet |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -414,6 +416,89 @@ Limitations: one level per rack; no capacity per bin (see D-007).
   (`SAMPLE-BIN-01`) and nothing else; if any other bin exists, the
   migration stops with an error instead of deleting it. Earlier migrations
   are kept unchanged.
+
+---
+
+## D-018 — Rivy from any page, motion and action states
+
+**Status:** Accepted (2026-10-21, after the author reviewed a mockup);
+implemented on branch `m6-polish`. Presentation only: no rule, formula or
+data change; no new dependency.
+
+- **Floating button:** Rivero's symbol (the filled shape and its two
+  outlines) with eyes and a smile, in a 56 px black circle at the bottom
+  right. On hover or keyboard focus it shows "Ask Rivy", the outlines move
+  slightly and the smile widens. While Rivy answers with the panel closed
+  it shows a ring; an answer that arrives then leaves a dot ("new answer"
+  in its name). Hidden on `/rivy` and while a count is being entered (the
+  author found it too close to "Unexpected pallets" on a phone); Rivy stays
+  in the navigation.
+- **Panel:** the same `RivyChat` and the same conversation as `/rivy`,
+  kept in a provider of the root layout, so it survives navigation (and is
+  still lost on reload, as D-016 decided). From 1100 px wide it is docked
+  at the right (416 px) and the page narrows beside it, so it covers
+  nothing; below that it is a modal drawer (tablet) or a nearly
+  full-screen sheet (phone) with a backdrop, the focus kept inside, the
+  page not scrolling behind it. Esc or ✕ closes it and returns the focus
+  to the button; a link followed from a modal panel closes it. Opening
+  moves the focus to the question (docked) or to the panel title (modal, so
+  a phone keyboard does not pop up).
+- **Nothing hidden under the button:** the page reserves room at its end
+  and a `scroll-padding-bottom` so a focused field scrolls clear of it
+  (CSS `:has()`, also before the page is interactive).
+- **Action states:** Create plan and Recompute scores show working, then a
+  check with the server's own result once it confirmed it (partial plans
+  with their real counts, e.g. "25 of 30 tasks created"), then read their
+  action again after 4 s; the message stays. Errors: **rejected** (the API
+  said no: its message, no retry), **failed** (nothing was done: Retry) and
+  **not confirmed** (a write was sent and no answer came back). A plan not
+  confirmed may exist, so there is no Retry, only a link to Tasks; a
+  recompute can always be retried. A count not confirmed shows "Result
+  unknown" and offers to send the same count again, which D-012 makes safe
+  (the saved count comes back as recovered). Buttons stay focusable while
+  working (`aria-disabled`, presses ignored); a saved count moves the focus
+  to its result.
+- **Motion:** pages fade in over 0.18 s; the link followed shows a thin bar
+  while the next page loads (`useLinkStatus`); panels slide in. No delay is
+  added anywhere. With "reduce motion" there is no animation (the existing
+  global rule).
+
+---
+
+## D-017 — Demo scenarios: the original demo and a high-risk one
+
+**Status:** Accepted (2026-10-21); implemented on branch `m6-polish`.
+Asked by the author: a demo with some bins really in the high band,
+without changing weights, thresholds or colors, keeping the original demo
+and showing which scenario is loaded, reproducibly, and without resetting
+the author's current data to prepare it.
+
+- **High-risk scenario:** the same generator (version 1, same seed) with
+  four "hotspot" bins (the first four of its own shuffled order) that are
+  never audited, weighted more for activity (24 instead of 6 for busy bins)
+  and for adjustments (30 instead of 8). Everything else is the same
+  simulation through the movement function. At `SEED_NOW =
+  2026-10-18T12:00:00Z`: A-01-04, A-02-01 and C-01-01 at 75 and B-02-03 at
+  71 (high), 3 medium, 23 low; equal to the formula written independently
+  in SQL (test). The values are reached by real inputs, not by setting
+  scores.
+- **The original demo is unchanged:** the hotspot choice uses no random
+  draw, so the standard sequence is the same; a test pins the fingerprint
+  of its data taken before the change.
+- **Which scenario is loaded:** a new one-row table, `demo_dataset`
+  (scenario, generator version, seed, reference, load time), written by
+  the reset in its transaction. Checked first: no existing table or column
+  can say which generator produced the data, and inferring it from the
+  data stops working once movements or counts change it. The migration
+  only adds the table; until the next reset the top bar says "Scenario not
+  recorded". `GET /demo` returns it; the top bar shows "Original demo" or
+  "High-risk demo" (with a red dot).
+- **Commands:** `npm run db:reset-demo` (original, as before) and
+  `npm run db:reset-demo-high-risk`; both delete the same data, with the
+  same protections (D-009). Nothing runs them automatically.
+- **Limit:** the hotspots are high at the reset's reference; a later
+  recompute moves the 30-day window and they may fall back as their
+  activity ages.
 
 ---
 

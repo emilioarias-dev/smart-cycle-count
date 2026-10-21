@@ -387,6 +387,25 @@ answers.
 | Tests and builds | `npm test`, `npm run build` | Yes (API 126/126 incl. 15 Rivy e2e and 8 check tests; web 11/11; builds; 6 + 13 mutations caught) | Pending |
 | Real answers: the four capabilities, a follow-up and a case without data, in English and Spanish | `/rivy` with the author's key | Only the affected cases, from CC through its proxy (ranking, follow-up, rules) | Run by the author (screenshots): coherent, except the global ranking (invented bins and scores) and invented times; re-run of the affected cases pending |
 
+### Polish (branch `m6-polish`, from `m6-rivy`)
+
+Asked on 2026-10-21, after the Rivy fix: Rivy from any page (D-018),
+transitions and action states (D-018) and a high-risk demo scenario
+(D-017). One migration (adds `demo_dataset`); no new dependency; no rule,
+formula, weight, band or color change. The pull request follows PR #9.
+
+| Item | Where | CC verified | WIN verified |
+|---|---|---|---|
+| Floating button with Rivero's smiling symbol, hover / focus effect, ring while answering, dot for a new answer | `components/RivyDock.tsx`, `RivyAvatar.tsx` | Yes (browser checks) | Pending |
+| Same conversation everywhere, kept while navigating; docked ≥ 1100 px, drawer / sheet below; focus, Esc, Tab kept inside a modal | `components/RivyProvider.tsx`, `RivyDock.tsx`, `app/layout.tsx` | Yes (browser checks) | Pending |
+| Button hidden on `/rivy` and while counting; nothing interactive under the button or the docked panel | `CountForm.tsx`, `globals.css` | Yes (40 page × width checks; fails without the rule) | Pending |
+| Create plan / Recompute: working, check with the real result (partial plans), rejected / failed + Retry / not confirmed | `WarehouseHead.tsx`, `app/actions.ts`, `lib/api.ts` | Yes (real API behind a proxy that cuts or drops answers) | Pending |
+| Count: "Result unknown", send again (recovered), focus on the result | `CountForm.tsx` | Yes (same proxy) | Pending |
+| Page fade, link loading bar, no motion with reduced motion | `app/template.tsx`, `Navigation.tsx`, `globals.css` | Yes | Pending |
+| High-risk scenario: 4 high, 3 medium, 23 low with the unchanged formula; original demo unchanged; scenario in the top bar | `src/demo-data/`, `demo.controller.ts`, migration | Yes (tests, SQL formula, fingerprint) | Pending |
+| Earlier checks kept | — | Yes (2D flows 33/33, Count fields, chart, 56 views, 3D 30/30 + interaction + 8 views, Rivy 67/67 + 22/22) | — |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 131/131, web 11/11) | Pending |
+
 Next: the author's data analysis, on its own branch. Delivery planned for
 Thursday 2026-10-22; final acceptance of the whole (clean clones, version
 tag) after the extensions.

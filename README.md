@@ -144,6 +144,12 @@ SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo
 $env:SEED_NOW = "2026-10-18T12:00:00Z"; npm.cmd run db:reset-demo; Remove-Item Env:SEED_NOW
 ```
 
+**High-risk scenario (optional).** `npm run db:reset-demo-high-risk` loads
+the same warehouse with a few bins that really reach the high band (see
+[Demo data](#demo-data)). It deletes the same data as `db:reset-demo`; run
+`db:reset-demo` to go back to the original demo. `SEED_NOW` works the same
+way.
+
 ### 6. Start the app
 
 Starts the API and the web app together:
@@ -221,6 +227,19 @@ Rivy and Count are in a tab bar at the bottom of the screen.
 
 Every inventory change goes through one movement function, so the movement
 log can rebuild every pallet and every bin's `inventoryVersion`.
+
+**Two scenarios (decision D-017).** The top bar names the one loaded.
+
+| Scenario | Command | At `SEED_NOW=2026-10-18T12:00:00Z` |
+|---|---|---|
+| Original demo | `npm run db:reset-demo` | 0 high, 9 medium, 21 low (unchanged) |
+| High-risk demo | `npm run db:reset-demo-high-risk` | 4 high (A-01-04, A-02-01, B-02-03, C-01-01), 3 medium, 23 low |
+
+The high-risk scenario runs the same simulation with four "hotspot" bins
+that are never audited, busier and more prone to adjustments: the
+unchanged formula, weights, bands and colors put them in the high band.
+After a database update, the top bar shows "Scenario not recorded" until
+the next reset.
 
 **Reproducible data.** The reference time ("now" of the demo) is the
 current time unless `SEED_NOW` is set, with an explicit zone. The same
@@ -384,6 +403,15 @@ only paid services for apps offered to users in the European Economic
 Area, Switzerland or the United Kingdom. Rate limits are per Google Cloud
 project and shown in AI Studio (<https://aistudio.google.com/rate-limit>).
 
+**From any page.** The round Rivy button at the bottom right (Rivero's
+symbol with a smile) opens the same conversation in a panel: docked at the
+right on wide screens (the page narrows beside it, nothing is covered), a
+drawer on tablets and a nearly full-screen sheet on phones. Esc or ✕ closes
+it; ⤢ opens the full page. The conversation is kept while you move between
+pages. The button is hidden on the Rivy page and while a count is being
+entered (Rivy stays in the navigation). A dot on the button means an answer
+arrived while the panel was closed.
+
 **Use.** Open **Rivy** and pick a suggested question or type one (up to
 500 characters; Enter sends, Shift + Enter adds a line). For example:
 
@@ -432,7 +460,19 @@ The look follows Rivero's identity (decision D-013): the Rivero logo, the
 Onest typeface, brand blue and black, light and dark themes. Onest is
 stored in the repository (`apps/web/app/fonts/`, SIL Open Font License), so
 the build needs no network and the browser loads no external font. A
-"Prototype · synthetic demo data" notice stays in the top bar.
+"Prototype" notice in the top bar names the demo scenario loaded (D-017).
+
+**Motion and states (decision D-018).** Pages fade in briefly and the link
+followed shows a thin bar while the next page loads. **Create plan** and
+**Recompute scores** show that they are working, then a check with the
+server's own result (for example "25 of 30 tasks created" when 5 bins
+already have a pending task), or an error: **Retry** when nothing was done;
+"not confirmed" with a link to Tasks when the request was sent and no
+answer came back (the plan may exist). A count whose answer is lost shows
+"Result unknown" and offers to send the same count again, which is safe
+(D-012). Nothing waits on purpose; with the system's "reduce motion"
+setting there is no animation. Buttons keep the keyboard focus while
+working.
 
 The 3D heatmap (decision D-015) uses Three.js (`three` 0.186.1, exact
 version), downloaded only when the 3D view is chosen: the dashboard's
@@ -440,6 +480,9 @@ initial JavaScript grows by about 5 KB.
 
 ## Known limitations
 
+- The high-risk scenario is high at its reference time: a later
+  **Recompute scores** (or a count) moves the 30-day window, and its
+  hotspots may fall back to medium as their activity ages.
 - Rivy depends on Gemini's free tier: answers can be slow, Gemini may be
   busy (503) and the quota is per project (429). The check covers codes,
   links, dates, times and numbers, not wording: a sentence can still
@@ -476,6 +519,7 @@ initial JavaScript grows by about 5 KB.
 |---|---|
 | `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data), including Rivy's against a simulated Gemini (no request to Google),
 then the web tests (`node --test`: the 3D heatmap geometry, no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
+| `npm run db:reset-demo-high-risk` | Replaces the demo data with the high-risk scenario (deletes the same data as `db:reset-demo`) |
 | `npm run build` | Type-checks and builds the API and the web app. Stop `npm run dev` first (see [Known limitations](#known-limitations)) |
 | `npm run db:down` | Stops PostgreSQL (data is kept in a Docker volume) |
 | `docker compose down -v` | Stops PostgreSQL and **deletes** its data |
@@ -491,6 +535,7 @@ yet. What each step does to data that already exists:
 | Milestone 2 | Adds the scores table. Bins have no score until you press **Recompute scores** or run `npm run db:reset-demo` |
 | Milestone 3 | Adds the plan and task tables; bins and scores are kept |
 | Milestone 4 | Adds the count tables; bins, scores, plans and tasks are kept. Stored scores stay formula version 1 until the next recompute; task copies keep the version they were made with |
+| Milestone 5 / 6 (before the demo scenarios) | Adds the `demo_dataset` table, empty; nothing else changes. The top bar shows "Scenario not recorded" until the next `db:reset-demo` or `db:reset-demo-high-risk` |
 
 ## How the pieces fit
 
