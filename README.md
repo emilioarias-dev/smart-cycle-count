@@ -32,6 +32,11 @@ in the app are real records of this app.
   recomputed with the result.
 - **Recompute scores** (on the dashboard): scores every bin for the current
   time; the heatmap updates.
+- **Rivy** (`/rivy`): a read-only assistant on Google Gemini that explains a
+  bin's priority, compares two bins, looks up count results and answers
+  questions about the rules, using only the app's records. Optional: needs
+  a Gemini API key (see [Rivy](#rivy)); without one, the rest of the app
+  works as usual.
 
 ## Requirements
 
@@ -77,7 +82,9 @@ Copy-Item apps/web/.env.example apps/web/.env
 
 - `apps/api/.env`: `DATABASE_URL` (the development database),
   `TEST_DATABASE_URL` (a separate database for the tests), `PORT` (3001)
-  and, optionally, `SEED_NOW` (see [Demo data](#demo-data)).
+  and, optionally, `SEED_NOW` (see [Demo data](#demo-data)) and the Gemini
+  settings for Rivy (see [Rivy](#rivy)). The template has no key: Rivy
+  says it is not configured until you add yours.
 - `apps/web/.env`: `API_BASE_URL`, read only on the Next.js server; the
   browser never calls the API directly.
 
@@ -195,8 +202,8 @@ With the demo data loaded and `npm run dev` running:
 
 The sun / moon button in the top bar switches between the light and dark
 themes on every page; without a choice the app follows the system setting,
-and the choice is remembered in that browser. On a phone, Warehouse, Tasks
-and Count are in a tab bar at the bottom of the screen.
+and the choice is remembered in that browser. On a phone, Warehouse, Tasks,
+Rivy and Count are in a tab bar at the bottom of the screen.
 
 ## Demo data
 
@@ -349,6 +356,76 @@ transaction. A count never changes the inventory.
 - **Different quantities for a task already counted** are rejected: the
   page shows the saved result and says the new quantities were not saved.
 
+## Rivy
+
+Rivy (decision D-016) answers questions about the synthetic demo data from
+the app's own records. It is **read-only**: it cannot create plans, record
+counts, change inventory or the formula, and it never runs SQL written by
+the model.
+
+**Set up the key (optional).** Create a Gemini API key in Google AI Studio
+(<https://aistudio.google.com/apikey>) on the free tier, without enabling
+billing. Open `apps/api/.env` in a text editor (it is git-ignored) and
+fill in the line copied from the template:
+
+```
+GEMINI_API_KEY=<your key>
+GEMINI_MODEL=gemini-3.5-flash-lite
+```
+
+Do not put the key in `.env.example`, a commit, a chat or a command line.
+Restart `npm run dev`. The tests never contact Google: they use a simulated
+Gemini and ignore these settings.
+
+**Free tier terms.** Questions and answers go to Google, which may use them
+to improve its products, and human reviewers may read them: do not type
+personal or sensitive information (the page says so). Google's terms allow
+only paid services for apps offered to users in the European Economic
+Area, Switzerland or the United Kingdom. Rate limits are per Google Cloud
+project and shown in AI Studio (<https://aistudio.google.com/rate-limit>).
+
+**Use.** Open **Rivy** and pick a suggested question or type one (up to
+500 characters; Enter sends, Shift + Enter adds a line). For example:
+
+- *Why does bin B-02-03 have its priority?* — the current score, its score
+  time and the points of each factor.
+- *Compare A-02-01 and B-01-05: which one comes first, and why?* — the
+  order used by plans (D-011), the rule that decided it, and, apart from
+  priority, whether each bin can enter a new plan.
+- *What were the results of the counts of B-02-03?* — each task with the
+  score at selection, its status and the count (lines, variances,
+  unexpected pallets). A bin without counts has an unknown result, not
+  PASS.
+- *Which bins have the highest scores?* — the dashboard's Top 5 in the
+  plan order, with each score and score time.
+- *How is the risk score calculated?* — a short, versioned summary of the
+  rules.
+
+Rivy answers in the language of the question (English when unclear) and
+keeps codes, SKUs, units and statuses as stored. Under each answer: links
+to the pages it read, the time of the data ("Data as of", UTC), the tools
+it read, the Gemini calls, tokens and seconds. A question may take 15–30 s
+on the free tier.
+
+**Limits.** Per question: 2 Gemini calls, 2 tool reads, 800 output tokens
+per call, 30 s per call and 60 s in total. Rivy sends at most 15 requests
+per minute (`GEMINI_RPM`; each question uses 2). The conversation lives
+only in the page: the last six exchanges are sent with each question (you
+can keep asking), **Clear conversation** starts again and reloading loses
+it. Rivy does not retry by itself: after a failure, **Try again**. If
+Gemini is unavailable, the quota is reached or the key is missing, the
+page says so and the rest of the app keeps working.
+
+**Checked answers.** Under each answer, **Records read** shows, from the
+API, the data Rivy used: scores with band and score time, factors,
+comparisons, the Top 5, tasks and count lines. Before the text is shown, the
+API checks that every bin code, pallet code, SKU, link, date, time and
+number in it comes from those records (not from the question or earlier
+answers), and that a figure written next to a bin is that bin's. If not,
+the text is replaced by a note naming what did not match; the records are
+still shown, and **Try again** asks again. Questions the records cannot
+answer (for example, the lowest scores) get "the records do not show it".
+
 ## Interface
 
 The look follows Rivero's identity (decision D-013): the Rivero logo, the
@@ -363,6 +440,13 @@ initial JavaScript grows by about 5 KB.
 
 ## Known limitations
 
+- Rivy depends on Gemini's free tier: answers can be slow, Gemini may be
+  busy (503) and the quota is per project (429). The check covers codes,
+  links, dates, times and numbers, not wording: a sentence can still
+  misread a figure that is in the records (the **Records read** table is
+  the reference), and a number written in words is not checked. A correct
+  text that derives a new number (a difference, a sum) or repeats a value
+  only the question gave is replaced. The conversation is not saved.
 - The data is synthetic, and the last audit dates before the first count
   are simulated (see [Demo data](#demo-data)).
 - The 3D view was checked in Chromium (desktop and phone emulation) with
@@ -390,7 +474,8 @@ initial JavaScript grows by about 5 KB.
 
 | Command | What it does |
 |---|---|
-| `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data), then the web tests (`node --test`: the 3D heatmap geometry, no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
+| `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data), including Rivy's against a simulated Gemini (no request to Google),
+then the web tests (`node --test`: the 3D heatmap geometry, no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
 | `npm run build` | Type-checks and builds the API and the web app. Stop `npm run dev` first (see [Known limitations](#known-limitations)) |
 | `npm run db:down` | Stops PostgreSQL (data is kept in a Docker volume) |
 | `docker compose down -v` | Stops PostgreSQL and **deletes** its data |
@@ -419,6 +504,7 @@ audit_plans,                                POST /audit-plans                 /c
 audit_tasks, counts,                        GET /audit-tasks
 count_lines,                                GET /bins/:code/count-sheet
 count_unexpected_pallets                    POST /audit-tasks/:taskId/count
+                                            POST /assistant/ask  → Gemini     /rivy (Rivy)
 ```
 
 - `apps/api` owns the database: the Prisma schema, migrations, the movement
@@ -426,7 +512,8 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
   (`src/scoring/formula.ts`, the only implementation), the demo data
   generator (`src/demo-data/`), plan creation (`src/planning/`) and the
   count (`src/counting/`) live there, and it is the only app that connects
-  to PostgreSQL.
+  to PostgreSQL. Rivy's read tools and the Gemini client are in
+  `src/assistant/`; the key never leaves the API.
 - `apps/web` asks the API for data from the Next.js server; the browser
   never calls the API or sees its URL (`API_BASE_URL`).
 
@@ -442,6 +529,7 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
 | `GET /audit-tasks` | `200` with every task, newest plan first and by rank, each with its plan summary, bin code, status, the score copied at selection (with `computedAt` and `formulaVersion`) and its `count` (`result`, `countedAt`, or `null`) |
 | `GET /bins/:code/count-sheet` | `200` with the bin's pending task, `inventoryVersion`, expected lines (pallet code, product, expected quantity) and the product catalog, read in one snapshot. `404` `BIN_NOT_FOUND`; `409` `NO_PENDING_TASK` |
 | `POST /audit-tasks/:taskId/count` with JSON `{"inventoryVersion": 46, "lines": [{"palletCode": "P-0026", "countedQuantity": 33}], "unexpected": [{"code": "X-1", "quantity": 12, "productSku": null}]}` | `201` with the count (result, lines with expected, counted and variance, unexpected pallets) and the bin's new score; `200` with `recovered: true` and the stored count for an identical retry. `400` (`INVALID_COUNT`, `LINES_MISMATCH`, `UNEXPECTED_IS_EXPECTED`, `UNKNOWN_PRODUCT`); `404` `TASK_NOT_FOUND`; `409` `INVENTORY_CHANGED` (nothing saved; with the current version, lines and `changes`) or `TASK_ALREADY_COUNTED` (with the stored count) |
+| `POST /assistant/ask` with JSON `{"question": "Why does bin B-02-03 have its priority?", "history": [{"question": "…", "answer": "…"}]}` (`history`: at most the last 6 exchanges) | `200` with `answer`, `facts` (the records read, structured: `bin`, `missing`, `compare`, `top`, `history`, `rules`), `withheld` (`null`, or what the model's text stated without support; `answer` is then a note), `references` (label and path of the pages read), `queriedAt`, `tools` (name and arguments), `model`, `usage` (Gemini calls and tokens), `ms` and `truncated`. Errors have `code`, `message`, `retryable` and, for the local rate guard, `retryAfterSeconds`: `400` `INVALID_QUESTION`; `429` `RATE_LIMITED` or `QUOTA`; `503` `NOT_CONFIGURED` or `UNAVAILABLE`; `504` `TIMEOUT`; `502` `AUTH`, `BLOCKED`, `MODEL_ERROR`, `LIMIT` or `UNSUPPORTED` (the text named codes, links, dates, times or numbers that this question's records do not contain, and no record was read). Read-only |
 
 ## Project documents
 

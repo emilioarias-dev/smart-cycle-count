@@ -1,7 +1,7 @@
 'use server';
 
 import { refresh } from 'next/cache';
-import { type CountOutcome, type CountPayload, createPlan, recomputeScores, submitCount } from '../lib/api';
+import { type CountOutcome, type CountPayload, type RivyExchange, type RivyOutcome, askRivy, createPlan, recomputeScores, submitCount } from '../lib/api';
 
 export type RecomputeState = { status: 'idle' } | { status: 'ok'; message: string } | { status: 'error'; message: string };
 
@@ -57,4 +57,10 @@ export async function createPlanAction(_previous: CreatePlanState, formData: For
 // shows the outcome, and the task is no longer pending once saved.
 export async function submitCountAction(taskId: number, payload: CountPayload): Promise<CountOutcome> {
   return submitCount(taskId, payload);
+}
+
+// Asks Rivy (read-only). The conversation lives in the browser; it is sent
+// with each question and never stored.
+export async function askRivyAction(question: string, history: RivyExchange[]): Promise<RivyOutcome> {
+  return askRivy(question, history);
 }

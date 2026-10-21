@@ -1,0 +1,422 @@
+import { type Server, createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import type { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+import type { App } from 'supertest/types.js';
+import { AppModule } from '../src/app.module.js';
+import { TOOL_NAMES } from '../src/assistant/tools.js';
+import { BinsService } from '../src/bins/bins.service.js';
+import { openCountSheet } from '../src/counting/sheet.js';
+import { submitCount } from '../src/counting/submit.js';
+import { generateDemoData } from '../src/demo-data/generate.js';
+import { resetDemoData } from '../src/demo-data/reset.js';
+import { createPlan } from '../src/planning/create-plan.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
+import { ScoresService } from '../src/scores/scores.service.js';
+import { FIXED_REFERENCE } from './support.js';
+
+// Rivy against a SIMULATED Gemini: a local HTTP server returns scripted
+// replies and records every request. Real Gemini runs are recorded apart
+// (VERIFICATION.md). The tools run against the PostgreSQL test database.
+
+type Scripted = { status?: number; body?: unknown; delayMs?: number };
+type Recorded = { headers: Record<string, string | string[] | undefined>; url: string; body: any };
+
+describe('Rivy assistant with a simulated Gemini (PostgreSQL)', () => {
+  let app: INestApplication<App>;
+  let prisma: PrismaService;
+  let bins: BinsService;
+  let gemini: Server;
+  let script: Scripted[] = [];
+  let requests: Recorded[] = [];
+  const env = { ...process.env };
+
+  const ask = (body: unknown) => request(app.getHttpServer()).post('/assistant/ask').send(body as object);
+  const call = (name: string, args: Record<string, unknown>, id = `call_${name}`) => ({
+    candidates: [{ content: { role: 'model', parts: [{ functionCall: { name, args, id }, thoughtSignature: `sig-${name}` }] }, finishReason: 'STOP' }],
+    usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 20, totalTokenCount: 120 },
+  });
+  const calls = (...list: [string, Record<string, unknown>][]) => ({
+    candidates: [{ content: { role: 'model', parts: list.map(([name, args], i) => ({ functionCall: { name, args, id: `c${i}` } })) }, finishReason: 'STOP' }],
+    usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 30, totalTokenCount: 130 },
+  });
+  const text = (t: string) => ({
+    candidates: [{ content: { role: 'model', parts: [{ text: t }] }, finishReason: 'STOP' }],
+    usageMetadata: { promptTokenCount: 200, candidatesTokenCount: 50, totalTokenCount: 250 },
+  });
+  // What the backend returned to the model in the second call.
+  const toolResponses = () => requests[1].body.contents.at(-1).parts.map((p: any) => p.functionResponse);
+
+  beforeAll(async () => {
+    gemini = createServer((req, res) => {
+      let raw = '';
+      req.on('data', (c) => (raw += c));
+      req.on('end', () => {
+        requests.push({ headers: req.headers, url: req.url ?? '', body: JSON.parse(raw || '{}') });
+        const next = script.shift() ?? { status: 500, body: { error: { status: 'INTERNAL', message: 'no scripted reply' } } };
+        setTimeout(() => {
+          if (res.destroyed) return;
+          res.writeHead(next.status ?? 200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify(next.body ?? {}));
+        }, next.delayMs ?? 0);
+      });
+    });
+    await new Promise<void>((resolve) => gemini.listen(0, '127.0.0.1', resolve));
+    process.env.GEMINI_API_BASE = `http://127.0.0.1:${(gemini.address() as AddressInfo).port}/v1beta`;
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = moduleRef.createNestApplication();
+    await app.init();
+    prisma = app.get(PrismaService);
+    bins = app.get(BinsService);
+    await resetDemoData(prisma, generateDemoData({ reference: FIXED_REFERENCE }), { confirmReset: true });
+  });
+
+  beforeEach(() => {
+    script = [];
+    requests = [];
+    process.env.GEMINI_API_KEY = 'test-key';
+    delete process.env.GEMINI_KEY_VIA_PROXY;
+    delete process.env.GEMINI_MODEL;
+    // The per-minute guard has its own test (with a fresh app).
+    process.env.GEMINI_RPM = '1000';
+    delete process.env.RIVY_CALL_TIMEOUT_MS;
+    delete process.env.RIVY_TOTAL_TIMEOUT_MS;
+  });
+
+  afterAll(async () => {
+    Object.assign(process.env, env);
+    await app?.close();
+    await new Promise((resolve) => gemini?.close(resolve));
+  });
+
+  it('explains a bin: get_bin returns the stored score and breakdown; one tool round, two calls, limits in every request', async () => {
+    script = [{ body: call('get_bin', { code: ' b-02-03 ' }) }, { body: text('B-02-03 is Medium (68) — see /bins/B-02-03.') }];
+    const { body } = await ask({ question: 'Why is B-02-03 a priority?', history: [] }).expect(200);
+
+    expect(requests).toHaveLength(2);
+    expect(requests[0].url).toBe('/v1beta/models/gemini-3.5-flash-lite:generateContent');
+    expect(requests[0].headers['x-goog-api-key']).toBe('test-key');
+    for (const r of requests) {
+      expect(r.body.generationConfig.maxOutputTokens).toBe(800);
+      expect(r.body.tools[0].functionDeclarations.map((d: any) => d.name)).toEqual([...TOOL_NAMES]);
+    }
+    expect(requests[0].body.toolConfig.functionCallingConfig.mode).toBe('AUTO');
+    expect(requests[1].body.toolConfig.functionCallingConfig.mode).toBe('NONE');
+    // The model's turn goes back unchanged, with its thought signature.
+    expect(requests[1].body.contents.at(-2)).toEqual({ role: 'model', parts: [{ functionCall: { name: 'get_bin', args: { code: ' b-02-03 ' }, id: 'call_get_bin' }, thoughtSignature: 'sig-get_bin' }] });
+
+    const [response] = toolResponses();
+    expect(response).toMatchObject({ name: 'get_bin', id: 'call_get_bin' });
+    const stored = (await bins.findByCode('B-02-03'))!;
+    expect(response.response).toMatchObject({
+      found: true,
+      code: 'B-02-03',
+      currentScore: { value: stored.score!.value, band: stored.score!.label, scoreTime: stored.score!.reference.toISOString(), formulaVersion: 2 },
+      links: [{ label: 'Bin B-02-03', href: '/bins/B-02-03' }],
+    });
+    const points = response.response.currentScore.factors.map((f: any) => f.points);
+    const { age, activity, adjustments, lastResult } = stored.score!.breakdown.factors;
+    expect(points).toEqual([age, activity, adjustments, lastResult!].map((f) => Math.round(f.contribution * 100) / 100));
+    expect(response.response.pallets).toHaveLength(stored.pallets.length);
+
+    expect(body).toMatchObject({
+      answer: 'B-02-03 is Medium (68) — see /bins/B-02-03.',
+      references: [{ label: 'Bin B-02-03', href: '/bins/B-02-03' }],
+      tools: [{ name: 'get_bin', args: { code: ' b-02-03 ' } }],
+      model: 'gemini-3.5-flash-lite',
+      usage: { modelCalls: 2, promptTokens: 300, outputTokens: 70, totalTokens: 370 },
+      truncated: false,
+    });
+    expect(body.queriedAt).toBe(response.response.queriedAt);
+  });
+
+  it('compares two bins with the accepted tie-break, and tells priority apart from availability for a new plan', async () => {
+    script = [{ body: call('compare_bins', { first: 'A-02-01', second: 'B-01-05' }) }, { body: text('B-01-05 first.') }];
+    await ask({ question: 'Compare A-02-01 and B-01-05', history: [] }).expect(200);
+    let [response] = toolResponses();
+    expect(response.response).toMatchObject({ found: true, higherPriority: 'B-01-05' });
+    expect(response.response.decidedBy).toBe('same score: B-01-05 was never audited');
+    expect(response.response.bins.map((b: any) => [b.code, b.currentScore.value, b.forNewPlan])).toEqual([
+      ['A-02-01', 57, 'Available for a new plan.'],
+      ['B-01-05', 57, 'Available for a new plan.'],
+    ]);
+
+    // With a plan of 3 (B-02-03, C-01-01, B-01-05 pending): same priority, but
+    // B-01-05 cannot go into another plan.
+    await createPlan(prisma, 3);
+    requests = [];
+    script = [{ body: call('compare_bins', { first: 'A-02-01', second: 'B-01-05' }) }, { body: text('ok') }];
+    await ask({ question: 'And now?', history: [] }).expect(200);
+    [response] = toolResponses();
+    expect(response.response.higherPriority).toBe('B-01-05');
+    expect(response.response.bins[1].forNewPlan).toBe('Not available for a new plan: it already has a pending task.');
+  });
+
+  it('reads the count history: score at selection, count result and variances in units, apart from the current score', async () => {
+    // B-02-03 is pending (plan above); count it with one case missing.
+    const sheet = await openCountSheet(prisma, 'B-02-03');
+    await submitCount(prisma, sheet.task.id, {
+      inventoryVersion: sheet.inventoryVersion,
+      lines: sheet.lines.map((l, i) => ({ palletCode: l.palletCode, countedQuantity: l.expectedQuantity - (i === 0 ? 2 : 0) })),
+      unexpected: [],
+    });
+    script = [{ body: call('get_bin_history', { code: 'B-02-03' }) }, { body: text('B-02-03: FAIL.') }];
+    const { body } = await ask({ question: 'Show the counts of B-02-03', history: [] }).expect(200);
+    const [response] = toolResponses();
+    const current = await prisma.binScore.findFirstOrThrow({ where: { bin: { code: 'B-02-03' } } });
+    expect(response.response.currentScore).toEqual({ value: current.score, scoreTime: current.referenceAt.toISOString() });
+    expect(response.response.tasks).toHaveLength(1);
+    const [task] = response.response.tasks;
+    expect(task).toMatchObject({ status: 'DONE', scoreAtSelection: { value: 68, band: 'medium', scoreTime: FIXED_REFERENCE.toISOString() }, count: { result: 'FAIL' } });
+    expect(task.count.lines[0]).toEqual({ pallet: sheet.lines[0].palletCode, sku: sheet.lines[0].product.sku, unit: sheet.lines[0].product.unit, expected: sheet.lines[0].expectedQuantity, counted: sheet.lines[0].expectedQuantity - 2, variance: -2 });
+    expect(task.count.lines.slice(1).every((l: any) => l.variance === 0)).toBe(true);
+    expect(body.references).toEqual([{ label: 'Bin B-02-03', href: '/bins/B-02-03' }, { label: 'Tasks', href: '/tasks' }]);
+  });
+
+  it('answers rule questions from the versioned summary', async () => {
+    script = [{ body: call('get_rules', { topic: 'score' }) }, { body: text('rules') }];
+    await ask({ question: 'How is the score computed?', history: [] }).expect(200);
+    const [response] = toolResponses();
+    expect(response.response.rulesVersion).toBe('2026-10-20 (score formula v2)');
+    expect(Object.keys(response.response.rules)).toEqual(['score']);
+    expect(response.response.rules.score[0]).toContain('weight 30');
+  });
+
+  it('a bin that does not exist, and a bin without history (unknown, not PASS)', async () => {
+    script = [{ body: calls(['get_bin', { code: 'Z-99-99' }], ['get_bin_history', { code: 'C-02-05' }]) }, { body: text('Z-99-99 does not exist; C-02-05 has no history.') }];
+    const { body } = await ask({ question: 'Z-99-99 and the history of C-02-05?', history: [] }).expect(200);
+    const [missing, empty] = toolResponses();
+    expect(missing.response).toMatchObject({ found: false, code: 'Z-99-99' });
+    expect(empty.response).toMatchObject({ found: true, code: 'C-02-05', tasks: [], note: 'No audit task or count is stored for this bin: its count history is unknown, not PASS.' });
+    expect(body.tools.map((t: any) => t.name)).toEqual(['get_bin', 'get_bin_history']);
+  });
+
+  it('a write request: there is no write tool, an attempted one is refused and nothing changes', async () => {
+    const before = await Promise.all([prisma.auditPlan.count(), prisma.auditTask.count(), prisma.count.count(), prisma.movement.count(), prisma.binScore.findMany({ orderBy: { binId: 'asc' } })]);
+    script = [{ body: call('create_plan', { n: 5 }) }, { body: text('I am read-only: use Create plan on the Warehouse page.') }];
+    const { body } = await ask({ question: 'Create a plan of 5 bins', history: [] }).expect(200);
+    const [response] = toolResponses();
+    expect(response.response).toEqual({ error: 'UNKNOWN_TOOL', message: 'There is no tool "create_plan". Rivy is read-only.' });
+    expect(body.answer).toContain('read-only');
+    const after = await Promise.all([prisma.auditPlan.count(), prisma.auditTask.count(), prisma.count.count(), prisma.movement.count(), prisma.binScore.findMany({ orderBy: { binId: 'asc' } })]);
+    expect(after).toEqual(before);
+  });
+
+  it('sends the last exchanges as text only (no earlier tool data), the new question last', async () => {
+    const history = Array.from({ length: 6 }, (_, i) => ({ question: `q${i}`, answer: i === 5 ? 'x'.repeat(2500) : `a${i}` }));
+    script = [{ body: text('Hola') }];
+    const { body } = await ask({ question: '¿Y el bin A-01-01?', history }).expect(200);
+    const contents = requests[0].body.contents;
+    expect(contents).toHaveLength(13);
+    expect(contents[0]).toEqual({ role: 'user', parts: [{ text: 'q0' }] });
+    expect(contents[11].parts[0].text).toHaveLength(2000);
+    expect(contents[12]).toEqual({ role: 'user', parts: [{ text: '¿Y el bin A-01-01?' }] });
+    expect(requests[0].body.systemInstruction.parts[0].text).toContain('Answer in the language of the question (English if unclear)');
+    expect(requests[0].body.systemInstruction.parts[0].text).toContain('Earlier answers in this conversation may be outdated');
+    expect(body).toMatchObject({ answer: 'Hola', usage: { modelCalls: 1 }, tools: [], references: [] });
+  });
+
+  it('limits: question and history size checked before any call; at most 2 tool runs and 2 model calls', async () => {
+    let r = await ask({ question: 'x'.repeat(501), history: [] }).expect(400);
+    expect(r.body).toMatchObject({ code: 'INVALID_QUESTION', retryable: false });
+    r = await ask({ question: 'hi', history: Array.from({ length: 7 }, () => ({ question: 'q', answer: 'a' })) }).expect(400);
+    expect(r.body.code).toBe('INVALID_QUESTION');
+    await ask({ question: '   ', history: [] }).expect(400);
+    expect(requests).toHaveLength(0);
+
+    script = [{ body: calls(['get_rules', { topic: 'score' }], ['get_rules', { topic: 'plans' }], ['get_bin', { code: 'A-01-01' }]) }, { body: text('done') }];
+    const ok = await ask({ question: 'Three tools', history: [] }).expect(200);
+    expect(ok.body.tools).toHaveLength(2);
+    expect(toolResponses()[2].response).toEqual({ error: 'LIMIT', message: 'Only 2 tool calls per question.' });
+
+    requests = [];
+    script = [{ body: call('get_rules', { topic: 'all' }) }, { body: call('get_bin', { code: 'A-01-01' }) }];
+    r = await ask({ question: 'Keeps calling tools', history: [] }).expect(502);
+    expect(r.body.code).toBe('LIMIT');
+    expect(requests).toHaveLength(2);
+  });
+
+  it('Gemini errors become clear answers: 429 quota, 503, timeout, refused key, blocked; the rest of the API keeps working', async () => {
+    script = [{ status: 429, body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'quota' } } }];
+    let r = await ask({ question: 'q', history: [] }).expect(429);
+    expect(r.body).toMatchObject({ code: 'QUOTA', retryable: true, message: 'Gemini quota or rate limit reached (429 RESOURCE_EXHAUSTED). Try again later.' });
+
+    script = [{ status: 503, body: { error: { code: 503, status: 'UNAVAILABLE', message: 'This model is currently experiencing high demand.' } } }];
+    r = await ask({ question: 'q', history: [] }).expect(503);
+    expect(r.body).toMatchObject({ code: 'UNAVAILABLE', retryable: true });
+
+    process.env.RIVY_CALL_TIMEOUT_MS = '200';
+    script = [{ delayMs: 1000, body: text('late') }];
+    r = await ask({ question: 'q', history: [] }).expect(504);
+    expect(r.body).toMatchObject({ code: 'TIMEOUT', message: 'Gemini did not answer in time.' });
+    delete process.env.RIVY_CALL_TIMEOUT_MS;
+
+    // The whole question also has a deadline (two slow calls).
+    process.env.RIVY_TOTAL_TIMEOUT_MS = '600';
+    script = [{ delayMs: 400, body: call('get_rules', { topic: 'all' }) }, { delayMs: 400, body: text('late') }];
+    r = await ask({ question: 'q', history: [] }).expect(504);
+    expect(r.body.code).toBe('TIMEOUT');
+    delete process.env.RIVY_TOTAL_TIMEOUT_MS;
+
+    script = [{ status: 400, body: { error: { code: 400, status: 'INVALID_ARGUMENT', message: 'API key not valid. Please pass a valid API key.' } } }];
+    r = await ask({ question: 'q', history: [] }).expect(502);
+    expect(r.body).toMatchObject({ code: 'AUTH', retryable: false });
+
+    script = [{ body: { promptFeedback: { blockReason: 'SAFETY' } } }];
+    r = await ask({ question: 'q', history: [] }).expect(502);
+    expect(r.body.code).toBe('BLOCKED');
+
+    await request(app.getHttpServer()).get('/warehouse').expect(200);
+    await request(app.getHttpServer()).get('/bins/A-01-01').expect(200);
+  });
+
+  it('without a key nothing is sent; the local rate guard stops before Gemini would', async () => {
+    delete process.env.GEMINI_API_KEY;
+    let r = await ask({ question: 'q', history: [] }).expect(503);
+    expect(r.body).toMatchObject({ code: 'NOT_CONFIGURED', retryable: false, message: 'Rivy is not configured: set GEMINI_API_KEY in apps/api/.env and restart the API.' });
+    expect(requests).toHaveLength(0);
+
+    // A fresh app so that the per-minute window starts empty.
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.GEMINI_RPM = '3';
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const other = moduleRef.createNestApplication();
+    await other.init();
+    try {
+      script = [{ body: call('get_rules', { topic: 'all' }) }, { body: text('one') }, { body: text('two') }];
+      await request(other.getHttpServer()).post('/assistant/ask').send({ question: 'a', history: [] }).expect(200);
+      await request(other.getHttpServer()).post('/assistant/ask').send({ question: 'b', history: [] }).expect(200);
+      r = await request(other.getHttpServer()).post('/assistant/ask').send({ question: 'c', history: [] }).expect(429);
+      expect(r.body).toMatchObject({ code: 'RATE_LIMITED', retryable: true });
+      expect(r.body.retryAfterSeconds).toBeGreaterThan(0);
+      expect(requests).toHaveLength(3);
+    } finally {
+      await other.close();
+    }
+  });
+
+  // The author's Windows run of 2026-10-20 (real Gemini): asked "que bins
+  // tienen la mayor puntuacion", the model read compare_bins for B-02-03 and
+  // A-02-01, then wrote A-01-01 (71) and A-01-02 (70) and a "data as of"
+  // time that no tool returned. Such an answer must not be shown.
+  it('regression: an answer with bins, scores, links or times that this question\'s tools did not return is replaced; the records read are still shown', async () => {
+    const history = [{ question: 'Why does bin B-02-03 have its priority?', answer: 'B-02-03 has a current score of 63 (score time 2026-10-20T22:38:58.831Z).' }];
+    script = [
+      { body: call('compare_bins', { first: 'B-02-03', second: 'A-02-01' }) },
+      { body: text('Los bins con mayor puntuación y prioridad son:\n- /bins/A-01-01 (score 71, High priority)\n- /bins/A-01-02 (score 70, High priority)\n\nDatos al 2026-10-20T23:14:45.122Z. Soy de solo lectura; consulta /warehouse, /tasks o /count.') },
+    ];
+    const { body } = await ask({ question: 'que bins tienen la mayor puntuacion', history }).expect(200);
+    const [{ response }] = toolResponses();
+    expect(JSON.stringify(response)).not.toContain('A-01-01');
+    expect(body.withheld).toEqual(['/bins/A-01-01', '/bins/A-01-02', '/warehouse', '2026-10-20T23:14:45.122Z', '71 for A-01-01', '70 for A-01-02']);
+    expect(body.answer).toBe(
+      "Rivy's wording was not shown: /bins/A-01-01, /bins/A-01-02, /warehouse, 2026-10-20T23:14:45.122Z, 71 for A-01-01, 70 for A-01-02 did not match the app's records read for this question (compare_bins). The records themselves are below.",
+    );
+    // The records read, from the API's structured results, not the model's text.
+    expect(body.facts).toEqual([
+      {
+        kind: 'compare',
+        first: response.higherPriority,
+        decidedBy: response.decidedBy,
+        bins: response.bins.map((b: any) => ({ code: b.code, score: { value: b.currentScore.value, band: b.currentScore.band, scoreTime: b.currentScore.scoreTime }, forNewPlan: b.forNewPlan })),
+      },
+    ]);
+    expect(body.references.map((r: any) => r.href)).toEqual([]);
+
+    // The same results with an answer that only uses them is shown.
+    const [b, a] = response.bins;
+    requests = [];
+    script = [
+      { body: call('compare_bins', { first: 'B-02-03', second: 'A-02-01' }) },
+      { body: text(`${response.higherPriority} va primero. ${b.code} (${b.currentScore.value}); ${a.code} (${a.currentScore.value}). Hora de la puntuación: ${b.currentScore.scoreTime}. Ver /bins/${b.code}.`) },
+    ];
+    const ok = await ask({ question: 'compara B-02-03 y A-02-01', history }).expect(200);
+    expect(ok.body.withheld).toBeNull();
+    expect(ok.body.references.map((r: any) => r.href)).toEqual(['/bins/B-02-03', '/bins/A-02-01']);
+  });
+
+  it('figures swapped between two bins, a value only the question gave, and a small invented quantity are withheld', async () => {
+    script = [{ body: call('compare_bins', { first: 'A-02-01', second: 'B-01-05' }) }, { body: text('ok') }];
+    await ask({ question: 'Compare A-02-01 and B-01-05', history: [] }).expect(200);
+    const [{ response: cmp }] = toolResponses();
+    const [x, y] = cmp.bins;
+    expect(x.currentScore.value).not.toBe(y.currentScore.value);
+
+    requests = [];
+    script = [{ body: call('compare_bins', { first: 'A-02-01', second: 'B-01-05' }) }, { body: text(`${x.code} (${y.currentScore.value}) and ${y.code} (${x.currentScore.value}).`) }];
+    let r = await ask({ question: 'Compare A-02-01 and B-01-05', history: [] }).expect(200);
+    expect(r.body.withheld).toEqual([`${y.currentScore.value} for ${x.code}`, `${x.currentScore.value} for ${y.code}`]);
+    expect(r.body.facts[0].bins.map((b: any) => [b.code, b.score.value])).toEqual([[x.code, x.currentScore.value], [y.code, y.currentScore.value]]);
+
+    const stored = (await bins.findByCode('B-02-03'))!;
+    requests = [];
+    script = [{ body: call('get_bin', { code: 'B-02-03' }) }, { body: text('Yes: B-02-03 has a score of 99.') }];
+    r = await ask({ question: 'Is the score of B-02-03 99?', history: [] }).expect(200);
+    expect(r.body.withheld).toEqual(['99 for B-02-03']);
+    expect(r.body.facts[0]).toMatchObject({ kind: 'bin', code: 'B-02-03', score: { value: stored.score!.value }, pallets: stored.pallets.length });
+
+    // A small count that none of B-02-03's records holds (a value that
+    // happens to be in them, such as a cap of 5, cannot be told apart).
+    const held = new Set(JSON.stringify(r.body.facts).match(/\d+/g));
+    const wrong = [1, 2, 3, 4, 5, 6, 7, 8, 9].find((n) => !held.has(String(n)) && n !== stored.pallets.length)!;
+    const [{ response: read }] = toolResponses();
+    expect(JSON.stringify(read)).not.toMatch(new RegExp(`[^\\d.]${wrong}[^\\d]`));
+    requests = [];
+    script = [{ body: call('get_bin', { code: 'B-02-03' }) }, { body: text(`B-02-03 holds ${wrong} pallets.`) }];
+    r = await ask({ question: 'How many pallets are in B-02-03?', history: [] }).expect(200);
+    expect(r.body.withheld).toEqual([`${wrong} for B-02-03`]);
+
+    requests = [];
+    script = [{ body: call('get_bin', { code: 'B-02-03' }) }, { body: text(`B-02-03 holds ${stored.pallets.length} pallets.`) }];
+    r = await ask({ question: 'How many pallets are in B-02-03?', history: [] }).expect(200);
+    expect(r.body.withheld).toBeNull();
+    expect(r.body.answer).toBe(`B-02-03 holds ${stored.pallets.length} pallets.`);
+  });
+
+  it('get_top_bins: the dashboard Top 5 in its order and score times; the answer, links and time come from this query', async () => {
+    const top = await app.get(ScoresService).top();
+    const before = Date.now();
+    script = [
+      { body: call('get_top_bins', {}) },
+      { body: text(`Highest priority first:\n${top.map((t) => `${t.rank}. ${t.binCode} — ${t.score.value} (${t.score.label}), score time ${t.score.reference.toISOString().slice(0, 16).replace('T', ' ')} UTC`).join('\n')}\nSee /bins/${top[0].binCode}.`) },
+    ];
+    const { body } = await ask({ question: 'Which bins have the highest scores?', history: [] }).expect(200);
+    const [{ response }] = toolResponses();
+    expect(response.bins).toEqual(top.map((t) => ({ rank: t.rank, code: t.binCode, currentScore: t.score.value, band: t.score.label, scoreTime: t.score.reference.toISOString() })));
+    expect(response.bins).toHaveLength(5);
+    expect(body.tools).toEqual([{ name: 'get_top_bins', args: {} }]);
+    expect(body.references.map((r: any) => r.href)).toEqual([...top.map((t) => `/bins/${t.binCode}`), '/']);
+    expect(body.queriedAt).toBe(response.queriedAt);
+    expect(Date.parse(body.queriedAt)).toBeGreaterThanOrEqual(before - 1000);
+
+    // Only the bins the answer names are listed as its sources.
+    script = [{ body: call('get_top_bins', {}) }, { body: text(`${top[0].binCode} comes first with ${top[0].score.value}.`) }];
+    const first = await ask({ question: 'Which bin comes first?', history: [] }).expect(200);
+    expect(first.body.references.map((r: any) => r.href)).toEqual([`/bins/${top[0].binCode}`, '/']);
+  });
+
+  it('a follow-up with history: figures from an earlier answer are not a source; the tools are read again', async () => {
+    const history = [{ question: 'Why does bin B-02-03 have its priority?', answer: 'B-02-03 has a current score of 63 (Medium), score time 2026-10-20T22:38:58.831Z. See /bins/B-02-03.' }];
+    script = [{ body: text('Its score is still 63 (score time 2026-10-20T22:38:58.831Z).') }];
+    let r = await ask({ question: '¿Y cuál es su puntuación ahora?', history }).expect(502);
+    expect(r.body.code).toBe('UNSUPPORTED');
+    expect(r.body.message).toContain('63');
+    expect(r.body.message).toContain('(none)');
+    expect(requests[0].body.contents).toHaveLength(3);
+
+    const stored = (await bins.findByCode('B-02-03'))!;
+    requests = [];
+    script = [{ body: call('get_bin', { code: 'B-02-03' }) }, { body: text(`B-02-03: puntuación actual ${stored.score!.value} (${stored.score!.label}), calculada a ${stored.score!.reference.toISOString()}.`) }];
+    r = await ask({ question: '¿Y cuál es su puntuación ahora? Consulta nuevamente los datos.', history }).expect(200);
+    expect(r.body.tools).toEqual([{ name: 'get_bin', args: { code: 'B-02-03' } }]);
+    expect(r.body.references).toEqual([{ label: 'Bin B-02-03', href: '/bins/B-02-03' }]);
+    expect(r.body.queriedAt).toBe(toolResponses()[0].response.queriedAt);
+  });
+
+  it('missing information: an answer that says the records do not show it is shown, with no data time', async () => {
+    script = [{ body: text("The app's records available to me do not include a ranking by lowest score. The Warehouse page (/) shows every bin.") }];
+    const { body } = await ask({ question: 'Which bins have the lowest scores?', history: [] }).expect(200);
+    expect(body).toMatchObject({ tools: [], references: [], queriedAt: null });
+  });
+});

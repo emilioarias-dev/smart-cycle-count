@@ -7,5 +7,6 @@ import { BinsService } from './bins.service.js';
   imports: [PrismaModule],
   controllers: [BinsController],
   providers: [BinsService],
+  exports: [BinsService],
 })
 export class BinsModule {}

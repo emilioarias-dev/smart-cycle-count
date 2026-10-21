@@ -7,5 +7,6 @@ import { ScoresService } from './scores.service.js';
   imports: [PrismaModule],
   controllers: [ScoresController],
   providers: [ScoresService],
+  exports: [ScoresService],
 })
 export class ScoresModule {}

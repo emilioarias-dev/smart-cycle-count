@@ -9,6 +9,7 @@ import { Icon, type IconName } from './Icon';
 const LINKS: { href: string; label: string; icon: IconName }[] = [
   { href: '/', label: 'Warehouse', icon: 'grid' },
   { href: '/tasks', label: 'Tasks', icon: 'list' },
+  { href: '/rivy', label: 'Rivy', icon: 'chat' },
   { href: '/count', label: 'Count', icon: 'scan' },
 ];
 

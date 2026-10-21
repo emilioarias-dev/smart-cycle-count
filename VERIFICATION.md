@@ -878,6 +878,156 @@ installed versions and the test and build counts are not recorded here
 from Windows output. This is the author's acceptance of the 3D view on
 real hardware (it was checked here only with software WebGL).
 
+## 2026-10-20 — CC: Gemini research and real calls through the CC proxy (before Rivy's code)
+
+**Real checks, from the Claude Code container only. They do not prove the
+connection from Windows**: here the container's outbound proxy adds the
+API key header (the author stored the key as a network secret; it was never
+shown or written to a file), so neither the key in `apps/api/.env` nor the
+network on the author's PC was involved. Synthetic data only; billing not
+enabled.
+
+| Check | Result |
+|---|---|
+| Official docs read (ai.google.dev, 2026-10-20): models, Gemini 3.5 Flash-Lite, function calling, thought signatures, thinking, rate limits, pricing, terms | 3.5 Flash-Lite: model code `gemini-3.5-flash-lite`, stable, function calling supported, free tier. Rate limits are per project, not per key, shown only in AI Studio. Free tier: content used to improve Google's products, human reviewers may read it, "do not submit sensitive, confidential, or personal information"; only paid services for API clients offered to users in the EEA, Switzerland or the UK |
+| `@google/genai` SDK considered | Not used: it adds dependencies; REST with `fetch` needs none |
+| List models (`GET …/v1beta/models`) through the proxy | HTTP 200 |
+| `node fetch` without `NODE_USE_ENV_PROXY=1` | HTTP 403 `PERMISSION_DENIED` (the request bypassed the proxy, so no key): Node's `fetch` ignores `HTTPS_PROXY` unless told |
+| Function-calling round trip, `gemini-3.5-flash-lite`, run 1 | Call 1: HTTP 200 in 14.0 s, a `functionCall` with a thought signature, 105 tokens. Call 2: HTTP 503 `UNAVAILABLE` (high demand) in 0.6 s |
+| Same, run 2 | Call 1: HTTP 200 in 15.7 s, 105 tokens, signature present. Call 2 (signature sent back): HTTP 200 in 12.8 s, `STOP`, 264 tokens; the answer used the score 68 given by the tool |
+| `gemini-3.8-flash` | HTTP 503 `UNAVAILABLE` (high demand) to each of the three requests |
+
+Not checked here: the TPM limit, the project behind the key and its tier
+(only AI Studio shows them). **Reported by the author** (visible in AI
+Studio): 15 RPM and 500 RPD for Gemini 3.5 Flash-Lite; nothing else about
+the quota is recorded as confirmed.
+
+## 2026-10-20 — CC: Rivy implementation, simulated tests (code `a355798` API, `420f514` web)
+
+**Simulated**: a local fake Gemini with scripted replies stands in for the
+model; it checks the app's side (requests, tools, limits, errors, page),
+not the quality of real answers. No request in this section reached
+Google. Production build; Playwright with Chromium; data:
+`SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo`, then the 2D flows
+(plan 1 with counts; B-02-03 counted FAIL). Scripts were scratch files.
+
+| Command / check | Result |
+|---|---|
+| `npm test` (API, then web) | API **113/113** (103 + 10 in `test/assistant.e2e-spec.ts`); web **11/11** |
+| `test/assistant.e2e-spec.ts` with `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_KEY_VIA_PROXY` and `GEMINI_API_BASE` set to other values in the environment | 10/10: the tests use their own fake Gemini and ignore those settings |
+| What the 10 tests cover | URL, key header, `AUTO` then `NONE`, 800 output tokens, model's turn sent back with its signature, figures equal to `BinsService`, references, usage summed; comparison decided by "never audited" at 57 and availability for a new plan after `createPlan(3)`; history after a FAIL (variance −2, score at selection 68 ≠ current); rules; missing bin; no history = unknown, not PASS; write request refused with plans, tasks and counts unchanged; six exchanges sent as history, answer cut at 2000 characters, language rule in the instructions; 501 characters, 7 exchanges and a blank question refused; 3 tool calls → 2 run; a tool asked in call 2 → `LIMIT`; 429, 503, call timeout, total timeout, refused key, blocked question, each with its status, while `/warehouse` and `/bins` still answer; no key → no request; local RPM guard |
+| Mutations of the API, each restored | Tool limit 2 → 3; signatures dropped; tools allowed in call 2; no history reported as PASS; quota mapped to 503; language rule replaced by "always English": **each one fails the Rivy tests** |
+| `npx tsc --noEmit` in `apps/api` and `apps/web` | Exit 0, exit 0 |
+| `npm run build` | API and web OK; `/rivy` static |
+| `/rivy` in the browser against the fake Gemini, 67 checks | All passed: 4 suggestions; Ask and Clear disabled when empty; explain (score 60 = `GET /bins/B-02-03`, `/bins/B-02-03` linked in the text and as a chip, meta line "Data as of … UTC · read: get_bin · 2 Gemini calls · 380 tokens · 0.6 s", `AUTO` then `NONE`, no history); compare (rule and both codes; first exchange sent as history); counts (score at selection 68, `FAIL`, line variance −2, `/tasks` link); rules (versioned; a "/" in the text is not a link); missing bin (Spanish question, no link); a bin with no task ("unknown, not PASS"); write request refused, plans 1 and tasks 5 before and after; 7th question → six on screen with a note, 13 contents sent; 8th question still 13; Shift + Enter adds a line; the field stops at 500 and shows 500/500; Clear empties and the next question sends no history; reload empties; 429 and 503 messages with Try again, then Try again succeeds, one request per failed attempt (no automatic retries); `/`, `/count`, `/tasks`, `/bins/B-02-03` 200 while Gemini fails; a slow Gemini ends after 30.2 s with "Gemini did not answer in time."; local guard with `GEMINI_RPM=2`; no key: "Rivy is not configured: set GEMINI_API_KEY in apps/api/.env and restart the API.", no Try again, no request to Gemini, other pages 200; API stopped: "The API did not answer." |
+| Layout at 320 dark, 390 light, 768 dark, 1440 light, empty and with answers | No horizontal scroll; four tabs on phones with Rivy current; Rivy current in the top navigation; Ask above the tab bar |
+| Contrast of Rivy's text, both themes, with an answer and with an error | Lowest 5.41:1 (Ask button); all ≥ 4.5 |
+| Found and fixed while checking | The "/" reference (Warehouse) turned every slash in an answer ("input / cap") into a link: the bare "/" is now only a chip, and paths must stand alone to become links |
+
+Not checked: the real model through the app (the six real queries are
+pending with the author), Safari, Firefox, real phones and Windows.
+
+## 2026-10-20 — WIN: Rivy with the real model (shared by the author, screenshot and page text)
+
+**Real check on the author's PC**, key in `apps/api/.env`. Reported by the
+author with a screenshot and the page text; the commit and terminal output
+were not shared. Per answer, from the page's meta line:
+
+| Question | Tool read | Calls · tokens · time | What the answer said |
+|---|---|---|---|
+| Why does bin B-02-03 have its priority? | `get_bin` | 2 · 2376 · 2.3 s | Score 63 (Medium), score time and the four factors; coherent |
+| ¿Y cuál es su puntuación ahora? Consulta nuevamente los datos. (follow-up) | `get_bin` | 2 · 2706 · 1.6 s | 63 (63.32 before rounding), score time; coherent, in Spanish |
+| Compare B-01-05 and A-02-01… | `compare_bins` | 2 · 3270 · 4.0 s | A-02-01 first, 57 vs 55; coherent |
+| Show the recorded count history for B-02-03… | `get_bin_history` | 2 · 3257 · 5.8 s | No count stored (not PASS), one pending task, score at selection 63; coherent |
+| What makes a count PASS or FAIL?… | `get_rules` | 2 · 3377 · 1.5 s | Rule correct, but the text gave a "data as of" time that no tool returned |
+| ¿Qué puntuación tiene el bin Z-99-99? | `get_bin` | 2 · 3537 · 2.3 s | Does not exist; coherent |
+| que bins tienen la mayor puntuacion | `compare_bins` | 2 · 4305 · 2.2 s | **Unsupported**: A-01-01 (71) and A-01-02 (70), while the sources were B-02-03 and A-02-01; text time 23:14:45, meta 23:10 |
+
+Several answers also ended with a link path `/warehouse`, which is not a
+page of the app.
+
+## 2026-10-20 — CC: investigation and fix of unsupported answers (code `a941c18`)
+
+**Cause, from the code:** there was no tool for a global ranking, so the
+model read `compare_bins` for two bins of the conversation and wrote other
+bins and scores from nowhere; nothing between Gemini and the page compared
+the text with the tool results. The time in the text was written by the
+model: the instructions asked it to give the "data as of" query time, which
+`get_rules` does not return; the meta line's time is the API's. The
+`/warehouse` path came from "point to the Warehouse page".
+
+**Fix:** `get_top_bins` (the dashboard's Top 5, same code as
+`GET /scores/top`); the API checks every code, link, date, time and number
+of an answer against this question's tool results before returning it
+(withheld otherwise, `UNSUPPORTED`); a bin's page is a source only if the
+answer names it; the instructions no longer ask for a "data as of" line and
+give the real page paths. The earlier checks were kept and re-run.
+
+**Simulated** (fake Gemini, nothing sent to Google):
+
+| Command / check | Result |
+|---|---|
+| `npm test` | API **121/121** (113 + 4 Rivy e2e + 4 check tests); web **11/11** |
+| New Rivy tests | The Windows case replayed (history, `compare_bins` for B-02-03 and A-02-01, the same answer): **502 `UNSUPPORTED`**, message naming `/bins/A-01-01`, `/bins/A-01-02`, 71, 70, the time and `/warehouse`; the same results with an answer using only them: 200. Top 5: tool = `ScoresService.top()` in order with score times, references the bins named. Follow-up with history: an answer from the earlier figures without tools is withheld; with `get_bin` it is shown with this query's time. Missing information: "the records do not show it" is shown, no time |
+| Check tests (`test/grounding.spec.ts`) | Written forms accepted (decimal comma, rounding, "22:38 UTC", a date in words, 31/33, −2); unknown bins, pallets, SKUs, links, timestamps, clocks and numbers reported; no tool results ⇒ figures unsupported |
+| Mutations, each restored | Check not applied; history counted as a source; codes, timestamps or links not checked; Top 5 order not kept; query time as score time; sources not limited to the bins named: **each one fails the tests** (8/8). The 6 earlier mutations still fail too |
+| `npx tsc --noEmit` (web), `npm run build` | Exit 0; builds OK |
+| `/rivy` in the browser, earlier 67 checks | **67/67** (re-run) |
+| `/rivy`, affected cases at 1440 dark and 390 light | **18/18**: the ranking equals `GET /scores/top` in order and scores, sources = the 5 bins + Warehouse, meta `get_top_bins`; a follow-up reads the tools again; the invented answer is withheld with the message and Try again, nothing of it shown; Try again then answers; no horizontal scroll |
+
+**Real, from CC through its proxy (not Windows):** the affected cases
+once, 6 Gemini calls in total, dev data of this container:
+
+| Question | Result |
+|---|---|
+| que bins tienen la mayor puntuacion | 200 in 16.2 s, `get_top_bins`, 2 calls, 2635 tokens: the five bins of `GET /scores/top` in order with their scores and score time, in Spanish; passed the check |
+| ¿Y cuál es la puntuación del primero ahora? Consulta nuevamente los datos. (with the answer above as history) | 200 in 12.0 s, `get_top_bins` read again (new query time), 2927 tokens: B-02-03, 60, score time; passed the check |
+| What makes a count PASS or FAIL? Does counting change inventory? | 200 in 14.9 s, `get_rules`, 2157 tokens: the rule, no invented time, links `/`, `/tasks`, `/count`; passed the check |
+
+## 2026-10-21 — CC: Rivy validator tightened, records shown as data (code `8621d05`)
+
+Asked by the author after the first fix: catch figures swapped between
+bins, values that only the question gave and small invented quantities,
+and show critical data from the API's structured results rather than a
+general language check.
+
+**Simulated** (fake Gemini, nothing sent to Google):
+
+| Command / check | Result |
+|---|---|
+| `npm test` | API **126/126** (15 Rivy e2e, 8 check tests); web **11/11**; `npm run build` OK |
+| New and changed Rivy tests | Swapped scores between A-02-01 and B-01-05 → text replaced, `withheld` = both figures with their bins, the records still returned; "Is the score of B-02-03 99?" answered with 99 → replaced; a pallet count that none of B-02-03's records holds → replaced; the right count → shown. The Windows case → text replaced, the `compare` records shown, no references. A no-tool answer with figures → still `UNSUPPORTED` |
+| Check tests | All numbers checked, small ones included (list markers excepted); a number after a code must be that bin's; shared rule values accepted unless another bin holds them; the question is not a source; numbers after a code inside the API's own texts (the not-found hint "A-01-03 … 01-02") count for that bin |
+| Mutations, each restored | Check off; history or question as a source; small numbers unchecked; figures not tied to their bin; codes, timestamps or links unchecked; numbers in the API's texts not tied; records not returned; Top 5 order; query time as score time; sources not limited: **13/13 fail the tests** |
+| `/rivy`, earlier 67 checks and the affected cases | **67/67** and **22/22**: the "Records read" table equals `GET /scores/top`; the invented answer replaced by a note with Try again, the Top 5 still shown |
+| Found while checking | The not-found hint ("Codes look like A-01-03 … racks 01-02") made a correct answer fail; fixed (numbers after a code in the API's texts belong to that bin) and covered by a test |
+
+**Real, from CC through its proxy (not Windows),** 8 Gemini calls:
+
+| Question | Result |
+|---|---|
+| que bins tienen la mayor puntuacion | 200 in 2.2 s, `get_top_bins`, 2786 tokens: the Top 5 in order with "B-02-03 (60)" style figures; shown |
+| ¿Y cuál es la puntuación del primero ahora? Consulta nuevamente los datos. (with the answer above as history) | 200 in 1.6 s, `get_bin` (re-read), 3069 tokens: 60, 59.5 before rounding, score time; shown |
+| Compare B-01-05 and A-02-01… | 200 in 1.8 s, `compare_bins`, 2963 tokens: "A-02-01 (57) … B-01-05 (55)", shown. Its wording also called 85.81 days "a longer time since the last audit" than never audited, which is wrong; the figures are right and the table shows them (wording is not checked) |
+| Is the score of B-02-03 99? How many pallets does it hold? | 200 in 1.4 s, `get_bin`, 2732 tokens: the text mentioned 99 and was replaced ("99 for B-02-03"); the records (score, pallets) shown |
+
+## 2026-10-21 — WIN: Rivy branch, tests and builds (shared by the author, PowerShell transcript)
+
+**Automated checks only.** The visual checks and the real questions on
+Windows are separate and still pending (see Pending). Commands in the
+transcript: `git switch m6-rivy` ("up to date with 'origin/m6-rivy'"),
+`npm.cmd run db:up`, `npm.cmd test`, `npm.cmd run build`. Neither `git log`
+nor `npm.cmd ci` appears in it, so the commit is not printed; the test
+files and counts are those of code `8621d05` (docs `a839f49`):
+`assistant.e2e-spec.ts` 15 tests and `grounding.spec.ts` 8.
+
+| Command | Result |
+|---|---|
+| `npm.cmd run db:up` | Container healthy |
+| `npm.cmd test` (API) | **126/126**, 15 files, 112.95 s; test database: 5 migrations, none pending. The two expected messages: the `[Nest] ERROR … simulated failure while recomputing` log (rollback test) and one `pg` DeprecationWarning (the detector's self-test) |
+| `npm.cmd test` (web) | **11/11** (`node --test`, 3D geometry) |
+| `npm.cmd run build` | API and web OK (Next.js 16.4.2, Turbopack); `/rivy` static, the other pages dynamic |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -901,8 +1051,22 @@ Merged through PR #7 as `d8150d3`. Optional: each flow confirmed one by one
 on Windows.
 
 3D heatmap (`m6-heatmap-3d`): nothing required pending (Windows run and
-review of `3ec45ca` reported by the author; outputs not shared). Final
-acceptance of the whole: after the next extensions (D-014).
+review of `3ec45ca` reported by the author; outputs not shared). Merged
+through PR #8 as `53628f1`. Final acceptance of the whole: after the next
+extensions (D-014).
+
+Rivy (`m6-rivy`), pending on Windows (WIN):
+
+- In AI Studio: the TPM limit of Gemini 3.5 Flash-Lite, the project behind
+  the key and its tier (Free), without enabling billing.
+- Done: `npm.cmd test` 126 + 11 and `npm.cmd run build` (2026-10-21,
+  above).
+- Visual and real questions (separate from the automated checks): the author's run on the PR's first commit is recorded
+  above. Pending: only the affected cases on `8621d05` or later (the global
+  ranking, a follow-up with history, a comparison, a question that states a
+  wrong value), with calls, tokens, time and whether the text was shown or
+  replaced. The quota is not exhausted on purpose: quota errors were
+  tested simulated.
 
 Later or optional:
 
