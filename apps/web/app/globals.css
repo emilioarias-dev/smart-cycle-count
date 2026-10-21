@@ -638,17 +638,11 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
   .table.stack-sm td.c-result { grid-row: 2; grid-column: 3; text-align: right; }
   .table.stack-sm td.c-result.is-empty { display: none; }
   .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); position: sticky; bottom: 0; z-index: 5; height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); background: var(--chrome); box-shadow: 0 -1px 0 var(--chrome-edge); padding: 0.3rem 0.5rem env(safe-area-inset-bottom); }
-  .tabbar a, .tabbar .tab-rivy { position: relative; display: grid; justify-items: center; align-content: center; gap: 0.15rem; font-size: 0.64rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--chrome-muted); text-decoration: none; }
-  .tabbar .tab-rivy { padding: 0; border: 0; background: none; font-family: inherit; cursor: pointer; }
+  .tabbar a { position: relative; display: grid; justify-items: center; align-content: center; gap: 0.15rem; font-size: 0.64rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--chrome-muted); text-decoration: none; }
   .tabbar a[aria-current] { color: var(--chrome-text); }
   .tabbar a[aria-current] .icon { color: var(--chrome-accent); }
   .tabbar .link-pending { top: 0; bottom: auto; left: 25%; right: 25%; }
   .tabbar .icon { width: 1.35rem; height: 1.35rem; }
-  /* Rivy's avatar on its black circle, as on the floating button. */
-  /* 0.5rem taller than the other icons: it rises so the labels stay aligned. */
-  .tab-avatar { position: relative; display: grid; place-items: center; width: 1.85rem; height: 1.85rem; margin-top: -0.5rem; border-radius: 50%; background: var(--rv-black); border: 1px solid #2c2c2c; }
-  .tab-avatar.busy::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--rv-blue); border-right-color: transparent; animation: spin 1s linear infinite; }
-  .tab-dot { position: absolute; top: -0.2rem; right: -0.3rem; width: 0.65rem; height: 0.65rem; border-radius: 50%; background: var(--rv-blue); border: 2px solid var(--chrome); }
   .submit-bar { bottom: var(--tabbar-h); margin-inline: -1rem; padding: 0.7rem 1rem; }
   .submit-bar .btn { flex: 1; }
 }
@@ -754,6 +748,15 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
 .rivy-button.busy::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--rv-blue); border-right-color: transparent; animation: spin 1s linear infinite; }
 .rivy-button-dot { position: absolute; top: 0.1rem; right: 0.1rem; width: 0.8rem; height: 0.8rem; border-radius: 50%; background: var(--rv-blue); border: 2px solid var(--rv-black); }
 .rivy-button-space { height: 5rem; }
+/* Dragging the button aside (D-018): a finger on it moves it instead of
+   scrolling the page, and no text or callout is selected. It follows the
+   pointer and stays exactly where it is released (its position is never
+   animated). A moved button shows its tip above it, where it is never off
+   screen sideways. */
+.rivy-button { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.rivy-button.dragging { cursor: grabbing; transition: none; box-shadow: 0 14px 30px rgb(0 0 0 / 0.38); }
+.rivy-button.dragging .rivy-button-tip { opacity: 0 !important; }
+.rivy-button.moved .rivy-button-tip { right: 50%; bottom: calc(100% + 0.6rem); transform: translateX(50%); }
 /* Layout from what is on the page (CSS only, also before hydration): with the
    button, focused fields keep clear of it; the docked panel narrows the page;
    a modal one stops the page from scrolling. */
@@ -778,9 +781,8 @@ html:has(.rivy-panel.modal) { overflow: hidden; }
 @keyframes rivy-slide-in { from { transform: translateX(1.5rem); opacity: 0; } }
 @keyframes rivy-slide-up { from { transform: translateY(2rem); opacity: 0; } }
 @media (max-width: 40rem) {
-  /* Phones: Rivy is in the tab bar, so no floating button covers the page. */
-  .rivy-button, .rivy-button-space { display: none; }
-  html:has(.rivy-button) { scroll-padding-bottom: calc(var(--tabbar-h) + 1rem); }
+  .rivy-button { right: 1rem; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 0.75rem); }
+  html:has(.rivy-button) { scroll-padding-bottom: calc(var(--tabbar-h) + 5.5rem); }
   .rivy-panel.modal { top: 0.75rem; width: 100%; border-radius: 14px 14px 0 0; animation-name: rivy-slide-up; }
   .rivy-panel.modal .rivy-panel-head { border-radius: 14px 14px 0 0; }
 }
