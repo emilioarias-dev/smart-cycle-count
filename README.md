@@ -741,3 +741,6 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
 | [`VERIFICATION.md`](VERIFICATION.md) | Commands actually executed, per environment, and their results |
 | [`HANDOFF.md`](HANDOFF.md) | Historical snapshot of the project state on 2026-10-17 |
 | [`docs/browser-checks/`](docs/browser-checks/README.md) | Extra browser regression scripts kept from the verification. Written for and run on Linux with Chromium (Playwright); not needed to run the app or `npm test` |
+## AI conversation transcripts
+
+[Read the English transcripts and originals](docs/ai-transcripts/README.md)
