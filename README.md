@@ -442,11 +442,12 @@ project and shown in AI Studio (<https://aistudio.google.com/rate-limit>).
 
 **From any page.** The round Rivy button at the bottom right (Rivero's
 symbol with a smile) opens the same conversation in a panel: docked at the
-right on wide screens (the page narrows beside it, nothing is covered) and
-a drawer on tablets. On phones the button sits in the tab bar instead, as
-the **Rivy** tab (the same smiling avatar), so it covers nothing: it opens
-the conversation in a nearly full-screen sheet without leaving the page,
-with a ring while Rivy answers and a dot for a new answer. Esc or ✕ closes
+right on wide screens (the page narrows beside it, nothing is covered), a
+drawer on tablets and a nearly full-screen sheet on phones. If the button
+is in the way, drag it aside with a finger or the mouse: a tap or a click
+opens the chat, a drag only moves it, and it stays on screen above the
+bottom bar. It keeps its place while you navigate; **Put the button back**
+(house icon, in the panel) returns it to its corner. Esc or ✕ closes
 it; ⤢ opens the full page. The conversation is kept while you move between
 pages. The button is hidden on the Rivy page and while a count is being
 entered (Rivy stays in the navigation). A dot on the button means an answer
@@ -575,7 +576,7 @@ initial JavaScript grows by about 5 KB.
 | Command | What it does |
 |---|---|
 | `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data), including Rivy's against a simulated Gemini (no request to Google),
-then the web tests (`node --test`: the 3D heatmap geometry and how the API client classifies answers to a write, no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
+then the web tests (`node --test`: the 3D heatmap geometry, how the API client classifies answers to a write, and tap or drag for Rivy's button, no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
 | `npm run db:reset-demo-high-risk` | Replaces the demo data with the high-risk scenario (deletes the same data as `db:reset-demo`) |
 | `npm run build` | Type-checks and builds the API and the web app. Stop `npm run dev` first (see [Known limitations](#known-limitations)) |
 | `npm run db:down` | Stops PostgreSQL (data is kept in a Docker volume) |

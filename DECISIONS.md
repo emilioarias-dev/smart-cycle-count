@@ -574,16 +574,23 @@ Windows; branch `m6-audit-insights`).** Presentation only:
   to read and off-center; phones now show the same **Recompute scores**
   button as wide screens (icon and label together, a full row above Top N
   and Create plan), with the same working and result states.
-- **Rivy on phones:** the floating button covered part of the heatmap
-  (the last bin of a rack). Where the tab bar is shown (up to 640 px) it
-  takes the place of the tab bar's **Rivy** tab instead: Rivy's smiling
-  avatar on its black circle, labelled "Rivy", which opens the same panel
-  (the nearly full-screen sheet, same conversation) without leaving the
-  page. It carries the button's states (a ring while answering, a dot for a
-  new answer, both also in its name); closing the panel returns the focus
-  to it. On `/rivy` the tab is the current page, and opening `/rivy` marks
-  a new answer as read. Tablets and desktops keep the floating button
-  unchanged.
+- **Rivy's button can be moved aside:** on a phone it covered part of the
+  heatmap (the last bin of a rack). After trying it in the tab bar, the
+  author chose to keep the floating button everywhere and let it be
+  dragged, with a finger or the mouse:
+  - A tap, a click or the keyboard (Enter / Space) opens the panel; a drag
+    only moves the button. A press counts as a drag once it moves 10 px
+    (finger) or 4 px (mouse); the click that ends a drag is ignored. A
+    finger on the button moves it instead of scrolling the page.
+  - It stays on screen, 8 px from the edges, under the top bar and above
+    the phone tab bar; after a change of size or orientation it is brought
+    back inside. Its position is never animated.
+  - The position is kept while navigating (in memory: a reload puts it back
+    in its corner). When it has been moved, the panel offers **Put the
+    button back** (house icon). It is still hidden on `/rivy` and during a
+    count.
+  - A moved button shows its "Ask Rivy" tip above it. Opening `/rivy` marks
+    a new answer as read. No new dependency (pointer events).
 - **320 px:** the overview band's three figures are slightly smaller there
   so the priority mix stays in its column.
 

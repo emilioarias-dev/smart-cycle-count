@@ -1211,6 +1211,26 @@ Docker had stopped while idle and was restarted; no data change).
 | Overlap; 2D flows (original demo) | **40/40**; **33/33** |
 | `npm test -w apps/web`; `npx tsc --noEmit` (web); `npm run build -w apps/web` | 14/14; exit 0; build OK |
 
+## 2026-10-21 — CC: Rivy's button can be dragged (author's request; replaces the tab bar version)
+
+The author preferred to keep the floating button on phones too and let it
+be dragged aside (finger or mouse). The tab bar version of the entry above
+was removed; the Rivy tab is a link to `/rivy` again. Presentation only;
+same stack (the container's Docker and the API had stopped while idle and
+were restarted; no data change).
+
+| Command / check | Result |
+|---|---|
+| `lib/rivy-drag.test.ts` (new, `node --test`) | **5/5**: tap or drag by pointer type (10 px finger, 4 px mouse), offsets kept inside the area, stopped at each edge, brought back inside after a rotation, an area smaller than the button |
+| `docs/browser-checks/rivy-drag.cjs` (new) | **16/16**, run three times: phone 375 px with real touch events: a tap opens the panel and closing returns the focus; a tap with a 6 px shake opens it; a drag of (−150, −300) moves the button by that much, does not open the panel and does not scroll the page; dragged down it stops 8 px above the tab bar, to the top left 8 px from the edge and under the top bar; the offset is kept after navigating to Tasks; rotated to 812 × 375 and back it is brought inside; **Put the button back** returns it to its corner; hidden during a count. Desktop 1440 px: a mouse drag moves it without opening; a click with 2 px of movement opens the docked panel; Enter opens it; the tip of a moved button is above it, on screen. No page errors |
+| Found while checking | A fast mouse drag left the button before the threshold and was not seen: the pointer is now captured on press. A 0.2 s transition of the position left the button 2 px short right after a drag: the position is no longer animated. (The check's own phone measure also included the 2 px hover lift of a touched button: it compares the stored offset instead.) |
+| `modal-keyboard-motion.cjs` | **7/7** (phone step: the floating button opens the sheet on the same page, Esc returns the focus) |
+| `audit-insights`, `rivy-does-not-block`, `ambiguous-plans`, `count-retry` | **40/40**, **3/3**, **4/4**, **4/4** |
+| Overlap; 2D flows (original demo) | **40/40**; **33/33** |
+| `npm test -w apps/web`; `npx tsc --noEmit` (web); `npm run build -w apps/web` | **19/19**; exit 0; build OK. The API is unchanged since the 142/142 run |
+
+Not checked: Safari, Firefox, real phones (real touch screens) and Windows.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1254,11 +1274,11 @@ Polish (`m6-polish`): nothing pending (merged through PR #10 as `64e2fa4`).
 
 Audit insights (`m6-audit-insights`): the author's visual review and
 acceptance of the block on Windows are recorded above. Still pending before
-the merge, in one round on the final commit: `npm.cmd test` (142 API + 14
+the merge, in one round on the final commit: `npm.cmd test` (142 API + 19
 web) and `npm.cmd run build`, with the commit (`git rev-parse HEAD`); and a
 look at the presentation adjustments (light top bar, band and tab bar with
-the dark logo; Recompute scores on a narrow window; on a narrow window, the
-Rivy tab with the avatar opening the panel on the same page).
+the dark logo; Recompute scores on a narrow window; dragging Rivy's button
+with the mouse and, if possible, on a phone or a touch screen).
 
 Later or optional:
 
