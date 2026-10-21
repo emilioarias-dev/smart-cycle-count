@@ -417,10 +417,10 @@ dependency; no rule, formula, Top 5 or plan change.
 | Item | Where | CC verified | WIN verified |
 |---|---|---|---|
 | `GET /insights/audits`: T once, `(T − 30 days, T]`, one read-only `REPEATABLE READ` snapshot; coverage, counts, observed FAIL proportion (null percent without a denominator) for the whole warehouse and each aisle; each bin's latest result in the period (time, then id) | `src/insights/` | Yes (9 tests: the author's worked example, no counts, no bins, simulated audit dates, period bounds and a later count, tie on time, lines and unexpected pallets, identical retry; each of 5 mutations fails them) | Pending |
-| Block: scope selector, three metrics, one stacked bar per aisle, list of a selected part, Clear selection, hint, empty selection, loading and error states, note on the data | `components/AuditInsights.tsx`, `app/page.tsx`, `globals.css` | Yes (browser check 40/40 on two data states, 28/28 without counts) | Pending |
+| Block: scope selector, three metrics, one stacked bar per aisle, list of a selected part, Clear selection, hint, empty selection, loading and error states, note on the data | `components/AuditInsights.tsx`, `app/page.tsx`, `globals.css` | Yes (browser check 40/40 on two data states, 28/28 without counts) | Visual review reported (aisle A), accepted by the author |
 | Keyboard, touch, focus, reduced motion, both themes, phone and desktop; nothing under Rivy's button | same | Yes (same check; overlap check 40/40) | Pending |
 | Earlier flows kept | — | Yes (2D flows 33/33) | — |
-| Tests and builds | `npm test`, `npm run build` | Yes (API 142/142, web 14/14) | Pending |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 142/142, web 14/14) | Pending (outputs not shared) |
 
 Delivery planned for Wednesday 2026-10-21; final acceptance of the whole
 (clean clones, version tag) after this branch is merged.

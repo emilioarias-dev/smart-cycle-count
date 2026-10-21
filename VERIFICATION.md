@@ -1165,6 +1165,17 @@ quantity.
 
 Not checked: Safari, Firefox, real phones and Windows.
 
+## 2026-10-21 — WIN: audit insights, visual review (reported by the author)
+
+The author reviewed the Audit insights block on Windows and accepts this
+version. From their screenshot (described in the conversation; the image
+itself is not kept here), with the scope **Aisle A**: coverage 1 of 10
+bins, 1 count recorded (1 PASS, 0 FAIL), and a bar of 1 PASS, 0 FAIL and 9
+bins without a count, which sum to the aisle's 10 bins. Recorded as visual
+acceptance of what was observed only: the commit, and the outputs of
+`npm.cmd test` and `npm.cmd run build`, were not shared, so this entry
+confirms neither.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1206,11 +1217,11 @@ Windows (WIN):
 
 Polish (`m6-polish`): nothing pending (merged through PR #10 as `64e2fa4`).
 
-Audit insights (`m6-audit-insights`), pending on Windows, in one round on
-the final commit: `npm.cmd test` (142 API + 14 web) and `npm.cmd run
-build`; a short visual check of the block (scope, a selection by mouse and
-keyboard, Clear selection, phone width, both themes). Not merged before
-that evidence is reviewed.
+Audit insights (`m6-audit-insights`): the author's visual review and
+acceptance on Windows are recorded above. Still pending before the merge:
+the Windows outputs of `npm.cmd test` (142 API + 14 web) and
+`npm.cmd run build` on `94628af` or later, with the commit
+(`git rev-parse HEAD`).
 
 Later or optional:
 
