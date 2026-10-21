@@ -1,5 +1,6 @@
 import type { MovementInput } from '../inventory/movements.js';
 import { type BinLocation, PRODUCTS, warehouseLayout } from './catalog.js';
+import { generateHighRiskData } from './high-risk.js';
 import { SeededRandom } from './random.js';
 
 // Generates the demo warehouse as plain data (D-009). Nothing here touches the
@@ -10,16 +11,12 @@ import { SeededRandom } from './random.js';
 export const GENERATOR_VERSION = 1;
 export const DEFAULT_SEED = 20261018;
 
-// Scenarios (D-017). `standard` is the original demo, unchanged. `high-risk`
-// runs the same simulation with a few hotspot bins that are never audited,
-// busier and more prone to adjustments, so that the unchanged formula puts
-// them in the high band. Weights, caps and bands are not touched.
+// Scenarios (D-017). `standard` is the original demo, this generator,
+// unchanged. `high-risk` (high-risk.ts) plans each bin's inputs to show a
+// wider spread of priorities with the same formula.
 export const SCENARIOS = ['standard', 'high-risk'] as const;
 export type Scenario = (typeof SCENARIOS)[number];
 export const SCENARIO_LABEL: Record<Scenario, string> = { standard: 'Original demo', 'high-risk': 'High-risk demo' };
-const HOTSPOTS = 4;
-const HOTSPOT_WEIGHT = 24;
-const HOTSPOT_ADJUSTMENT_WEIGHT = 30;
 
 const SECOND = 1000;
 const DAY = 86_400 * SECOND;
@@ -50,8 +47,10 @@ export type DemoData = {
 };
 
 export function generateDemoData(options: { reference: Date; seed?: number; scenario?: Scenario }): DemoData {
+  if (options.scenario === 'high-risk') {
+    return generateHighRiskData({ reference: options.reference, seed: options.seed ?? DEFAULT_SEED });
+  }
   const { reference } = options;
-  const scenario = options.scenario ?? 'standard';
   const seed = options.seed ?? DEFAULT_SEED;
   const random = new SeededRandom(seed);
   const layout = warehouseLayout();
@@ -65,14 +64,12 @@ export function generateDemoData(options: { reference: Date; seed?: number; scen
   );
   const startsEmpty = new Set(order.slice(6, 9));
   const adjustmentProne = new Set(random.shuffle(order).slice(0, 5));
-  // Without random draws, so the standard scenario's sequence is unchanged.
-  const hotspots = new Set(scenario === 'high-risk' ? order.slice(0, HOTSPOTS) : []);
 
   // Simulated antecedent only: no audit records or results exist (D-009).
-  const bins: DemoBin[] = layout.map((bin) => {
-    const lastAuditedAt = random.chance(1 / 3) ? null : at(random.int(2 * 86_400, 90 * 86_400));
-    return { ...bin, lastAuditedAt: hotspots.has(bin.code) ? null : lastAuditedAt };
-  });
+  const bins: DemoBin[] = layout.map((bin) => ({
+    ...bin,
+    lastAuditedAt: random.chance(1 / 3) ? null : at(random.int(2 * 86_400, 90 * 86_400)),
+  }));
 
   // Simulation state, used to only generate movements that are valid at the
   // moment they happen.
@@ -112,7 +109,7 @@ export function generateDemoData(options: { reference: Date; seed?: number; scen
   }));
   const withPallets = () => layout.filter((bin) => palletsInBin.get(bin.code)!.length > 0);
   const withRoom = () => layout.filter((bin) => palletsInBin.get(bin.code)!.length < MAX_PALLETS_PER_BIN);
-  const byProfile = (bin: BinLocation) => (hotspots.has(bin.code) ? HOTSPOT_WEIGHT : PROFILE_WEIGHT[profile.get(bin.code)!]);
+  const byProfile = (bin: BinLocation) => PROFILE_WEIGHT[profile.get(bin.code)!];
 
   for (const { occurredAt } of chronological(slots)) {
     const kind = random.weighted(
@@ -160,7 +157,7 @@ export function generateDemoData(options: { reference: Date; seed?: number; scen
       palletsInBin.get(destination.code)!.push(palletCode);
       movements.push({ type: 'MOVE', palletCode, toBinCode: destination.code, occurredAt });
     } else {
-      const bin = random.weighted(sources, (candidate) => (hotspots.has(candidate.code) ? HOTSPOT_ADJUSTMENT_WEIGHT : adjustmentProne.has(candidate.code) ? 8 : 1));
+      const bin = random.weighted(sources, (candidate) => (adjustmentProne.has(candidate.code) ? 8 : 1));
       const palletCode = random.pick(palletsInBin.get(bin.code)!);
       const available = quantity.get(palletCode)!;
       const magnitude = random.int(1, 4);
@@ -175,7 +172,7 @@ export function generateDemoData(options: { reference: Date; seed?: number; scen
 
   return {
     generatorVersion: GENERATOR_VERSION,
-    scenario,
+    scenario: 'standard',
     seed,
     reference,
     products: PRODUCTS.map(({ sku, name, unit }) => ({ sku, name, unit })),

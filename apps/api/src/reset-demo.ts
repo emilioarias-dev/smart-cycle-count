@@ -6,6 +6,7 @@
 import 'dotenv/config';
 import { DEFAULT_SEED, GENERATOR_VERSION, SCENARIOS, SCENARIO_LABEL, type Scenario, generateDemoData } from './demo-data/generate.js';
 import { resolveReference } from './demo-data/reference.js';
+import { HIGH_RISK_VERSION } from './demo-data/high-risk.js';
 import { describeDatabaseUrl, resetDemoData } from './demo-data/reset.js';
 import { PrismaService } from './prisma/prisma.service.js';
 
@@ -35,7 +36,7 @@ try {
   process.exit(1);
 }
 console.log(
-  `${SCENARIO_LABEL[scenario]} (${scenario}), generator v${GENERATOR_VERSION}, seed ${DEFAULT_SEED}, reference ${reference.toISOString()}` +
+  `${SCENARIO_LABEL[scenario]} (${scenario}), generator v${scenario === 'high-risk' ? HIGH_RISK_VERSION : GENERATOR_VERSION}, seed ${DEFAULT_SEED}, reference ${reference.toISOString()}` +
     (process.env.SEED_NOW ? ' (from SEED_NOW)' : ' (current time)'),
 );
 

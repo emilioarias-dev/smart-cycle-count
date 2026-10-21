@@ -5,14 +5,15 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { generateDemoData } from '../src/demo-data/generate.js';
+import { HIGH_RISK_PLAN, HIGH_RISK_VERSION } from '../src/demo-data/high-risk.js';
 import { resetDemoData } from '../src/demo-data/reset.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { CAPS, WEIGHTS, priorityFor } from '../src/scoring/formula.js';
 import { FIXED_REFERENCE, scoresInSql } from './support.js';
 
 // The demo scenarios (D-017) against the PostgreSQL test database: the
-// original demo is unchanged, and the high-risk scenario reaches the high
-// band with the unchanged formula.
+// original demo is unchanged, and the high-risk scenario's planned spread
+// (8 high, 12 medium, 10 low) comes out of the unchanged formula.
 describe('Demo scenarios (PostgreSQL)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
@@ -41,30 +42,41 @@ describe('Demo scenarios (PostgreSQL)', () => {
     expect([69, 70, 39, 40].map(priorityFor)).toEqual(['medium', 'high', 'low', 'medium']);
   });
 
-  it('high-risk: reproducible, and some bins really in the high band next to medium and low ones', async () => {
+  it('high-risk: reproducible; 8 high, 12 medium, 10 low with different scores, equal to the formula in SQL and to the plan', async () => {
     const data = generateDemoData({ reference: FIXED_REFERENCE, scenario: 'high-risk' });
     expect(generateDemoData({ reference: new Date(FIXED_REFERENCE), scenario: 'high-risk' })).toEqual(data);
+    expect(data.generatorVersion).toBe(HIGH_RISK_VERSION);
     const summary = await resetDemoData(prisma, data, { confirmReset: true });
     expect(summary.scenario).toBe('high-risk');
-    expect(summary.scores.byPriority).toEqual({ high: 4, medium: 3, low: 23 });
+    expect(summary.scores.byPriority).toEqual({ high: 8, medium: 12, low: 10 });
 
     // The stored scores equal the formula written independently in SQL.
     const sql = await scoresInSql(prisma, FIXED_REFERENCE);
     const stored = await prisma.binScore.findMany({ include: { bin: true } });
     expect(stored.map((s) => [s.bin.code, s.score]).sort()).toEqual(sql.map((s) => [s.code, s.score]).sort());
-    const high = stored.filter((s) => s.score >= 70);
-    expect(high.map((s) => s.bin.code).sort()).toEqual(['A-01-04', 'A-02-01', 'B-02-03', 'C-01-01']);
-    // Each one by its inputs, without a count result: never audited, busy and
-    // with adjustments in the 30 days before the reference.
-    for (const s of high) {
+    // ...and the planned scores, from the planned inputs, with no count result.
+    expect(stored.map((s) => s.score).sort((a, b) => a - b)).toEqual(HIGH_RISK_PLAN.map((p) => p.score).sort((a, b) => a - b));
+    for (const s of stored) {
       const f = (s.breakdown as any).factors;
-      expect(f.age.neverAudited).toBe(true);
+      const plan = HIGH_RISK_PLAN.find((p) => p.score === s.score && p.activity === f.activity.input && p.adjustments === f.adjustments.input)!;
+      expect(plan).toBeDefined();
+      expect(f.age.neverAudited).toBe(plan.ageDays === null);
+      if (plan.ageDays !== null) {
+        expect(f.age.input).toBeCloseTo(plan.ageDays, 9);
+      }
       expect(f.lastResult.contribution).toBe(0);
-      expect(f.activity.input + f.adjustments.input).toBeGreaterThan(0);
     }
+    // Different scores within each band.
+    const band = (lo: number, hi: number) => new Set(stored.filter((s) => s.score >= lo && s.score <= hi).map((s) => s.score)).size;
+    expect([band(70, 100), band(40, 69), band(0, 39)]).toEqual([6, 12, 10]);
+
+    // Coherent inventory: no negative or emptied-and-kept pallet, at most 4 per bin.
+    expect(await prisma.pallet.count({ where: { quantity: { lt: 0 } } })).toBe(0);
+    const perBin = await prisma.pallet.groupBy({ by: ['binId'], where: { binId: { not: null } }, _count: { _all: true } });
+    expect(Math.max(...perBin.map((b) => b._count._all))).toBeLessThanOrEqual(4);
 
     const { body } = await request(app.getHttpServer()).get('/demo').expect(200);
-    expect(body).toMatchObject({ scenario: 'high-risk', label: 'High-risk demo', generatorVersion: 1, seed: 20261018, reference: FIXED_REFERENCE.toISOString() });
+    expect(body).toMatchObject({ scenario: 'high-risk', label: 'High-risk demo', generatorVersion: HIGH_RISK_VERSION, seed: 20261018, reference: FIXED_REFERENCE.toISOString() });
   });
 
   it('the original demo can be loaded again, and is shown as such; no row means not recorded', async () => {
