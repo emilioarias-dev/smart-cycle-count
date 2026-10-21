@@ -2,7 +2,8 @@
 // Mode file `mode`: pass | slow (GET +1.5 s) | slow-post (POST +1.5 s) |
 // reset (cut every connection) | drop-post (forward POSTs, then cut the
 // connection without the answer) | 502-after-post (forward, then answer 502)
-// | truncated-post (forward, then a cut-off JSON body). Logs each request.
+// | truncated-post (forward, then a cut-off JSON body) | slow-insights (GET
+// /insights +1.5 s) | 502-insights (GET /insights answers 502). Logs each request.
 const os = require('os');
 const path = require('path');
 // Runtime state (proxy and Gemini modes, request log), outside the repository.
@@ -14,6 +15,7 @@ const mode = () => (fs.existsSync(path.join(STATE, 'mode')) ? fs.readFileSync(pa
 http.createServer((req, res) => {
   const m = mode();
   if (m === 'reset') { req.socket.destroy(); return; }
+  if (m === '502-insights' && req.url.startsWith('/insights')) { res.writeHead(502, { 'content-type': 'text/plain' }); res.end('Bad gateway (simulated)'); return; }
   const chunks = [];
   req.on('data', (c) => chunks.push(c));
   req.on('end', () => {
@@ -30,6 +32,7 @@ http.createServer((req, res) => {
     fs.appendFileSync(path.join(STATE, 'requests.log'), `${new Date().toISOString()} ${req.method} ${req.url}\n`);
     if (m === 'slow' && req.method === 'GET') setTimeout(forward, 1500);
     else if (m === 'slow-post' && req.method === 'POST') setTimeout(forward, 1500);
+    else if (m === 'slow-insights' && req.url.startsWith('/insights')) setTimeout(forward, 1500);
     else forward();
   });
 }).listen(3001, '127.0.0.1', () => console.log('proxy 3001 -> 3002'));

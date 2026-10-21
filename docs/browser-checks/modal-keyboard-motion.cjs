@@ -1,5 +1,6 @@
 // Modal keyboard, inert background, reduced motion on ::after, and the
 // waiting announcement (audit, point 5). Gemini SIMULATED (slow3 = 3 s).
+// The modal panel is checked on a tablet (800 px), and on a phone (step 5).
 const os = require('os');
 const path = require('path');
 // Runtime state (proxy and Gemini modes, request log), outside the repository.
@@ -16,7 +17,7 @@ const ok = (c, n, d = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS' : 
 (async () => {
   setGemini('ok');
   const b = await chromium.launch();
-  const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
+  const p = await (await b.newContext({ viewport: { width: 800, height: 1024 }, isMobile: true, hasTouch: true })).newPage();
   await p.goto(B + '/tasks');
   await p.waitForLoadState('networkidle');
 
@@ -79,6 +80,20 @@ const ok = (c, n, d = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS' : 
   ok(ring === 'none', 'reduced motion: the busy ring (::after) does not spin', ring);
   await rm.waitForSelector('.rivy-button-dot', { timeout: 15000 });
   setGemini('ok');
+
+  // 5. Phone: the floating button (draggable, see rivy-drag.cjs) opens the
+  // same modal sheet on the same page; Esc returns the focus to it.
+  const ph = await (await b.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
+  await ph.goto(B + '/tasks');
+  await ph.waitForLoadState('networkidle');
+  await ph.locator('.rivy-button').tap();
+  await ph.waitForSelector('.rivy-panel.modal');
+  const samePage = ph.url().endsWith('/tasks');
+  const titleFocused = await ph.evaluate(() => document.activeElement?.id === 'rivy-panel-title');
+  await ph.keyboard.press('Escape');
+  await ph.waitForTimeout(200);
+  const backOnButton = await ph.evaluate(() => document.activeElement?.classList.contains('rivy-button'));
+  ok(samePage && titleFocused && backOnButton, 'phone: the floating button opens the sheet on the same page; Esc returns the focus to it');
 
   await b.close();
   console.log(`\n${pass} passed, ${fail} failed`);

@@ -387,7 +387,7 @@ answers.
 | Tests and builds | `npm test`, `npm run build` | Yes (API 126/126 incl. 15 Rivy e2e and 8 check tests; web 11/11; builds; 6 + 13 mutations caught) | Yes (126/126, 11/11, builds; 2026-10-21) |
 | Real answers: the four capabilities, a follow-up and a case without data, in English and Spanish | `/rivy` with the author's key | Only the affected cases, from CC through its proxy (ranking, follow-up, rules) | Run by the author (screenshots): coherent, except the global ranking (invented bins and scores) and invented times; re-run of the affected cases pending |
 
-### Polish (branch `m6-polish`, from `m6-rivy`)
+### Polish (branch `m6-polish`, from `m6-rivy`; PR #10, merged as `64e2fa4`)
 
 Asked on 2026-10-21, after the Rivy fix: Rivy from any page (D-018),
 transitions and action states (D-018) and a high-risk demo scenario
@@ -407,6 +407,22 @@ formula, weight, band or color change. Opened after PR #9 was merged.
 | Audit fixes (2026-10-21): recompute time after the lock; ambiguous plan answers not confirmed, Retry guarded; exact count retry, fields locked; compare_bins in one snapshot; modal Shift+Tab, inert page, `::after` reduced motion, seconds not announced; Rivy through a route handler | `scoring/recompute.ts`, `lib/api.ts`, `app/actions.ts`, `WarehouseHead.tsx`, `CountForm.tsx`, `assistant/tools.ts`, `RivyDock.tsx`, `RivyProvider.tsx`, `app/api/rivy/route.ts` | Yes (each reproduced first, then fixed; API and web tests, 17 browser checks kept in `docs/browser-checks/`) | Visual review reported on `eac93f2`, not itemized |
 | Tests and builds | `npm test`, `npm run build` | Yes (API 133/133, web 14/14) | Yes (on `f864ddb`: API 133/133, web 14/14, builds OK) |
 
-Next: the author's data analysis, on its own branch. Delivery planned for
-Wednesday 2026-10-21; final acceptance of the whole (clean clones, version
-tag) after the extensions.
+### Audit insights (branch `m6-audit-insights`, from `main` after PR #10)
+
+Asked on 2026-10-21 as the author's data analysis (D-019): coverage and
+results of the saved counts of the last 30 days, with an interactive block
+at the bottom of Warehouse. Read only; no new table, migration or
+dependency; no rule, formula, Top 5 or plan change.
+
+| Item | Where | CC verified | WIN verified |
+|---|---|---|---|
+| `GET /insights/audits`: T once, `(T − 30 days, T]`, one read-only `REPEATABLE READ` snapshot; coverage, counts, observed FAIL proportion (null percent without a denominator) for the whole warehouse and each aisle; each bin's latest result in the period (time, then id) | `src/insights/` | Yes (9 tests: the author's worked example, no counts, no bins, simulated audit dates, period bounds and a later count, tie on time, lines and unexpected pallets, identical retry; each of 5 mutations fails them) | Pending |
+| Block: scope selector, three metrics, one stacked bar per aisle, list of a selected part, Clear selection, hint, empty selection, loading and error states, note on the data | `components/AuditInsights.tsx`, `app/page.tsx`, `globals.css` | Yes (browser check 40/40 on two data states, 28/28 without counts) | Visual review reported (aisle A), accepted by the author |
+| Keyboard, touch, focus, reduced motion, both themes, phone and desktop; nothing under Rivy's button | same | Yes (same check; overlap check 40/40) | Pending |
+| Earlier flows kept | — | Yes (2D flows 33/33) | — |
+| Presentation adjustments after the review: light top bar, band and tab bar (dark-letter logo); Recompute scores with its label on phones; Rivy's floating button can be dragged aside (finger or mouse; tap or click opens, drag moves; kept on screen and while navigating; reset from the panel); the overview band at 320 px | `globals.css`, `layout.tsx`, `WarehouseHead.tsx`, `Navigation.tsx`, `RivyProvider.tsx`, `public/rivero-logo-ink.png` | Yes (320 / 375 / 1440, both themes; repository checks, overlap 40/40, flows 33/33) | Pending |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 142/142, web 19/19) | Yes, on `c36d5e3` (API 142/142, web 19/19, builds OK; shared outputs) |
+| Delivery documentation: README for a fresh install (Git or ZIP, versions, configuration, compatibility, first downloads, Rivy optional), `docs/DECISIONS_SUMMARY.md` | `README.md`, `docs/DECISIONS_SUMMARY.md` | Yes (clean clone following only the README, new database: install, Prisma, migrations, demo, 142 + 19 tests, build, start, flows 33/33) | `npm ci`, migrations, tests and build on `c36d5e3` (shared outputs); manual walk not reported |
+
+Delivery planned for Wednesday 2026-10-21. macOS was not run. Version tag
+after the merge and the Windows round.

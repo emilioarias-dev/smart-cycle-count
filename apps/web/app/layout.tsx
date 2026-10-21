@@ -45,7 +45,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <div className="shell">
               <Link className="logo" href="/" aria-label="Smart Cycle Count by Rivero, warehouse">
                 {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed logo */}
-                <img src="/rivero-logo.png" alt="Rivero" width={1080} height={221} />
+                <img className="logo-on-light" src="/rivero-logo-ink.png" alt="Rivero" width={1080} height={221} />
+                {/* eslint-disable-next-line @next/next/no-img-element -- the same logo with white letters */}
+                <img className="logo-on-dark" src="/rivero-logo.png" alt="Rivero" width={1080} height={221} />
                 <span className="product">
                   Smart
                   <br />

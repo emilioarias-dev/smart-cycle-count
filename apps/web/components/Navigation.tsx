@@ -2,7 +2,9 @@
 
 import Link, { useLinkStatus } from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 import { Icon, type IconName } from './Icon';
+import { useRivy } from './RivyProvider';
 
 // The same three destinations in the top bar (wide screens) and in the tab
 // bar (phones). Bin pages belong to the warehouse.
@@ -47,6 +49,14 @@ export function TopNav() {
 
 export function TabBar() {
   const isActive = useActive();
+  // An answer read on /rivy is no longer new for the floating button.
+  const { unread, markRead } = useRivy();
+  const onRivy = isActive('/rivy');
+  useEffect(() => {
+    if (onRivy && unread) {
+      markRead();
+    }
+  }, [onRivy, unread, markRead]);
   return (
     <nav className="tabbar" aria-label="Main (phone)">
       {LINKS.map((link) => (

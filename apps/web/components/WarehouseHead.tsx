@@ -107,18 +107,6 @@ export function WarehouseHead({ binCount, aisleCount, scoresAsOf }: { binCount: 
               <b className="num">{binCount}</b> {binCount === 1 ? 'bin' : 'bins'} · {aisleCount} {aisleCount === 1 ? 'aisle' : 'aisles'}
             </span>
             <span>{scoresAsOf}</span>
-            <button
-              type="submit"
-              form="recompute-scores"
-              className="icon-btn only-sm"
-              aria-disabled={recomputing || undefined}
-              aria-busy={recomputing}
-              onClick={ignoreWhile(recomputing)}
-              aria-label={recomputing ? 'Recomputing scores' : recomputed ? 'Scores recomputed' : 'Recompute scores'}
-              title="Recompute scores"
-            >
-              <Icon name={recomputed ? 'check' : 'refresh'} className={recomputing ? 'spinning' : recomputed ? 'pop' : ''} />
-            </button>
           </p>
         </div>
         <div className="actions">
@@ -127,7 +115,7 @@ export function WarehouseHead({ binCount, aisleCount, scoresAsOf }: { binCount: 
             ref={recomputeButton}
             type="submit"
             form="recompute-scores"
-            className="btn btn-outline hide-sm"
+            className="btn btn-outline recompute"
             aria-disabled={recomputing || undefined}
             aria-busy={recomputing}
             onClick={ignoreWhile(recomputing)}

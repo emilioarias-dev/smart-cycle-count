@@ -132,6 +132,25 @@ export type CountOutcome =
 // One bar of the dashboard chart: the Top 5 of all bins in the D-011 order.
 export type TopScore = { rank: number; binCode: string; score: ScoreDetail };
 
+// Audit insights (D-019): saved counts of the last 30 days, computed by the
+// API on one snapshot. A percent is null when its denominator is 0.
+export type Ratio = { numerator: number; denominator: number; percent: number | null };
+export type ScopeInsights = {
+  aisle: string | null;
+  bins: number;
+  coverage: Ratio;
+  counts: { total: number; pass: number; fail: number };
+  failProportion: Ratio;
+  latestResults: { pass: number; fail: number; none: number };
+};
+export type BinInsights = { code: string; aisle: string; counts: number; latest: { result: CountResult; countedAt: string } | null };
+export type AuditInsights = {
+  reference: string;
+  period: { days: number; start: string; end: string };
+  scopes: ScopeInsights[];
+  bins: BinInsights[];
+};
+
 // Rivy (D-016): one answer, built by the API from its read-only tools.
 export type RivyExchange = { question: string; answer: string };
 type RivyScore = { value: number; band: string; scoreTime: string | null };
@@ -193,6 +212,10 @@ export function getBin(code: string): Promise<ApiResult<BinDetail>> {
 
 export function getTopScores(): Promise<ApiResult<TopScore[]>> {
   return getJson<TopScore[]>('/scores/top');
+}
+
+export function getAuditInsights(): Promise<ApiResult<AuditInsights>> {
+  return getJson<AuditInsights>('/insights/audits');
 }
 
 export function recomputeScores(): Promise<ApiResult<RecomputeSummary>> {

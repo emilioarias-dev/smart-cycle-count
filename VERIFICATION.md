@@ -5,6 +5,19 @@ listed under "Pending" should be read as passing. Decisions are in
 `DECISIONS.md`; implementation status is in `PROGRESS.md`. Checks before
 2026-10-18 are recorded in `HANDOFF.md` §7.
 
+**Kinds of evidence.** Each entry says which kind it is:
+
+- **Run here (CC):** commands executed by Claude Code in its Linux
+  container, with their output read directly.
+- **Shared outputs (WIN):** PowerShell transcripts the author pasted into
+  the conversation; recorded as shown, with the commit when it was printed.
+  No transcript file is kept in the repository.
+- **Reported or manual (WIN):** what the author says they checked by hand
+  (visual reviews, Rivy's real questions), without outputs. These never
+  count as test or build evidence.
+
+macOS (Intel or Apple Silicon) has no entry: it was not run.
+
 ## Environments
 
 | ID | Environment | Notes |
@@ -1140,6 +1153,159 @@ question that states a wrong value) and confirms that Rivy answered all
 of them. Recorded as the author's manual confirmation: no screenshots
 or transcript of the answers are kept here.
 
+## 2026-10-21 — CC: audit insights (code `5c3c2f2` API, `64151e8` web)
+
+Branch `m6-audit-insights` from `main` at `64e2fa4` (PR #10 merged, checked
+with the GitHub API). Production build, PostgreSQL in Docker, Chromium
+through Playwright. Only this container's databases were used: the API
+tests' own database, and the development database of this container,
+reset to the demo twice for the existing flows. No count was written to
+fill the chart: the browser checks used the counts this container's
+earlier checks and flows had saved through the count flow, plus two FAIL
+counts submitted through `POST /audit-tasks/:taskId/count` with a wrong
+quantity.
+
+| Command / check | Result |
+|---|---|
+| `test/insights.e2e-spec.ts` | **9/9**: the author's worked example (whole warehouse 3/30 = 10 %, 4 counts, 2 PASS 2 FAIL, 2/4 = 50 %; latest 2 PASS, 1 FAIL, 27 none; aisle A 2/10 = 20 %, 3 counts, FAIL 1/3 = 33.3 %, bar 2 / 0 / 8; FAIL of aisle B = B-01-01 only), no counts (percent `null`), no bins, the demo's simulated audit dates (no coverage, data and scores unchanged by the read), period bounds (T − 30 days out, T in, T + 1 ms out), a count dated after the request, a tie on time (higher id wins), lines and unexpected pallets (not multiplied), an identical retry (recovered, same figures) |
+| Mutations of the query, one at a time | Each fails the tests: tie by id ascending (1), start included (1), no upper bound (2), counts joined with their lines (1), 0 instead of `null` without a denominator (4) |
+| `npm test` | API **142/142** (17 files); web **14/14** |
+| `npx tsc --noEmit` (API, scripts, web); `npm run build` | Exit 0; builds OK |
+| `docs/browser-checks/audit-insights.cjs` | **40/40** with 6 counts (4 PASS, 2 FAIL), **40/40** after the 2D flows (3 counts), **28/28** after a demo reset (no counts; the selection steps that need a counted bin are skipped). Desktop 1440 and phone 390, light and dark: metrics equal to the API's answer, bars summing to each aisle's bins, a segment click and tap listing the right bins with the metrics unchanged, Clear selection with the focus back, keyboard (arrow keys for the scope, Tab and Enter for a part), an empty selection, a new aisle clearing the selection, focus ring, accessible names with figures, reduced motion, nothing under Rivy's button, no horizontal scroll, loading (`slow-insights`) and error (`502-insights`) with the rest of Warehouse shown |
+| No counts | FAIL proportion "No counts" (not 0 %), coverage 0 / 30 bins 0 %, the chart says no count was saved |
+| Existing checks | 2D flows **33/33**; overlap (Rivy's button and docked panel over every control, pages × widths) **40/40** |
+| Fixed while checking | On a phone a bin code wrapped in the list (`B-02-` / `02`): kept on one line |
+
+Not checked: Safari, Firefox, real phones and Windows.
+
+## 2026-10-21 — WIN: audit insights, visual review (reported by the author)
+
+The author reviewed the Audit insights block on Windows and accepts this
+version. From their screenshot (described in the conversation; the image
+itself is not kept here), with the scope **Aisle A**: coverage 1 of 10
+bins, 1 count recorded (1 PASS, 0 FAIL), and a bar of 1 PASS, 0 FAIL and 9
+bins without a count, which sum to the aisle's 10 bins. Recorded as visual
+acceptance of what was observed only: the commit, and the outputs of
+`npm.cmd test` and `npm.cmd run build`, were not shared, so this entry
+confirms neither.
+
+## 2026-10-21 — CC: presentation adjustments after the author's review (light chrome, phone recompute, Rivy on phones)
+
+Presentation only (D-018, adjustments of 2026-10-21), on `m6-audit-insights`.
+Production build; this container's development database (high-risk demo
+with a 10-bin plan for the screenshots, then the original demo for the
+flows); Gemini **simulated**.
+
+| Command / check | Result |
+|---|---|
+| Screenshots of Warehouse at 320, 375 and 1440 px, light and dark | Light: white top bar with the dark-letter logo (blue symbol unchanged), white overview band, white tab bar; dark: unchanged. At 320 px the priority mix overflowed into the plan column (also before this change): fixed |
+| Logo and the theme toggle | System light → ink logo, toggle → white logo on a black bar; system dark → the reverse: **2/2** |
+| Recompute scores on phones (320 and 375 px, light and dark) | Icon and label together, inside the screen; working (spinner, "Recomputing…") and result ("Scores recomputed"), same width, no horizontal scroll: **8/8** |
+| `docs/browser-checks/modal-keyboard-motion.cjs` (modal on a tablet now; phone step added) | **8/8**: modal keyboard, inert page, Esc and focus, announcements, reduced motion; phone: no floating button; the Rivy tab says "answering", then "new answer", cleared on `/rivy` |
+| Other repository checks | `audit-insights` **28/28** (no counts), `rivy-does-not-block` **3/3**, `ambiguous-plans` **4/4**, `count-retry` **4/4** |
+| Overlap (Rivy's button and docked panel over every control, pages × widths) | **40/40** |
+| 2D flows | **33/33**, after updating two expectations of the old icon-only phone button (its tooltip, and finding it by `aria-label`): it is now found by its visible label |
+| `npm test -w apps/web`; `npx tsc --noEmit` (web); `npm run build -w apps/web` | 14/14; exit 0; build OK. The API is unchanged since the 142/142 run above |
+
+Not checked: Safari, Firefox, real phones and Windows.
+
+## 2026-10-21 — CC: Rivy's button in the phone tab bar (author's request)
+
+The author asked to keep Rivy's smiling avatar on phones and open the panel
+without leaving the page, using the tab bar's place so nothing covers the
+bins. Presentation only; same stack as the entry above (the container's
+Docker had stopped while idle and was restarted; no data change).
+
+| Command / check | Result |
+|---|---|
+| `docs/browser-checks/modal-keyboard-motion.cjs` (phone step rewritten) | **9/9**: tablet modal steps as before; phone 375 px: no floating button, the Rivy tab has the avatar; tapping it opens the modal panel on the same page (`/tasks`); Esc returns the focus to the tab; a ring while answering ("Open Rivy assistant, answering"); a dot for the new answer; the tab opens the same conversation with the answer; ✕ returns the focus; dot cleared |
+| Tab bar at 320 and 375 px, light and dark (screenshots) | Avatar on its black circle in the third tab, labels aligned within 1 px |
+| `audit-insights` / `rivy-does-not-block` | **40/40** / **3/3** |
+| Overlap; 2D flows (original demo) | **40/40**; **33/33** |
+| `npm test -w apps/web`; `npx tsc --noEmit` (web); `npm run build -w apps/web` | 14/14; exit 0; build OK |
+
+## 2026-10-21 — CC: Rivy's button can be dragged (author's request; replaces the tab bar version)
+
+The author preferred to keep the floating button on phones too and let it
+be dragged aside (finger or mouse). The tab bar version of the entry above
+was removed; the Rivy tab is a link to `/rivy` again. Presentation only;
+same stack (the container's Docker and the API had stopped while idle and
+were restarted; no data change).
+
+| Command / check | Result |
+|---|---|
+| `lib/rivy-drag.test.ts` (new, `node --test`) | **5/5**: tap or drag by pointer type (10 px finger, 4 px mouse), offsets kept inside the area, stopped at each edge, brought back inside after a rotation, an area smaller than the button |
+| `docs/browser-checks/rivy-drag.cjs` (new) | **16/16**, run three times: phone 375 px with real touch events: a tap opens the panel and closing returns the focus; a tap with a 6 px shake opens it; a drag of (−150, −300) moves the button by that much, does not open the panel and does not scroll the page; dragged down it stops 8 px above the tab bar, to the top left 8 px from the edge and under the top bar; the offset is kept after navigating to Tasks; rotated to 812 × 375 and back it is brought inside; **Put the button back** returns it to its corner; hidden during a count. Desktop 1440 px: a mouse drag moves it without opening; a click with 2 px of movement opens the docked panel; Enter opens it; the tip of a moved button is above it, on screen. No page errors |
+| Found while checking | A fast mouse drag left the button before the threshold and was not seen: the pointer is now captured on press. A 0.2 s transition of the position left the button 2 px short right after a drag: the position is no longer animated. (The check's own phone measure also included the 2 px hover lift of a touched button: it compares the stored offset instead.) |
+| `modal-keyboard-motion.cjs` | **7/7** (phone step: the floating button opens the sheet on the same page, Esc returns the focus) |
+| `audit-insights`, `rivy-does-not-block`, `ambiguous-plans`, `count-retry` | **40/40**, **3/3**, **4/4**, **4/4** |
+| Overlap; 2D flows (original demo) | **40/40**; **33/33** |
+| `npm test -w apps/web`; `npx tsc --noEmit` (web); `npm run build -w apps/web` | **19/19**; exit 0; build OK. The API is unchanged since the 142/142 run |
+
+Not checked: Safari, Firefox, real phones (real touch screens) and Windows.
+
+## 2026-10-21 — CC: delivery acceptance from a clean clone, following only the README (docs `0492182`, code `fd0328e`)
+
+**Run here (CC).** A fresh `git clone` of
+`https://github.com/emilioarias-dev/smart-cycle-count.git` into an empty
+folder outside the working copy, `git switch m6-audit-insights` (head
+`0492182ff25c1488db0188960617660562b3c255`; the README clones `main`, which
+will hold the same files after the merge), then the README's steps in
+order. A **new dedicated database** (`smart_cycle_count_accept`, tests in
+`smart_cycle_count_accept_test`), set in `apps/api/.env` as the README's
+note for an existing install says; the existing databases were not touched
+(`smart_cycle_count` still had its 30 bins afterwards). Code identical to
+the PR head before it: `git diff fd0328e..0492182 -- apps docker-compose.yml
+package.json package-lock.json .npmrc .nvmrc .node-version` is empty.
+
+| README step | Result |
+|---|---|
+| 1. `git clone …`; `cd` | Cloned; `git status` clean |
+| 2. Versions | `node` v24.22.0, `npm` 11.19.1, Docker 29.8.2, Compose v5.6.0 |
+| 3. `cp apps/api/.env.example apps/api/.env`, same for web; database names changed to the dedicated ones | `PORT=3001`, `GEMINI_API_KEY` empty, `API_BASE_URL=http://localhost:3001` |
+| 4. `npm ci` (with an empty npm cache, set by `npm_config_cache`, so every package came from the registry) | Exit 0, 23 s: `added 458 packages, and audited 461 packages`, `found 0 vulnerabilities`. npm printed a notice about npm 12 (now explained in the README: do not update). Prisma's schema engine was present afterwards; this machine already had Prisma's cache (`~/.cache/prisma`), so this run does not show its download |
+| 5. `npm run db:up` | Container `Healthy`; `docker compose ps`: `127.0.0.1:5433->5432/tcp` |
+| 6. `npm run db:generate`; `npm run db:migrate` | Prisma Client 7.10.1 generated; "PostgreSQL database smart_cycle_count_accept created"; 6 migrations applied; exit 0 |
+| 7. `SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo` | Target printed (`smart_cycle_count_accept`); 30 bins (2 empty, 11 never audited), 12 products, 110 pallets; 0 high, 9 medium, 21 low; exit 0 |
+| 8. `npm test` | Test database created; API **142/142** (17 files); web **19/19**; exit 0; the two expected messages only (`[Nest] ERROR … simulated failure while recomputing`, one `pg` DeprecationWarning) |
+| 9. `npm run build` | API and web built; routes `/`, `/api/rivy`, `/bins/[code]`, `/count`, `/rivy`, `/tasks`; exit 0 |
+| 9. `npm run dev` | Web `/`, `/tasks`, `/count`, `/rivy`, `/bins/A-01-03`: 200; API `/warehouse`, `/scores/top`, `/insights/audits`, `/demo`: 200 |
+| Rivy without a key | `POST /api/rivy` → `NOT_CONFIGURED`, "Rivy is not configured: set GEMINI_API_KEY in apps/api/.env and restart the API."; in the browser the same message with "The rest of the app keeps working", then Warehouse with Audit insights loads; no page errors |
+| Existing walkthroughs on this install | 2D flows **33/33** (plan, counts PASS / FAIL / conflict, recompute, phone button); `docs/browser-checks/rivy-drag.cjs` **16/16** |
+| Afterwards | `git status` of the clone: no tracked change |
+
+Also confirmed for the README's compatibility notes: the lockfile has the
+`darwin-x64` and `darwin-arm64` builds of `@next/swc`, `lightningcss`,
+`@img/sharp` (and `sharp-libvips`) and `@rolldown/binding`; the pinned
+PostgreSQL digest `ca0bd484…b641d` is a multi-platform index (`docker image
+ls --tree`: linux/amd64, linux/arm64/v8, arm/v5, arm/v7, 386, ppc64le,
+riscv64, s390x; only amd64 is downloaded here). The `16.15` tag on Docker
+Hub was republished on 2026-10-21 with another digest; the pin is
+unchanged. macOS itself was not run.
+
+## 2026-10-21 — WIN: delivery candidate `c36d5e3`, tests and builds — **PASSED** (shared outputs: PowerShell transcript pasted by the author)
+
+**Shared outputs (WIN).** Commands in the transcript: `git fetch origin`,
+`git switch m6-audit-insights` ("up to date with 'origin/m6-audit-insights'"),
+`git pull --ff-only` ("Already up to date"), `git rev-parse HEAD` →
+`c36d5e3361c14acfd823dbf7e24554fa1c9de67f`, `npm.cmd ci`,
+`npm.cmd run db:up`, `npm.cmd run db:migrate`, `npm.cmd test`,
+`npm.cmd run build`. The author's existing development database was used
+and not reset.
+
+| Command | Result |
+|---|---|
+| `npm.cmd ci` | `added 457 packages, and audited 460 packages`, `found 0 vulnerabilities` (458 / 461 on Linux: platform-specific optional packages) |
+| `npm.cmd run db:up` | Container `Healthy` |
+| `npm.cmd run db:migrate` | `smart_cycle_count`: 6 migrations found, none pending |
+| `npm.cmd test` (API) | **142/142**, 17 files, 160.37 s; test database: none pending. Includes `insights.e2e-spec.ts` (9). The two expected messages only: `[Nest] ERROR … simulated failure while recomputing` (rollback test) and one `pg` DeprecationWarning (the detector's self-test) |
+| `npm.cmd test` (web) | **19/19** (API client, 3D geometry, Rivy's button: tap or drag, kept inside) |
+| `npm.cmd run build` | API and web OK (Next.js 16.4.2, Turbopack); routes `/`, `/api/rivy`, `/bins/[code]`, `/count`, `/rivy`, `/tasks` |
+
+Not in the transcript: `npm.cmd run dev` and the short manual walk
+(Audit insights, light chrome, Recompute scores on a narrow window,
+dragging Rivy's button). They are not recorded as done.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1179,9 +1345,19 @@ Windows (WIN):
   2026-10-21) are recorded above. The quota is not exhausted on purpose:
   quota errors were tested simulated.
 
-Polish (`m6-polish`), code `eac93f2`: nothing required pending. Windows
-tests and builds on `f864ddb`, the author's visual review and the manual
-confirmation of Rivy's real questions are recorded above.
+Polish (`m6-polish`): nothing pending (merged through PR #10 as `64e2fa4`).
+
+Audit insights and delivery (`m6-audit-insights`, PR #11): the author's
+visual review of the block, the clean-clone acceptance (CC) and the
+Windows tests and builds on the candidate `c36d5e3` (shared outputs) are
+recorded above. Only the short manual walk on Windows remains unreported
+(Audit insights, light chrome, Recompute scores on a narrow window,
+dragging Rivy's button); it is not a test or build result. Code delivered =
+code tested: `git diff c36d5e3..<final> -- apps docker-compose.yml
+package.json package-lock.json .npmrc .nvmrc .node-version` is empty when
+only documentation changed after `c36d5e3`.
+
+Not run: macOS (Intel and Apple Silicon), Safari, Firefox, real phones.
 
 Later or optional:
 
