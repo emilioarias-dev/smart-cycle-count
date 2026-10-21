@@ -1104,6 +1104,15 @@ was reset.
 Not checked: Safari, Firefox, real phones, the real Gemini through the
 route handler, and Windows.
 
+## 2026-10-21 — WIN: polish on `eac93f2`, visual review (reported by the author)
+
+The author tested the latest version of `m6-polish` on Windows and reports
+that everything they reviewed works, with no new issues. Recorded as
+visual acceptance of what was observed only, apart from tests and builds:
+the items reviewed were not listed one by one, and no `npm.cmd test` or
+`npm.cmd run build` output on `eac93f2` was shared, so this entry confirms
+neither. The automated evidence for this commit is the CC run above.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1145,13 +1154,12 @@ Windows (WIN):
   replaced. The quota is not exhausted on purpose: quota errors were
   tested simulated.
 
-Polish (`m6-polish`), pending on Windows, in one round on the final commit:
-`npm.cmd test` (133 API + 14 web) and `npm.cmd run build`; a short walk
-through the corrected cases (recompute after a count, a plan answer not
-confirmed, a count retry, the modal panel by keyboard, Create plan while
-Rivy waits); and Rivy's real questions still pending (the global ranking,
-a follow-up with history, a comparison, a question that states a wrong
-value). Not merged before that evidence is reviewed.
+Polish (`m6-polish`), on `eac93f2`: the author's visual review on Windows
+is recorded above. Still pending before the merge: the Windows outputs of
+`npm.cmd test` (133 API + 14 web) and `npm.cmd run build`, and whether
+Rivy's real questions (the global ranking, a follow-up with history, a
+comparison, a question that states a wrong value) were part of the review,
+with the text shown or replaced.
 
 Later or optional:
 

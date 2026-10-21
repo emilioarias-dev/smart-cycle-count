@@ -396,17 +396,17 @@ formula, weight, band or color change. Opened after PR #9 was merged.
 
 | Item | Where | CC verified | WIN verified |
 |---|---|---|---|
-| Floating button with Rivero's smiling symbol, hover / focus effect, ring while answering, dot for a new answer | `components/RivyDock.tsx`, `RivyAvatar.tsx` | Yes (browser checks) | Pending |
-| Same conversation everywhere, kept while navigating; docked ≥ 1100 px, drawer / sheet below; focus, Esc, Tab kept inside a modal | `components/RivyProvider.tsx`, `RivyDock.tsx`, `app/layout.tsx` | Yes (browser checks) | Pending |
-| Button hidden on `/rivy` and while counting; nothing interactive under the button or the docked panel | `CountForm.tsx`, `globals.css` | Yes (40 page × width checks; fails without the rule) | Pending |
-| Create plan / Recompute: working, check with the real result (partial plans), rejected / failed + Retry / not confirmed | `WarehouseHead.tsx`, `app/actions.ts`, `lib/api.ts` | Yes (real API behind a proxy that cuts or drops answers) | Pending |
-| Count: "Result unknown", send again (recovered), focus on the result | `CountForm.tsx` | Yes (same proxy) | Pending |
-| Staggered entry of the main blocks, link loading bar, theme cross-fade, Rivy reading indicator, progressive reveal of a validated answer; no motion with reduced motion | `app/template.tsx`, `Navigation.tsx`, `ThemeToggle.tsx`, `RivyChat.tsx`, `globals.css` | Yes (20 checks) | Pending |
-| High-risk scenario: planned inputs for 8 high, 12 medium, 10 low, different scores per band, with the unchanged formula; original demo unchanged; scenario in the top bar | `src/demo-data/high-risk.ts`, `demo.controller.ts`, migration | Yes (tests: SQL formula, plan, fingerprint; a wrong plan fails) | Pending |
+| Floating button with Rivero's smiling symbol, hover / focus effect, ring while answering, dot for a new answer | `components/RivyDock.tsx`, `RivyAvatar.tsx` | Yes (browser checks) | Visual review reported on `eac93f2`, not itemized |
+| Same conversation everywhere, kept while navigating; docked ≥ 1100 px, drawer / sheet below; focus, Esc, Tab kept inside a modal | `components/RivyProvider.tsx`, `RivyDock.tsx`, `app/layout.tsx` | Yes (browser checks) | Visual review reported on `eac93f2`, not itemized |
+| Button hidden on `/rivy` and while counting; nothing interactive under the button or the docked panel | `CountForm.tsx`, `globals.css` | Yes (40 page × width checks; fails without the rule) | Visual review reported on `eac93f2`, not itemized |
+| Create plan / Recompute: working, check with the real result (partial plans), rejected / failed + Retry / not confirmed | `WarehouseHead.tsx`, `app/actions.ts`, `lib/api.ts` | Yes (real API behind a proxy that cuts or drops answers) | Visual review reported on `eac93f2`, not itemized |
+| Count: "Result unknown", send again (recovered), focus on the result | `CountForm.tsx` | Yes (same proxy) | Visual review reported on `eac93f2`, not itemized |
+| Staggered entry of the main blocks, link loading bar, theme cross-fade, Rivy reading indicator, progressive reveal of a validated answer; no motion with reduced motion | `app/template.tsx`, `Navigation.tsx`, `ThemeToggle.tsx`, `RivyChat.tsx`, `globals.css` | Yes (20 checks) | Visual review reported on `eac93f2`, not itemized |
+| High-risk scenario: planned inputs for 8 high, 12 medium, 10 low, different scores per band, with the unchanged formula; original demo unchanged; scenario in the top bar | `src/demo-data/high-risk.ts`, `demo.controller.ts`, migration | Yes (tests: SQL formula, plan, fingerprint; a wrong plan fails) | Visual review reported on `eac93f2`, not itemized |
 | Earlier checks kept | — | Yes (2D flows 33/33, Count fields, chart, 56 views, 3D 30/30 + interaction + 8 views, Rivy 67/67 + 22/22) | — |
-| Audit fixes (2026-10-21): recompute time after the lock; ambiguous plan answers not confirmed, Retry guarded; exact count retry, fields locked; compare_bins in one snapshot; modal Shift+Tab, inert page, `::after` reduced motion, seconds not announced; Rivy through a route handler | `scoring/recompute.ts`, `lib/api.ts`, `app/actions.ts`, `WarehouseHead.tsx`, `CountForm.tsx`, `assistant/tools.ts`, `RivyDock.tsx`, `RivyProvider.tsx`, `app/api/rivy/route.ts` | Yes (each reproduced first, then fixed; API and web tests, 17 browser checks kept in `docs/browser-checks/`) | Pending |
-| Tests and builds | `npm test`, `npm run build` | Yes (API 133/133, web 14/14) | Pending |
+| Audit fixes (2026-10-21): recompute time after the lock; ambiguous plan answers not confirmed, Retry guarded; exact count retry, fields locked; compare_bins in one snapshot; modal Shift+Tab, inert page, `::after` reduced motion, seconds not announced; Rivy through a route handler | `scoring/recompute.ts`, `lib/api.ts`, `app/actions.ts`, `WarehouseHead.tsx`, `CountForm.tsx`, `assistant/tools.ts`, `RivyDock.tsx`, `RivyProvider.tsx`, `app/api/rivy/route.ts` | Yes (each reproduced first, then fixed; API and web tests, 17 browser checks kept in `docs/browser-checks/`) | Visual review reported on `eac93f2`, not itemized |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 133/133, web 14/14) | Pending (outputs on `eac93f2` not shared) |
 
 Next: the author's data analysis, on its own branch. Delivery planned for
-Thursday 2026-10-22; final acceptance of the whole (clean clones, version
+Wednesday 2026-10-21; final acceptance of the whole (clean clones, version
 tag) after the extensions.
