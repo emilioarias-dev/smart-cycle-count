@@ -449,6 +449,64 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
 .draft summary { cursor: pointer; font-weight: 600; min-height: 2.75rem; display: flex; align-items: center; }
 .changes { margin: 0.5rem 0 0; padding-left: 1.2rem; }
 
+/* Audit insights (D-019). Count results use the PASS / FAIL colors of the
+   result badges, FAIL also hatched, and "no count" a neutral grey: none of
+   them is a priority band color. Labels and figures always go with them. */
+.insights { margin-bottom: 4rem; }
+.ins-loading { display: flex; align-items: center; gap: 0.6rem; margin: 0; color: var(--muted); font-size: 0.9rem; }
+.ins-period { display: flex; gap: 0.45rem; margin: 0 0 1rem; font-size: 0.82rem; color: var(--muted); }
+.ins-period .icon { margin-top: 0.2rem; }
+.ins-period b { color: var(--text); font-weight: 600; }
+.ins-scope { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0 0 1.2rem; padding: 0; border: 0; }
+.ins-scope legend { float: left; margin-right: 0.4rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.ins-scope label { position: relative; }
+.ins-scope input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.ins-scope span { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 1.05rem; border: 1px solid var(--line); border-radius: var(--pill); font-size: 0.82rem; font-weight: 500; transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease); }
+.ins-scope label:hover span { border-color: var(--muted); }
+.ins-scope input:checked + span { background: var(--text); border-color: var(--text); color: var(--surface); }
+.ins-scope input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 3px; }
+.ins-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); }
+.ins-metric { display: grid; gap: 0.35rem; align-content: start; padding: 1rem 1.2rem; }
+.ins-metric + .ins-metric { border-left: 1px solid var(--line); }
+.ins-metric-title { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.ins-metric-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.3rem; font-size: 2rem; font-weight: 500; line-height: 1.1; letter-spacing: -0.02em; }
+.ins-metric-value small { font-size: 0.9rem; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.ins-metric-value em { margin-left: auto; font-style: normal; font-size: 1.05rem; font-weight: 600; letter-spacing: 0; }
+.ins-metric-detail { font-size: 0.78rem; color: var(--muted); }
+.ins-chart { margin-top: 1.6rem; }
+.ins-chart h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.ins-sub { margin: 0.2rem 0 0.7rem; font-size: 0.82rem; color: var(--muted); }
+.ins-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin: 0 0 0.6rem; padding: 0; list-style: none; font-size: 0.76rem; color: var(--muted); }
+.ins-swatch { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; vertical-align: -1px; }
+.ins-swatch.pass, .ins-seg.pass { background: var(--ok); }
+.ins-swatch.fail, .ins-seg.fail { background: repeating-linear-gradient(135deg, var(--bad) 0 4px, color-mix(in srgb, var(--bad) 70%, var(--surface)) 4px 6px); }
+.ins-swatch.none, .ins-seg.none { background: color-mix(in srgb, var(--muted) 35%, var(--surface)); }
+.ins-rows { display: grid; gap: 1.1rem; margin: 0; padding: 0; list-style: none; }
+.ins-row-head { display: flex; gap: 0.6rem; align-items: baseline; margin: 0 0 0.35rem; font-size: 0.88rem; }
+.ins-row-head .muted { font-size: 0.8rem; }
+.ins-bar { display: flex; gap: 2px; height: 1.6rem; }
+.ins-seg { display: block; flex-basis: 0; min-width: 4px; height: 100%; padding: 0; border: 0; cursor: pointer; transition: opacity 0.15s var(--ease), box-shadow 0.15s var(--ease); }
+.ins-row.has-selection .ins-seg:not(.selected) { opacity: 0.4; }
+.ins-seg.selected { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.ins-parts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.ins-part { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 2.75rem; padding: 0 0.9rem; border: 1px solid var(--line); border-radius: var(--pill); background: transparent; color: var(--text); font: inherit; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease); }
+.ins-part:hover { border-color: var(--muted); }
+.ins-part .ins-swatch { margin-right: 0; }
+.ins-part .icon { width: 0.85rem; height: 0.85rem; stroke-width: 2.3; }
+.ins-part b { margin-left: 0.15rem; font-size: 0.9rem; }
+.ins-part[aria-pressed='true'] { border-color: var(--text); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--text); }
+.ins-list { margin-top: 1.4rem; padding-top: 1.1rem; border-top: 1px solid var(--line); }
+.ins-list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; }
+.ins-list-head p { margin: 0; font-size: 0.92rem; }
+.ins-list-head .muted { font-size: 0.8rem; }
+.ins-hint, .ins-empty { display: flex; align-items: center; gap: 0.45rem; margin: 0; font-size: 0.86rem; color: var(--muted); }
+.ins-table { margin-top: 0.6rem; }
+.ins-table .code { white-space: nowrap; }
+.ins-latest { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; }
+/* A changed scope or selection fades in; the figures themselves never count up. */
+.ins-fade { animation: ins-fade 0.18s var(--ease); }
+@keyframes ins-fade { from { opacity: 0; } }
+
 /* 6. RESPONSIVE */
 .only-sm { display: none !important; }
 
@@ -519,6 +577,13 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
   .why-row .mini { grid-column: 1 / -1; grid-row: 3; }
   .why-row .pts { grid-row: 1 / 3; grid-column: 2; }
   .chart-axis, .chart-row { grid-template-columns: 4.2rem minmax(0, 1fr) 2rem; gap: 0.5rem; }
+  .ins-metrics { grid-template-columns: minmax(0, 1fr); }
+  .ins-metric + .ins-metric { border-left: 0; border-top: 1px solid var(--line); }
+  .ins-metric { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; padding: 0.75rem 0.9rem; gap: 0.2rem 0.75rem; }
+  .ins-metric-detail { grid-column: 1 / -1; }
+  .ins-metric-value { font-size: 1.5rem; justify-content: flex-end; }
+  .ins-metric-value em { margin-left: 0.4rem; }
+  .ins-part { padding: 0 0.7rem; }
   .chart-detail { margin-left: 0; }
   .search { margin-bottom: 1.25rem; }
   .task-card { padding: 1rem; }

@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
+import { Suspense } from 'react';
+import { AuditInsights } from '../components/AuditInsights';
 import { BreakdownChart } from '../components/BreakdownChart';
 import { HeatmapViews } from '../components/HeatmapViews';
 import { Icon } from '../components/Icon';
 import { StatusCard } from '../components/StatusCard';
 import { TaskState } from '../components/TaskState';
 import { WarehouseHead } from '../components/WarehouseHead';
-import { type ApiResult, type AuditTask, type Priority, type ScoreSummary, type TopScore, type WarehouseLayout, getAuditTasks, getTopScores, getWarehouse } from '../lib/api';
+import { type ApiResult, type AuditTask, type Priority, type ScoreSummary, type TopScore, type WarehouseLayout, getAuditInsights, getAuditTasks, getTopScores, getWarehouse } from '../lib/api';
 import { plural, twoDigits, utcDateTime } from '../lib/format';
 import type { Bin3D } from '../lib/heatmap3d';
 
@@ -17,7 +19,8 @@ const BAND_NAME: Record<Priority, string> = { high: 'High', medium: 'Medium', lo
 
 // The warehouse dashboard (D-013): an overview band, the heatmap by aisle and
 // rack colored by audit priority (D-010; color always with the number and a
-// label), the latest plan, and the score breakdown of the Top 5 bins.
+// label), the latest plan, the score breakdown of the Top 5 bins, and the
+// audit insights of the last 30 days (D-019), loaded on their own.
 export default async function WarehousePage() {
   // Rendered on every request, never at build time.
   await connection();
@@ -219,8 +222,43 @@ export default async function WarehousePage() {
           </section>
         </aside>
       </div>
+
+      <section className="panel insights" aria-labelledby="insights-title">
+        <div className="panel-head">
+          <h2 id="insights-title">
+            Audit insights<span className="dot">.</span>
+          </h2>
+          <p className="panel-sub">What part of the warehouse have we counted, and what did we find?</p>
+        </div>
+        <div className="panel-body">
+          <Suspense
+            fallback={
+              <p className="ins-loading" role="status">
+                <span className="spinner" aria-hidden="true" />
+                Loading the audit insights…
+              </p>
+            }
+          >
+            <InsightsBody />
+          </Suspense>
+        </div>
+      </section>
     </main>
   );
+}
+
+// Streamed after the rest of the page: a slow or failed answer here does not
+// hold back or break the dashboard.
+async function InsightsBody() {
+  const insights = await getAuditInsights();
+  if (insights.status !== 'ok') {
+    return (
+      <StatusCard kind="error" title="Could not load the audit insights" action={{ href: '/', label: 'Try again' }}>
+        {insights.status === 'error' ? insights.reason : 'The API does not provide the audit insights (GET /insights/audits returned 404).'}
+      </StatusCard>
+    );
+  }
+  return <AuditInsights data={insights.data} />;
 }
 
 function PlainHead() {
