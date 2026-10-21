@@ -575,11 +575,15 @@ Windows; branch `m6-audit-insights`).** Presentation only:
   button as wide screens (icon and label together, a full row above Top N
   and Create plan), with the same working and result states.
 - **Rivy on phones:** the floating button covered part of the heatmap
-  (the last bin of a rack). Where the tab bar is shown (up to 640 px) the
-  floating button is not shown: Rivy is the tab bar's **Rivy** tab, which
-  now carries the button's states (a pulsing dot while answering, a dot for
-  a new answer, both in its name), cleared when `/rivy` is opened. Tablets
-  and desktops keep the floating button and its panel unchanged.
+  (the last bin of a rack). Where the tab bar is shown (up to 640 px) it
+  takes the place of the tab bar's **Rivy** tab instead: Rivy's smiling
+  avatar on its black circle, labelled "Rivy", which opens the same panel
+  (the nearly full-screen sheet, same conversation) without leaving the
+  page. It carries the button's states (a ring while answering, a dot for a
+  new answer, both also in its name); closing the panel returns the focus
+  to it. On `/rivy` the tab is the current page, and opening `/rivy` marks
+  a new answer as read. Tablets and desktops keep the floating button
+  unchanged.
 - **320 px:** the overview band's three figures are slightly smaller there
   so the priority mix stays in its column.
 

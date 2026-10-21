@@ -443,9 +443,10 @@ project and shown in AI Studio (<https://aistudio.google.com/rate-limit>).
 **From any page.** The round Rivy button at the bottom right (Rivero's
 symbol with a smile) opens the same conversation in a panel: docked at the
 right on wide screens (the page narrows beside it, nothing is covered) and
-a drawer on tablets. On phones there is no floating button (it would cover
-the page): the **Rivy** tab of the tab bar opens the conversation, and shows
-a pulsing dot while Rivy answers and a dot for a new answer. Esc or ✕ closes
+a drawer on tablets. On phones the button sits in the tab bar instead, as
+the **Rivy** tab (the same smiling avatar), so it covers nothing: it opens
+the conversation in a nearly full-screen sheet without leaving the page,
+with a ring while Rivy answers and a dot for a new answer. Esc or ✕ closes
 it; ⤢ opens the full page. The conversation is kept while you move between
 pages. The button is hidden on the Rivy page and while a count is being
 entered (Rivy stays in the navigation). A dot on the button means an answer

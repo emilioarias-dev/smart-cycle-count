@@ -1196,6 +1196,21 @@ flows); Gemini **simulated**.
 
 Not checked: Safari, Firefox, real phones and Windows.
 
+## 2026-10-21 — CC: Rivy's button in the phone tab bar (author's request)
+
+The author asked to keep Rivy's smiling avatar on phones and open the panel
+without leaving the page, using the tab bar's place so nothing covers the
+bins. Presentation only; same stack as the entry above (the container's
+Docker had stopped while idle and was restarted; no data change).
+
+| Command / check | Result |
+|---|---|
+| `docs/browser-checks/modal-keyboard-motion.cjs` (phone step rewritten) | **9/9**: tablet modal steps as before; phone 375 px: no floating button, the Rivy tab has the avatar; tapping it opens the modal panel on the same page (`/tasks`); Esc returns the focus to the tab; a ring while answering ("Open Rivy assistant, answering"); a dot for the new answer; the tab opens the same conversation with the answer; ✕ returns the focus; dot cleared |
+| Tab bar at 320 and 375 px, light and dark (screenshots) | Avatar on its black circle in the third tab, labels aligned within 1 px |
+| `audit-insights` / `rivy-does-not-block` | **40/40** / **3/3** |
+| Overlap; 2D flows (original demo) | **40/40**; **33/33** |
+| `npm test -w apps/web`; `npx tsc --noEmit` (web); `npm run build -w apps/web` | 14/14; exit 0; build OK |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1242,8 +1257,8 @@ acceptance of the block on Windows are recorded above. Still pending before
 the merge, in one round on the final commit: `npm.cmd test` (142 API + 14
 web) and `npm.cmd run build`, with the commit (`git rev-parse HEAD`); and a
 look at the presentation adjustments (light top bar, band and tab bar with
-the dark logo; Recompute scores on a narrow window; no floating Rivy button
-on a narrow window, the Rivy tab instead).
+the dark logo; Recompute scores on a narrow window; on a narrow window, the
+Rivy tab with the avatar opening the panel on the same page).
 
 Later or optional:
 
