@@ -1,6 +1,6 @@
 # Browser regression checks
 
-Scripts kept from the verification of 2026-10-21 (see `VERIFICATION.md`):
+Scripts kept from the verifications of 2026-10-21 (see `VERIFICATION.md`):
 real browser checks of cases that the unit and API tests cannot reach.
 They are **not part of `npm test`** and add no dependency to the project:
 they need [Playwright](https://playwright.dev) with Chromium installed on
@@ -12,10 +12,11 @@ with `fuser` and `nohup`). They were run on Linux.
 | `ambiguous-plans.cjs` | Create plan when the plan is saved but the answer is a 502 or a cut-off body, and when the Server Action's own answer is lost: "Plan not confirmed", a link to Tasks, no Retry; Retry pressed three times while pending sends one request |
 | `count-retry.cjs` | A count whose result is unknown: "Send the same count again" resends exactly what was sent (also after a quantity was changed); the fields cannot change while sending; "Change quantities" is a new count, rejected without overwriting the saved one |
 | `modal-keyboard-motion.cjs` | Rivy's modal panel: Shift+Tab from the title stays inside, the page behind is inert, Esc returns the focus; the waiting seconds are not announced; reduced motion stops the busy ring (`::after`) |
+| `audit-insights.cjs` | The Audit insights block (D-019) against the API's own answer: metrics per scope, bars summing to each aisle's bins, a segment click or tap and a label by keyboard listing the right bins without changing the metrics, Clear selection and focus, an empty selection, a new aisle clearing the selection, reduced motion, nothing under Rivy's button, and the loading and error states (proxy modes `slow-insights` and `502-insights`); desktop and phone, light and dark |
 | `rivy-does-not-block.cjs` | With a slow Gemini, Create plan reaches the API and shows its result while Rivy waits; after a Gemini timeout the app keeps working |
 
 Helpers: `proxy.cjs` (port 3001, in front of the API on 3002: it can delay,
-cut or drop answers, and logs every request) and `mock-gemini.cjs` (a
+cut or drop answers, delay or fail `/insights` only, and logs every request) and `mock-gemini.cjs` (a
 simulated Gemini on 127.0.0.1:4010; it is not the real model). Their modes
 are files in `$CHECKS_STATE` (default: `<tmp>/scc-browser-checks`).
 

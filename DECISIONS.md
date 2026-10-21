@@ -13,7 +13,7 @@ accepted by the author; D-006 to D-009 accepted for milestone 2; D-010 for
 milestone 3; E-004 and E-009 table statuses brought up to date; D-011 and
 the D-009 reset scope for plans accepted for milestone 4; 2026-10-19: D-012,
 D-010 formula v2 and the D-009 reset scope for counts accepted for
-milestone 5; 2026-10-20: D-013 to D-016; 2026-10-21: D-017, D-018). Milestone 1
+milestone 5; 2026-10-20: D-013 to D-016; 2026-10-21: D-017, D-018, D-019). Milestone 1
 implements E-002 to E-008; see `PROGRESS.md` for what milestone 2
 implements. "Claude's Linux workspace"
 below means the claude.ai session's cloud workspace where these decisions were
@@ -40,11 +40,12 @@ in the dated tables kept below).
 | D-011 | Audit plans (Top N) and tasks | Accepted |
 | D-012 | Count flow: access, unexpected pallets, retries, conflicts and results | Accepted |
 | D-013 | Visual direction: Rivero identity and dashboard additions | Accepted; implemented (PR #7, merged as `d8150d3`) |
-| D-014 | Next extensions: 3D heatmap, Rivy, data analysis | Accepted as direction; 3D (D-015) and Rivy (D-016) implemented, data analysis not started |
+| D-014 | Next extensions: 3D heatmap, Rivy, data analysis | Accepted as direction; 3D (D-015), Rivy (D-016) and the data analysis (D-019) implemented |
 | D-015 | 3D heatmap: view, scale, camera and interaction | Accepted; implemented (PR #8, merged as `53628f1`) |
 | D-016 | Rivy: read-only assistant on Gemini | Accepted; implemented (PR #9, merged as `4a3664c`) |
-| D-017 | Demo scenarios: the original demo and a high-risk one | Accepted; implemented on `m6-polish`, not merged yet |
-| D-018 | Rivy from any page, motion and action states | Accepted; implemented on `m6-polish`, not merged yet |
+| D-017 | Demo scenarios: the original demo and a high-risk one | Accepted; implemented (PR #10, merged as `64e2fa4`) |
+| D-018 | Rivy from any page, motion and action states | Accepted; implemented (PR #10, merged as `64e2fa4`) |
+| D-019 | Audit insights: coverage and results of saved counts | Accepted; implemented on `m6-audit-insights`, not merged yet |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -420,6 +421,74 @@ Limitations: one level per rack; no capacity per bin (see D-007).
 
 ---
 
+## D-019 — Audit insights: coverage and results of saved counts
+
+**Status:** Accepted (2026-10-21, scope defined by the author); implemented
+on branch `m6-audit-insights`. Read only: no rule, formula, Top 5 or plan
+change; no new dependency, table or migration.
+
+The **Audit insights** block at the bottom of Warehouse answers "What part
+of the warehouse have we counted, and what did we find?". The Top 5 keeps
+explaining priority; this block looks at the **saved counts of all plans**.
+
+- **Period:** the last 30 days, `(T − 30 days, T]`: a count at exactly
+  T − 30 days is left out, one at T is in. T is the server time, taken once
+  per request by the API (`GET /insights/audits`) and returned with the
+  period; the page shows both in UTC. Neither `SEED_NOW`, the simulated
+  audit dates nor the scores' reference stands in for the count times. A
+  count dated after T is not used.
+- **One state:** both queries run in one read-only `REPEATABLE READ`
+  transaction, so the metrics, the bars and the list come from the same
+  counts and bins. Reading never recomputes scores or changes data.
+- **Scope:** the whole warehouse or one aisle (the aisles come from the
+  data). For each scope:
+  - **Coverage** = distinct bins with at least one saved count in the
+    period / bins in the scope now. Shown as a fraction and a percentage.
+  - **Counts recorded** = saved counts in the period, with PASS and FAIL.
+  - **Observed FAIL proportion** = FAIL counts / counts in the period: the
+    counts observed, not an estimate of errors in the whole warehouse.
+  - With no counts, the FAIL proportion is undefined: "No counts", never
+    0 %. With no bins, the coverage has no percentage either ("No bins").
+    The API returns `percent: null` in both cases (one decimal otherwise).
+- **Latest result per bin:** one stacked bar per aisle; each bin is in
+  exactly one part, by its **latest count in the period** (`counted_at`
+  descending, then id descending): latest PASS, latest FAIL, or no count
+  in the period. The parts sum to the aisle's bins. It is not every count,
+  and not only the latest plan.
+- **Nothing inferred:** no result comes from `lastAuditedAt` (the demo's
+  simulated audit dates have no count behind them); no count is not a PASS;
+  no quantity of goods is summed. A count is one row whatever its lines and
+  unexpected pallets; an identical retry is recovered (D-012), not a new
+  count.
+- **Where it is computed:** the definitions and aggregations are in the
+  API (PostgreSQL), including the percentages. The page only picks which
+  scope to show and filters the per-bin rows of the same answer for the
+  list; it computes no metric.
+- **Interaction:** a local scope selector (All aisles / A / B / C, radio
+  buttons) changes the three metrics and shows that scope's bars, and
+  clears any selection; the rest of Warehouse is unaffected. A part of a
+  bar, or its label under the bar, selects that aisle and part and lists
+  its bins below (link, latest result and date in the period, counts in the
+  period); it only filters the list, never the metrics or their
+  denominators. **Clear selection** returns the focus to the part's label.
+  Before a selection, a short hint; a selection with no bins says so. The
+  labels are the keyboard and screen reader controls (with their figures);
+  the bar segments are a pointer and touch target of the same action, so a
+  narrow segment is never widened.
+- **Presentation:** PASS and FAIL use the colors of the result badges,
+  FAIL also hatched, and "no count" a neutral grey, always with labels and
+  figures: they are not the priority band colors. A changed scope or
+  selection fades in for 0.18 s; figures never count up; no motion with
+  reduced motion. The block is loaded on its own (Suspense): a loading
+  message, and an error message that leaves the rest of Warehouse working.
+  A note says the data is a demo and that the observed FAIL proportion is
+  not the warehouse's error rate: bins are chosen by priority and can be
+  counted more than once.
+- **Out of scope:** machine learning, score sensitivity, custom date
+  ranges, exports and new Rivy tools.
+
+---
+
 ## D-018 — Rivy from any page, motion and action states
 
 **Status:** Accepted (2026-10-21, after the author reviewed a mockup);
@@ -708,11 +777,11 @@ follow in their own branches.
 
 ## D-014 — Next extensions: 3D heatmap, Rivy, data analysis
 
-**Status:** Accepted as direction (2026-10-20); the 3D heatmap (D-015) and
-Rivy (D-016) are implemented, the data analysis is not. Each
+**Status:** Accepted as direction (2026-10-20); the 3D heatmap (D-015),
+Rivy (D-016) and the data analysis (audit insights, D-019) are implemented. Each
 extension gets its own branch and pull request, after the redesign, in this
 order: the 3D heatmap, then Rivy, then the data analysis. The
-delivery is planned for Thursday 2026-10-22. Final acceptance of the whole
+delivery is planned for Wednesday 2026-10-21. Final acceptance of the whole
 (clean clones, version tag) comes after the extensions.
 
 - **Interactive 3D heatmap**, as an alternative view of the same data: fixed
@@ -722,7 +791,8 @@ delivery is planned for Thursday 2026-10-22. Final acceptance of the whole
 - **Rivy**, an assistant to query the data and explain decisions: Google
   **Gemini**, **read-only** (it never creates plans, counts or movements).
   Decided and implemented as D-016.
-- **Additional data analysis** by the author, afterwards.
+- **Additional data analysis** by the author, afterwards. Defined and
+  implemented as D-019 (audit insights).
 
 ---
 

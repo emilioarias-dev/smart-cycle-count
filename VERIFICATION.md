@@ -1140,6 +1140,31 @@ question that states a wrong value) and confirms that Rivy answered all
 of them. Recorded as the author's manual confirmation: no screenshots
 or transcript of the answers are kept here.
 
+## 2026-10-21 — CC: audit insights (code `5c3c2f2` API, `64151e8` web)
+
+Branch `m6-audit-insights` from `main` at `64e2fa4` (PR #10 merged, checked
+with the GitHub API). Production build, PostgreSQL in Docker, Chromium
+through Playwright. Only this container's databases were used: the API
+tests' own database, and the development database of this container,
+reset to the demo twice for the existing flows. No count was written to
+fill the chart: the browser checks used the counts this container's
+earlier checks and flows had saved through the count flow, plus two FAIL
+counts submitted through `POST /audit-tasks/:taskId/count` with a wrong
+quantity.
+
+| Command / check | Result |
+|---|---|
+| `test/insights.e2e-spec.ts` | **9/9**: the author's worked example (whole warehouse 3/30 = 10 %, 4 counts, 2 PASS 2 FAIL, 2/4 = 50 %; latest 2 PASS, 1 FAIL, 27 none; aisle A 2/10 = 20 %, 3 counts, FAIL 1/3 = 33.3 %, bar 2 / 0 / 8; FAIL of aisle B = B-01-01 only), no counts (percent `null`), no bins, the demo's simulated audit dates (no coverage, data and scores unchanged by the read), period bounds (T − 30 days out, T in, T + 1 ms out), a count dated after the request, a tie on time (higher id wins), lines and unexpected pallets (not multiplied), an identical retry (recovered, same figures) |
+| Mutations of the query, one at a time | Each fails the tests: tie by id ascending (1), start included (1), no upper bound (2), counts joined with their lines (1), 0 instead of `null` without a denominator (4) |
+| `npm test` | API **142/142** (17 files); web **14/14** |
+| `npx tsc --noEmit` (API, scripts, web); `npm run build` | Exit 0; builds OK |
+| `docs/browser-checks/audit-insights.cjs` | **40/40** with 6 counts (4 PASS, 2 FAIL), **40/40** after the 2D flows (3 counts), **28/28** after a demo reset (no counts; the selection steps that need a counted bin are skipped). Desktop 1440 and phone 390, light and dark: metrics equal to the API's answer, bars summing to each aisle's bins, a segment click and tap listing the right bins with the metrics unchanged, Clear selection with the focus back, keyboard (arrow keys for the scope, Tab and Enter for a part), an empty selection, a new aisle clearing the selection, focus ring, accessible names with figures, reduced motion, nothing under Rivy's button, no horizontal scroll, loading (`slow-insights`) and error (`502-insights`) with the rest of Warehouse shown |
+| No counts | FAIL proportion "No counts" (not 0 %), coverage 0 / 30 bins 0 %, the chart says no count was saved |
+| Existing checks | 2D flows **33/33**; overlap (Rivy's button and docked panel over every control, pages × widths) **40/40** |
+| Fixed while checking | On a phone a bin code wrapped in the list (`B-02-` / `02`): kept on one line |
+
+Not checked: Safari, Firefox, real phones and Windows.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1179,9 +1204,13 @@ Windows (WIN):
   2026-10-21) are recorded above. The quota is not exhausted on purpose:
   quota errors were tested simulated.
 
-Polish (`m6-polish`), code `eac93f2`: nothing required pending. Windows
-tests and builds on `f864ddb`, the author's visual review and the manual
-confirmation of Rivy's real questions are recorded above.
+Polish (`m6-polish`): nothing pending (merged through PR #10 as `64e2fa4`).
+
+Audit insights (`m6-audit-insights`), pending on Windows, in one round on
+the final commit: `npm.cmd test` (142 API + 14 web) and `npm.cmd run
+build`; a short visual check of the block (scope, a selection by mouse and
+keyboard, Clear selection, phone width, both themes). Not merged before
+that evidence is reviewed.
 
 Later or optional:
 

@@ -21,7 +21,9 @@ in the app are real records of this app.
   and rack colored by audit priority (green low, yellow medium, red high),
   the latest plan with each bin's score at selection and now, and a
   **Score breakdown · Top 5 bins** chart. The heatmap opens in 2D; a **3D**
-  view of the same bins can be chosen.
+  view of the same bins can be chosen. At the bottom, **Audit insights**:
+  what part of the warehouse was counted in the last 30 days and what the
+  counts found.
 - **Bin detail** (`/bins/A-01-03`): the score and why it got it, the last
   audit date and the pallets stored in the bin.
 - **Create plan → Top N** (on the dashboard): saves the riskiest bins as
@@ -205,6 +207,22 @@ With the demo data loaded and `npm run dev` running:
    the circular arrow next to "Scores as of"): every bin is scored for the
    current time and the heatmap updates. A counted bin's age is back to 0,
    and a FAIL adds 25 points.
+6. **Audit insights** — at the bottom of the dashboard (decision D-019),
+   over the saved counts of all plans in the last 30 days, up to the time
+   of the request (shown in UTC):
+   - **Coverage**: bins with at least one count in the period / bins in the
+     scope; **Counts recorded**, with PASS and FAIL; **Observed FAIL
+     proportion**: FAIL counts / counts in the period ("No counts" when
+     there are none, not 0 %).
+   - **Scope** (All aisles, A, B, C) changes the three figures and the bars.
+   - One bar per aisle splits its bins by their **latest count in the
+     period**: PASS, FAIL or no count (not every count, and not only the
+     latest plan). Select a part of a bar, or its label (keyboard: Tab and
+     Enter), to list its bins below; this filters the list only. **Clear
+     selection** empties it.
+
+   After a reset of the demo data there are no counts: every bin is shown
+   without a count until you count some.
 
 The sun / moon button in the top bar switches between the light and dark
 themes on every page; without a choice the app follows the system setting,
@@ -520,6 +538,11 @@ initial JavaScript grows by about 5 KB.
   only the question gave is replaced. The conversation is not saved.
 - The data is synthetic, and the last audit dates before the first count
   are simulated (see [Demo data](#demo-data)).
+- Audit insights describe the counts saved in the last 30 days, nothing
+  more: the observed FAIL proportion is not the warehouse's error rate
+  (bins are chosen by priority and a bin can be counted more than once),
+  the simulated audit dates are not counts, and the period cannot be
+  changed.
 - The 3D view was checked in Chromium (desktop and phone emulation) with
   software WebGL; other browsers and real phones were not tested here. It
   needs WebGL; without it the 2D heatmap is shown.
@@ -573,6 +596,7 @@ bins, products,          PrismaService      GET /warehouse                    / 
 pallets, movements,                         GET /bins/:code                   /bins/[code] (detail)
 bin_scores,                                 POST /scores/recompute            /tasks (audit tasks)
                                             GET /scores/top
+                                            GET /insights/audits
 audit_plans,                                POST /audit-plans                 /count (count a bin)
 audit_tasks, counts,                        GET /audit-tasks
 count_lines,                                GET /bins/:code/count-sheet
@@ -597,6 +621,7 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
 | `GET /warehouse` | `200` with aisles → racks → bins (in location order), each bin with `code`, `position`, `palletCount`, `lastAuditedAt` and `score` (`value`, `priority`, `label`, `reference`, or `null` if not scored) |
 | `GET /bins/:code` | `200` with the bin's location, `inventoryVersion`, `lastAuditedAt`, its current pallets (code, quantity, product SKU, name and unit) and `score` with its `breakdown`, or `404`. The code is normalised: ` a-01-03 ` finds `A-01-03` |
 | `GET /scores/top` | `200` with the five highest stored scores of **all** bins (pending tasks included), in the plan order of D-011 (score, then never audited and oldest audit as stored in the breakdown, then code); each with `rank`, `binCode` and `score` with its `breakdown`. An empty list if no bin is scored. Used by the dashboard chart |
+| `GET /insights/audits` | `200` with the audit insights of D-019: `reference` (T, the server time of the request) and `period` (`days` 30, `start` excluded, `end` = T included); `scopes`, the whole warehouse (`aisle: null`) then each aisle, each with `bins`, `coverage` and `failProportion` (`numerator`, `denominator`, `percent`, `null` when the denominator is 0), `counts` (`total`, `pass`, `fail`) and `latestResults` (`pass`, `fail`, `none`: each bin once, by its latest count in the period); and `bins`, every bin in location order with its `counts` in the period and `latest` (`result`, `countedAt`, or `null`). Read only |
 | `POST /scores/recompute` | `200` with the reference time, the number of bins scored and how many fall in each priority band. All scores or none are saved |
 | `POST /audit-plans` with JSON `{"n": 5}` (`n` optional, default 5) | `201` with the plan (`requestedCount`, `createdCount`, `excluded.pendingTask`, `excluded.noScore`) and its tasks (rank, bin code, copied score). `400` `INVALID_N` for an `n` that is not a whole number from 1 to 30; `409` `NO_SCORES` or `NO_AVAILABLE_BINS` when no plan can be created. The plan and its tasks are saved together or not at all |
 | `GET /audit-tasks` | `200` with every task, newest plan first and by rank, each with its plan summary, bin code, status, the score copied at selection (with `computedAt` and `formulaVersion`) and its `count` (`result`, `countedAt`, or `null`) |
