@@ -5,14 +5,16 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
-import { TOOL_NAMES } from '../src/assistant/tools.js';
+import { AssistantTools, TOOL_NAMES } from '../src/assistant/tools.js';
 import { BinsService } from '../src/bins/bins.service.js';
 import { openCountSheet } from '../src/counting/sheet.js';
 import { submitCount } from '../src/counting/submit.js';
 import { generateDemoData } from '../src/demo-data/generate.js';
 import { resetDemoData } from '../src/demo-data/reset.js';
+import { applyMovement } from '../src/inventory/movements.js';
 import { createPlan } from '../src/planning/create-plan.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { recomputeScores } from '../src/scoring/recompute.js';
 import { ScoresService } from '../src/scores/scores.service.js';
 import { FIXED_REFERENCE } from './support.js';
 
@@ -412,6 +414,59 @@ describe('Rivy assistant with a simulated Gemini (PostgreSQL)', () => {
     expect(r.body.tools).toEqual([{ name: 'get_bin', args: { code: 'B-02-03' } }]);
     expect(r.body.references).toEqual([{ label: 'Bin B-02-03', href: '/bins/B-02-03' }]);
     expect(r.body.queriedAt).toBe(toolResponses()[0].response.queriedAt);
+  });
+
+  // A recompute that commits while compare_bins is reading (here: right
+  // after its first read) must not mix two states: the order, the deciding
+  // rule and the figures come from the same records.
+  it('compare_bins: a recompute during the comparison cannot mix states; order, rule and figures agree', async () => {
+    const tools = app.get(AssistantTools);
+    const scoreOf = async (code: string) => (await prisma.binScore.findFirstOrThrow({ where: { bin: { code } } })).score;
+    // Before: A-02-01 audited just now (low), B-01-05 never audited (higher).
+    await prisma.bin.update({ where: { code: 'A-02-01' }, data: { lastAuditedAt: new Date() } });
+    await recomputeScores(prisma, new Date());
+    const before = [await scoreOf('A-02-01'), await scoreOf('B-01-05')];
+    expect(before[0]).toBeLessThan(before[1]);
+    // During: A-02-01 becomes never audited, busy and adjusted, and every
+    // score is recomputed (committed), so it ends above B-01-05.
+    const change = async () => {
+      const at = new Date(Date.now() - 60_000);
+      await prisma.bin.update({ where: { code: 'A-02-01' }, data: { lastAuditedAt: null } });
+      for (let i = 0; i < 40; i++) {
+        await applyMovement(prisma, { type: 'PUTAWAY', palletCode: `P-MID-${i}`, productSku: 'SKU-001', binCode: 'A-02-01', quantity: 10, occurredAt: at });
+      }
+      for (let i = 0; i < 5; i++) {
+        await applyMovement(prisma, { type: 'ADJUSTMENT', palletCode: `P-MID-${i}`, delta: -1, occurredAt: at });
+      }
+      await recomputeScores(prisma, new Date());
+    };
+    // The change is committed right after the comparison's first read.
+    const original = bins.findByCode.bind(bins);
+    let changed = false;
+    const spy = vi.spyOn(bins, 'findByCode').mockImplementation(async (code: string) => {
+      if (!changed) {
+        changed = true;
+        await change();
+      }
+      return original(code);
+    });
+    try {
+      const r: any = await tools.compareBins('A-02-01', 'B-01-05');
+      if (!changed) {
+        await change();
+      }
+      const after = [await scoreOf('A-02-01'), await scoreOf('B-01-05')];
+      expect(after[0]).toBeGreaterThan(after[1]);
+      const shown = r.bins.map((b: any) => b.currentScore.value);
+      // One state: the figures shown are all from before, or all from after...
+      expect([before, after]).toContainEqual(shown);
+      // ...and they decide the order and the rule given with them.
+      const first = shown[0] > shown[1] ? 'A-02-01' : 'B-01-05';
+      expect(r.higherPriority).toBe(first);
+      expect(r.decidedBy).toBe(`higher score: ${first}`);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('missing information: an answer that says the records do not show it is shown, with no data time', async () => {

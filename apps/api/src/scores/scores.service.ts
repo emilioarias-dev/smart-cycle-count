@@ -3,7 +3,7 @@ import { comparePriority } from '../planning/selection.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { ScoreBreakdown } from '../scoring/formula.js';
 import { type ScoreDetail, scoreDetail } from '../scoring/presenter.js';
-import { type RecomputeSummary, recomputeScores } from '../scoring/recompute.js';
+import { type RecomputeSummary, recomputeScoresNow } from '../scoring/recompute.js';
 
 // The dashboard chart shows the five highest priorities of all bins.
 export const TOP_SIZE = 5;
@@ -14,9 +14,10 @@ export type TopScore = { rank: number; binCode: string; score: ScoreDetail };
 export class ScoresService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // The recompute button scores every bin for the current time (D-010).
+  // The recompute button scores every bin for the current time (D-010),
+  // taken once it has the scores lock.
   recomputeNow(): Promise<RecomputeSummary> {
-    return recomputeScores(this.prisma, new Date());
+    return recomputeScoresNow(this.prisma);
   }
 
   // The highest stored scores of all bins, pending tasks included, in the

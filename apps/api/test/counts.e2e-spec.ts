@@ -433,6 +433,33 @@ describe('Count flow (PostgreSQL)', () => {
     await plan;
   });
 
+  // A recompute asked for "now" while a count holds the scores lock: the
+  // count saves a FAIL during the wait; the recompute that follows must score
+  // with a time after it, keeping the FAIL (and the new audit date).
+  it('a recompute asked while a count holds the turn scores after the count: its FAIL is kept', async () => {
+    const holder = await holdLocks((tx) => tx.$executeRaw`SELECT pg_advisory_xact_lock(${SCORES_LOCK_KEY}::bigint)`);
+    const taskId = await taskOf('A-01-01');
+    const count = submit(taskId, { ...exact, lines: [{ palletCode: 'P-1', countedQuantity: 9 }, { palletCode: 'P-2', countedQuantity: 5 }] }).then((r) => r);
+    await waitForWaiters(1, 'scores');
+    const recompute = request(app.getHttpServer()).post('/scores/recompute').then((r) => r);
+    await waitForWaiters(2, 'scores');
+    await holder.release();
+    const [saved, recomputed] = await Promise.all([count, recompute]);
+    expect(saved.status).toBe(201);
+    expect(saved.body.count.result).toBe('FAIL');
+    expect(recomputed.status).toBe(200);
+
+    const countedAt = new Date(saved.body.count.countedAt);
+    const reference = new Date(recomputed.body.reference);
+    expect(reference.getTime()).toBeGreaterThanOrEqual(countedAt.getTime());
+    const after = await breakdownOf('A-01-01');
+    expect(after.reference).toBe(reference.toISOString());
+    expect(after.factors.lastResult).toMatchObject({ result: 'FAIL', contribution: 25 });
+    expect(after.factors.age.input).toBeCloseTo((reference.getTime() - countedAt.getTime()) / DAY, 9);
+    const stored = (await scoresTable()).map((s) => s.score);
+    expect(stored).toEqual((await scoresInSql(prisma, reference)).map((s) => s.score));
+  });
+
   it('PostgreSQL rejects a second count per task, a count for another bin and invalid rows', async () => {
     const taskId = await taskOf('A-01-02');
     await submit(taskId, { inventoryVersion: 1, lines: [{ palletCode: 'P-3', countedQuantity: 7 }] }).expect(201);
