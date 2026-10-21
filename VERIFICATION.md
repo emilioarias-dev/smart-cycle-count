@@ -1011,6 +1011,23 @@ general language check.
 | Compare B-01-05 and A-02-01… | 200 in 1.8 s, `compare_bins`, 2963 tokens: "A-02-01 (57) … B-01-05 (55)", shown. Its wording also called 85.81 days "a longer time since the last audit" than never audited, which is wrong; the figures are right and the table shows them (wording is not checked) |
 | Is the score of B-02-03 99? How many pallets does it hold? | 200 in 1.4 s, `get_bin`, 2732 tokens: the text mentioned 99 and was replaced ("99 for B-02-03"); the records (score, pallets) shown |
 
+## 2026-10-21 — WIN: Rivy branch, tests and builds (shared by the author, PowerShell transcript)
+
+**Automated checks only.** The visual checks and the real questions on
+Windows are separate and still pending (see Pending). Commands in the
+transcript: `git switch m6-rivy` ("up to date with 'origin/m6-rivy'"),
+`npm.cmd run db:up`, `npm.cmd test`, `npm.cmd run build`. Neither `git log`
+nor `npm.cmd ci` appears in it, so the commit is not printed; the test
+files and counts are those of code `8621d05` (docs `a839f49`):
+`assistant.e2e-spec.ts` 15 tests and `grounding.spec.ts` 8.
+
+| Command | Result |
+|---|---|
+| `npm.cmd run db:up` | Container healthy |
+| `npm.cmd test` (API) | **126/126**, 15 files, 112.95 s; test database: 5 migrations, none pending. The two expected messages: the `[Nest] ERROR … simulated failure while recomputing` log (rollback test) and one `pg` DeprecationWarning (the detector's self-test) |
+| `npm.cmd test` (web) | **11/11** (`node --test`, 3D geometry) |
+| `npm.cmd run build` | API and web OK (Next.js 16.4.2, Turbopack); `/rivy` static, the other pages dynamic |
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1042,9 +1059,9 @@ Rivy (`m6-rivy`), pending on Windows (WIN):
 
 - In AI Studio: the TPM limit of Gemini 3.5 Flash-Lite, the project behind
   the key and its tier (Free), without enabling billing.
-- `npm.cmd ci`, `npm.cmd test` (expected 126 API + 11 web), `npm.cmd run
-  build`, with the key in `apps/api/.env` only.
-- Real questions: the author's run on the PR's first commit is recorded
+- Done: `npm.cmd test` 126 + 11 and `npm.cmd run build` (2026-10-21,
+  above).
+- Visual and real questions (separate from the automated checks): the author's run on the PR's first commit is recorded
   above. Pending: only the affected cases on `8621d05` or later (the global
   ranking, a follow-up with history, a comparison, a question that states a
   wrong value), with calls, tokens, time and whether the text was shown or

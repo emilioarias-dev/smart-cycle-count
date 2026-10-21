@@ -384,7 +384,7 @@ answers.
 | Errors: no key, 429, 503, timeout, refused key, blocked; rest of the app unaffected | `assistant.controller.ts`, `/rivy` | Yes, simulated (API and page) | Pending |
 | Page: suggestions, answer with links only from the API, "Data as of", tools, calls, tokens, time; Try again; window of six and Clear; Enter / Shift + Enter; counter | `components/RivyChat.tsx` | Yes, simulated (67 browser checks) | Pending |
 | Layout: 320, 390, 768, 1440 px, both themes; four tabs on phones; contrast | `globals.css`, `Navigation.tsx` | Yes, simulated (no overflow; contrast ≥ 5.41) | Pending |
-| Tests and builds | `npm test`, `npm run build` | Yes (API 126/126 incl. 15 Rivy e2e and 8 check tests; web 11/11; builds; 6 + 13 mutations caught) | Pending |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 126/126 incl. 15 Rivy e2e and 8 check tests; web 11/11; builds; 6 + 13 mutations caught) | Yes (126/126, 11/11, builds; 2026-10-21) |
 | Real answers: the four capabilities, a follow-up and a case without data, in English and Spanish | `/rivy` with the author's key | Only the affected cases, from CC through its proxy (ranking, follow-up, rules) | Run by the author (screenshots): coherent, except the global ranking (invented bins and scores) and invented times; re-run of the affected cases pending |
 
 Next: the author's data analysis, on its own branch. Delivery planned for
