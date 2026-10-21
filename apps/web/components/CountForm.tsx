@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { type FormEvent, useState, useTransition } from 'react';
+import { type FormEvent, useEffect, useRef, useState, useTransition } from 'react';
 import { submitCountAction } from '../app/actions';
 import type { CountOutcome, CountPayload, CountSheet, CountView, ExpectedLine, ProductRef, ScoreSummary } from '../lib/api';
 import { plural, utcDateTime } from '../lib/format';
 import { Icon } from './Icon';
+import { useRivy } from './RivyProvider';
 
 // The count form (D-001, D-003, D-012). Quantities start empty and must be
 // typed for every expected pallet. After an inventory change the previous
@@ -34,15 +35,36 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
 
   const productBySku = new Map(sheet.products.map((p) => [p.sku, p]));
 
+  // While quantities are being entered, Rivy's floating button steps aside
+  // (it would sit next to the form's actions); the navigation still has Rivy.
+  const { setCountActive } = useRivy();
+  const counting = outcome?.status !== 'saved' && outcome?.status !== 'already-counted';
+  useEffect(() => {
+    setCountActive(counting);
+    return () => setCountActive(false);
+  }, [counting, setCountActive]);
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending) {
+      return;
+    }
     const payload: CountPayload = {
       inventoryVersion: active.inventoryVersion,
       lines: active.lines.map((line) => ({ palletCode: line.palletCode, countedQuantity: asNumber(counted[line.palletCode] ?? '') })),
       unexpected: unexpected.map((row) => ({ code: row.code, quantity: asNumber(row.quantity), productSku: row.productSku || null })),
     };
     startTransition(async () => {
-      const result = await submitCountAction(sheet.task.id, payload);
+      let result: CountOutcome;
+      try {
+        result = await submitCountAction(sheet.task.id, payload);
+      } catch {
+        // The app server did not answer: the count may or may not be saved.
+        result = {
+          status: 'unconfirmed',
+          message: 'The app did not answer. It is not known whether the count was saved. Send the same count again: if it was saved, you will see the saved result.',
+        };
+      }
       if (result.status === 'inventory-changed') {
         setDraft({ lines: active.lines, counted, unexpected, conflict: result });
       }
@@ -104,7 +126,7 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
           )}
           {outcome && (outcome.status === 'rejected' || outcome.status === 'unconfirmed') && (
             <section className={`callout ${outcome.status === 'rejected' ? 'error' : 'info'}`} role="alert">
-              <h2>{outcome.status === 'rejected' ? 'Not saved' : 'Not confirmed'}</h2>
+              <h2>{outcome.status === 'rejected' ? 'Not saved' : 'Result unknown'}</h2>
               <p>{outcome.message}</p>
             </section>
           )}
@@ -248,7 +270,7 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
                     ? 'The quantity is entered'
                     : `All ${quantities.length} quantities entered`}
             </span>
-            <button type="submit" className="btn btn-primary" disabled={pending} aria-busy={pending}>
+            <button type="submit" className="btn btn-primary" aria-disabled={pending || undefined} aria-busy={pending}>
               {pending && <span className="spinner" aria-hidden="true" />}
               {pending ? 'Saving…' : outcome?.status === 'unconfirmed' ? 'Send the same count again' : 'Submit count'}
               {!pending && <Icon name="arrow" className="arrow" />}
@@ -320,14 +342,20 @@ function DraftView({ draft, open }: { draft: Draft; open: boolean }) {
 }
 
 function CountResultView({ count, recovered, score }: { count: CountView; recovered: boolean; score: ScoreSummary | null }) {
+  // The form is gone once the server confirmed the count: the focus moves to
+  // its result, so keyboard and screen reader users land on it.
+  const title = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    title.current?.focus();
+  }, []);
   return (
     <section className="panel" aria-labelledby="count-result-title">
       <div className="result-head">
-        <span className={`result-badge ${count.result.toLowerCase()}`}>
+        <span className={`result-badge pop ${count.result.toLowerCase()}`}>
           <Icon name={count.result === 'PASS' ? 'check' : 'x'} />
           {count.result}
         </span>
-        <h2 id="count-result-title">
+        <h2 id="count-result-title" ref={title} tabIndex={-1}>
           Bin {count.bin.code} counted<span className="dot">.</span>
         </h2>
         <span className="subline num">{utcDateTime(count.countedAt)}</span>

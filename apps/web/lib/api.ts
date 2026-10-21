@@ -168,7 +168,18 @@ export type RivyAnswer = {
 };
 export type RivyOutcome = { status: 'ok'; data: RivyAnswer } | { status: 'error'; code: string; message: string; retryable: boolean };
 
-export type ApiResult<T> = { status: 'ok'; data: T } | { status: 'not-found' } | { status: 'error'; reason: string };
+// An error is `rejected` (the API said no: fix the input), `failed` (nothing
+// was done: retrying is safe) or `unconfirmed` (a write was sent and no
+// answer came back: it may or may not have been applied).
+export type ErrorKind = 'rejected' | 'failed' | 'unconfirmed';
+export type ApiResult<T> = { status: 'ok'; data: T } | { status: 'not-found' } | { status: 'error'; reason: string; kind?: ErrorKind };
+
+// The demo scenario loaded (D-017); `scenario` is null when not recorded.
+export type DemoDataset = { scenario: 'standard' | 'high-risk' | null; label: string; reference: string | null; loadedAt: string | null };
+
+export function getDemoDataset(): Promise<ApiResult<DemoDataset>> {
+  return getJson<DemoDataset>('/demo');
+}
 
 export function getWarehouse(): Promise<ApiResult<WarehouseLayout>> {
   return getJson<WarehouseLayout>('/warehouse');
@@ -288,8 +299,15 @@ async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: u
     });
   } catch (error) {
     console.error(`Request to ${url.href} failed:`, error);
+    // A refused connection sent nothing; a timeout or a cut connection after
+    // a write was sent leaves its outcome unknown.
+    const refused = (error as { cause?: { code?: string } }).cause?.code === 'ECONNREFUSED';
+    if (method === 'POST' && !refused) {
+      return { status: 'error', kind: 'unconfirmed', reason: 'The API did not answer, so it is not known whether this was done.' };
+    }
     return {
       status: 'error',
+      kind: 'failed',
       reason: 'The API could not be reached. Check that it is running and that API_BASE_URL is correct.',
     };
   }
@@ -301,12 +319,12 @@ async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: u
   if (response.status === 400 || response.status === 409) {
     const error = (await response.json().catch(() => null)) as { message?: unknown } | null;
     if (typeof error?.message === 'string') {
-      return { status: 'error', reason: error.message };
+      return { status: 'error', kind: 'rejected', reason: error.message };
     }
   }
   if (!response.ok) {
     console.error(`Request to ${url.href} returned HTTP ${response.status}`);
-    return { status: 'error', reason: `The API responded with HTTP ${response.status}.` };
+    return { status: 'error', kind: 'failed', reason: `The API responded with HTTP ${response.status}.` };
   }
   return { status: 'ok', data: (await response.json()) as T };
 }

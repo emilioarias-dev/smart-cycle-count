@@ -1,73 +1,41 @@
 'use client';
 
 import Link from 'next/link';
-import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState, useTransition } from 'react';
-import { askRivyAction } from '../app/actions';
-import type { RivyAnswer, RivyExchange } from '../lib/api';
+import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import type { RivyAnswer } from '../lib/api';
 import { utcDateTime } from '../lib/format';
 import { Icon } from './Icon';
 import { RivyFacts } from './RivyFacts';
+import { MAX_CHARS, WINDOW, useRivy } from './RivyProvider';
 
-// The conversation, in this page's memory only. Rivy is sent the last six
-// complete exchanges with each question; older ones are dropped here too.
-const WINDOW = 6;
-const MAX_CHARS = 500;
+// The conversation view: on the /rivy page and in the floating panel, both
+// showing the same conversation (RivyProvider).
 
 const SUGGESTIONS = [
   'Why does bin B-02-03 have its priority?',
   'Compare A-02-01 and B-01-05: which one comes first, and why?',
   'What were the results of the counts of B-02-03?',
+  'Which bins have the highest scores?',
   'How is the risk score calculated?',
 ];
 
-type Exchange = { question: string; answer: RivyAnswer };
-type Failure = { question: string; code: string; message: string; retryable: boolean };
-
 export function RivyChat() {
-  const [exchanges, setExchanges] = useState<Exchange[]>([]);
-  const [dropped, setDropped] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [asking, setAsking] = useState<string | null>(null);
+  const { exchanges, dropped, failure, asking, startedAt, pending, draft, setDraft, send, clear } = useRivy();
   const [elapsed, setElapsed] = useState(0);
-  const [pending, startTransition] = useTransition();
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!pending) {
+    if (startedAt === null) {
+      setElapsed(0);
       return;
     }
-    const started = Date.now();
-    const timer = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    const timer = setInterval(() => setElapsed(Math.round((Date.now() - startedAt) / 1000)), 1000);
     return () => clearInterval(timer);
-  }, [pending]);
+  }, [startedAt]);
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'nearest' });
   }, [exchanges, failure, asking]);
-
-  function send(question: string) {
-    const text = question.trim();
-    if (!text || pending) {
-      return;
-    }
-    const history: RivyExchange[] = exchanges.map((e) => ({ question: e.question, answer: e.answer.answer }));
-    setFailure(null);
-    setAsking(text);
-    setElapsed(0);
-    startTransition(async () => {
-      const outcome = await askRivyAction(text, history);
-      setAsking(null);
-      if (outcome.status === 'ok') {
-        const next = [...exchanges, { question: text, answer: outcome.data }];
-        setDropped(dropped || next.length > WINDOW);
-        setExchanges(next.slice(-WINDOW));
-        setDraft('');
-      } else {
-        setFailure({ question: text, code: outcome.code, message: outcome.message, retryable: outcome.retryable });
-      }
-    });
-  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -170,7 +138,9 @@ export function RivyChat() {
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKey}
           placeholder="Why is B-02-03 a priority?"
-          disabled={pending}
+          // Read-only, not disabled, while Rivy answers: the field keeps the focus.
+          readOnly={pending}
+          aria-busy={pending}
         />
         <div className="rivy-actions">
           <span className="subline">
@@ -180,11 +150,7 @@ export function RivyChat() {
             type="button"
             className="btn btn-text"
             disabled={pending || (exchanges.length === 0 && !failure)}
-            onClick={() => {
-              setExchanges([]);
-              setFailure(null);
-              setDropped(false);
-            }}
+            onClick={clear}
           >
             Clear conversation
           </button>

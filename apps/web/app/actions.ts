@@ -1,9 +1,13 @@
 'use server';
 
 import { refresh } from 'next/cache';
-import { type CountOutcome, type CountPayload, type RivyExchange, type RivyOutcome, askRivy, createPlan, recomputeScores, submitCount } from '../lib/api';
+import { type CountOutcome, type CountPayload, type ErrorKind, type RivyExchange, type RivyOutcome, askRivy, createPlan, recomputeScores, submitCount } from '../lib/api';
 
-export type RecomputeState = { status: 'idle' } | { status: 'ok'; message: string } | { status: 'error'; message: string };
+// `at` tells two equal results apart, so each one is announced.
+export type RecomputeState =
+  | { status: 'idle' }
+  | { status: 'ok'; message: string; at: number }
+  | { status: 'error'; message: string; kind: ErrorKind; at: number };
 
 // Runs on the Next.js server: asks the API to recompute every score for the
 // current time, then refreshes the page so the grid shows the new scores.
@@ -12,7 +16,9 @@ export async function recomputeScoresAction(_previous: RecomputeState): Promise<
   if (result.status !== 'ok') {
     return {
       status: 'error',
+      kind: result.status === 'error' ? (result.kind ?? 'failed') : 'failed',
       message: result.status === 'error' ? result.reason : 'The API has no recompute endpoint (404).',
+      at: Date.now(),
     };
   }
   refresh();
@@ -20,13 +26,14 @@ export async function recomputeScoresAction(_previous: RecomputeState): Promise<
   return {
     status: 'ok',
     message: `${bins} bins: ${byPriority.high} high, ${byPriority.medium} medium, ${byPriority.low} low priority.`,
+    at: Date.now(),
   };
 }
 
 export type CreatePlanState =
   | { status: 'idle' }
-  | { status: 'ok'; message: string; planId: number }
-  | { status: 'error'; message: string };
+  | { status: 'ok'; message: string; planId: number; created: number; requested: number; at: number }
+  | { status: 'error'; message: string; kind: ErrorKind; at: number };
 
 // Creates a Top N plan through the API. The text typed by the user is sent
 // as a number only if it is a whole number; anything else is sent as typed so
@@ -36,7 +43,12 @@ export async function createPlanAction(_previous: CreatePlanState, formData: For
   const n = /^-?\d+$/.test(raw) ? Number(raw) : raw;
   const result = await createPlan(n);
   if (result.status !== 'ok') {
-    return { status: 'error', message: result.status === 'error' ? result.reason : 'The API has no plans endpoint (404).' };
+    return {
+      status: 'error',
+      kind: result.status === 'error' ? (result.kind ?? 'failed') : 'failed',
+      message: result.status === 'error' ? result.reason : 'The API has no plans endpoint (404).',
+      at: Date.now(),
+    };
   }
   refresh();
   const { plan } = result.data;
@@ -47,6 +59,9 @@ export async function createPlanAction(_previous: CreatePlanState, formData: For
   return {
     status: 'ok',
     planId: plan.id,
+    created: plan.createdCount,
+    requested: plan.requestedCount,
+    at: Date.now(),
     message:
       `${plan.createdCount} of ${plan.requestedCount} requested tasks created.` +
       (skipped.length > 0 ? ` Skipped: ${skipped.join(', ')}.` : ''),

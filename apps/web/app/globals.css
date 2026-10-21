@@ -189,11 +189,21 @@ code { font-size: 0.9em; }
 .nav a:hover, .nav a[aria-current] { color: #fff; }
 .nav a[aria-current]:not(.btn)::after { content: ''; position: absolute; left: 0; right: 0; bottom: -0.15rem; height: 2px; background: var(--rv-blue); }
 .nav a.btn { height: 2.6rem; padding: 0 1.15rem; color: #fff; }
+.link-pending { position: absolute; left: 0; right: 0; bottom: -0.15rem; height: 2px; background: #8aa8ff; opacity: 0; transform-origin: left; pointer-events: none; transition: opacity 0.12s var(--ease); }
+.link-pending.on { opacity: 1; animation: link-loading 0.9s var(--ease) infinite alternate; }
+@keyframes link-loading { from { transform: scaleX(0.15); } to { transform: scaleX(1); } }
+/* A short fade-in of each page (app/template.tsx); no transform remains. */
+/* The wrapper takes main's place in the body's column (main { flex: 1 }), so
+   the phone tab bar stays at the bottom of short pages. */
+.page-enter { flex: 1; display: flex; flex-direction: column; animation: page-enter 0.18s var(--ease) backwards; }
+@keyframes page-enter { from { opacity: 0; transform: translateY(4px); } }
 .nav a.btn[aria-current] { box-shadow: 0 0 0 2px var(--rv-black), 0 0 0 4px #8aa8ff; }
 .theme-toggle { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid #3a3a3a; background: transparent; color: #f2f2f2; cursor: pointer; transition: border-color 0.2s var(--ease); }
 .theme-toggle:hover { border-color: #8a8a8a; }
 .proto { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.7rem; border: 1px solid #3a3a3a; border-radius: var(--pill); font-size: 0.68rem; color: #cfcfcf; white-space: nowrap; }
 .proto b { color: #fff; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.proto.high-risk { border-color: #e5484d; }
+.proto.high-risk span::before { content: ''; display: inline-block; width: 0.5rem; height: 0.5rem; margin-right: 0.35rem; border-radius: 50%; background: #ff6369; vertical-align: 0.05rem; }
 
 /* Buttons: pill, uppercase; the arrow nudges on hover */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem; height: 3rem; padding: 0 1.4rem; border-radius: var(--pill); font: 500 0.78rem var(--rv-font); letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid transparent; cursor: pointer; white-space: nowrap; text-decoration: none; transition: background-color 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.1s var(--ease), opacity 0.2s; }
@@ -201,6 +211,10 @@ code { font-size: 0.9em; }
 .btn:hover .arrow { transform: translateX(3px); }
 .btn:active { transform: scale(0.98); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.btn[aria-busy='true'], .icon-btn[aria-busy='true'] { cursor: progress; }
+/* A confirmed result: the check appears once, briefly (none with reduced motion). */
+.pop { animation: pop 0.24s var(--ease); }
+@keyframes pop { from { transform: scale(0.4); opacity: 0; } }
 .btn[aria-busy='true'] { opacity: 0.8; cursor: progress; }
 .btn-primary { background: var(--accent-fill); color: var(--on-accent); border-color: var(--accent-fill); }
 .btn-primary:hover:not(:disabled) { background: var(--rv-blue-hover); border-color: var(--rv-blue-hover); }
@@ -361,6 +375,7 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
 .toast { display: flex; gap: 0.7rem; align-items: flex-start; padding: 0.85rem 1rem; border-left: 3px solid; background: var(--surface); box-shadow: var(--shadow-lift); font-size: 0.88rem; max-width: 40rem; margin: 0 0 1.5rem; }
 .toast .icon { margin-top: 0.2rem; }
 .toast b { display: block; font-weight: 600; }
+.toast > .btn { margin-left: auto; flex: none; align-self: center; }
 .toast.success { border-color: var(--low-edge); }
 .toast.success .icon { color: var(--ok); }
 .toast.error { border-color: var(--high-edge); }
@@ -507,9 +522,10 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
   .table.stack-sm td.c-result { grid-row: 2; grid-column: 3; text-align: right; }
   .table.stack-sm td.c-result.is-empty { display: none; }
   .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); position: sticky; bottom: 0; z-index: 5; height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); background: var(--rv-black); padding: 0.3rem 0.5rem env(safe-area-inset-bottom); }
-  .tabbar a { display: grid; justify-items: center; align-content: center; gap: 0.15rem; font-size: 0.64rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #c2c2c2; text-decoration: none; }
+  .tabbar a { position: relative; display: grid; justify-items: center; align-content: center; gap: 0.15rem; font-size: 0.64rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #c2c2c2; text-decoration: none; }
   .tabbar a[aria-current] { color: #fff; }
   .tabbar a[aria-current] .icon { color: #8aa8ff; }
+  .tabbar .link-pending { top: 0; bottom: auto; left: 25%; right: 25%; }
   .tabbar .icon { width: 1.35rem; height: 1.35rem; }
   .submit-bar { bottom: var(--tabbar-h); margin-inline: -1rem; padding: 0.7rem 1rem; }
   .submit-bar .btn { flex: 1; }
@@ -575,6 +591,7 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
 .rivy-fact .table { font-size: 0.82rem; }
 .rivy-fact .table td, .rivy-fact .table th { padding-top: 0.4rem; padding-bottom: 0.4rem; }
 .rivy-fact-task { margin-top: 0.4rem; }
+.rivy-fact a { white-space: nowrap; }
 .rivy-withheld p { margin: 0 0 0.6rem; }
 .rivy-waiting { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); margin: 0; }
 .rivy-form { display: grid; gap: 0.4rem; }
@@ -585,4 +602,53 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
   .rivy-window { padding: 0 1rem; }
   .rivy-exchange { padding: 0.9rem 1rem; }
   .rivy-actions .btn-primary { flex: 1 1 100%; }
+}
+
+/* Rivy from any page (D-016): floating button and panel. */
+:root { --dock-w: 26rem; }
+.rivy-avatar { display: block; overflow: visible; }
+.rivy-avatar-face { fill: var(--rv-blue); }
+.rivy-avatar-echo path { fill: none; stroke: var(--rv-blue); stroke-width: 1.4; }
+.rivy-avatar-echo { transition: transform 0.2s var(--ease), opacity 0.2s var(--ease); }
+.rivy-avatar-eye { fill: #fff; }
+.rivy-avatar-smile { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; transform-box: view-box; transform-origin: 17px 27px; transition: transform 0.2s var(--ease); }
+.rivy-button { position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 7; display: grid; place-items: center; width: 3.5rem; height: 3.5rem; padding: 0; border-radius: 50%; border: 1px solid #2c2c2c; background: var(--rv-black); cursor: pointer; box-shadow: 0 6px 18px rgb(0 0 0 / 0.28); transition: transform 0.16s var(--ease), box-shadow 0.16s var(--ease); }
+.rivy-button:hover, .rivy-button:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px rgb(0 0 0 / 0.34); }
+.rivy-button:hover .rivy-avatar-echo.one, .rivy-button:focus-visible .rivy-avatar-echo.one { transform: translateX(1.5px); }
+.rivy-button:hover .rivy-avatar-echo.two, .rivy-button:focus-visible .rivy-avatar-echo.two { transform: translateX(3px); opacity: 0.7; }
+.rivy-button:hover .rivy-avatar-smile, .rivy-button:focus-visible .rivy-avatar-smile { transform: scale(1.15, 1.3); }
+.rivy-button-tip { position: absolute; right: calc(100% + 0.6rem); padding: 0.35rem 0.6rem; border-radius: 4px; background: var(--rv-black); color: #f2f2f2; font-size: 0.8rem; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s var(--ease); }
+.rivy-button:focus-visible .rivy-button-tip { opacity: 1; }
+@media (hover: hover) { .rivy-button:hover .rivy-button-tip { opacity: 1; } }
+.rivy-button.busy::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--rv-blue); border-right-color: transparent; animation: spin 1s linear infinite; }
+.rivy-button-dot { position: absolute; top: 0.1rem; right: 0.1rem; width: 0.8rem; height: 0.8rem; border-radius: 50%; background: var(--rv-blue); border: 2px solid var(--rv-black); }
+.rivy-button-space { height: 5rem; }
+/* Layout from what is on the page (CSS only, also before hydration): with the
+   button, focused fields keep clear of it; the docked panel narrows the page;
+   a modal one stops the page from scrolling. */
+html:has(.rivy-button) { scroll-padding-bottom: 5.5rem; }
+html:has(.rivy-panel.docked) body { padding-right: var(--dock-w); }
+html:has(.rivy-panel.modal) { overflow: hidden; }
+.rivy-backdrop { position: fixed; inset: 0; z-index: 8; background: rgb(0 0 0 / 0.45); animation: rivy-fade 0.18s var(--ease); }
+.rivy-panel { position: fixed; z-index: 9; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--text); }
+.rivy-panel.docked { z-index: 7; width: var(--dock-w); border-left: 1px solid var(--line); }
+.rivy-panel.modal { width: min(28rem, 100%); box-shadow: -10px 0 30px rgb(0 0 0 / 0.3); animation: rivy-slide-in 0.2s var(--ease); }
+.rivy-panel-head { display: flex; align-items: center; gap: 0.65rem; min-height: var(--topbar-h); padding: 0.6rem 0.8rem 0.6rem 1rem; border-bottom: 1px solid var(--line); background: var(--surface); }
+.rivy-panel-head .grow { flex: 1; min-width: 0; }
+.rivy-panel-head h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.rivy-panel-head .subline { margin: 0; }
+.rivy-panel-body { flex: 1; overflow: auto; overscroll-behavior: contain; padding: 0.9rem 1rem 1rem; }
+.rivy-panel .rivy { padding-bottom: 0; }
+.rivy-panel .rivy-exchange { padding: 0.8rem 0.7rem; }
+.rivy-panel .rivy-question { max-width: 100%; }
+.rivy-panel .rivy-terms { font-size: 0.78rem; }
+.rivy-panel .rivy-actions .btn-primary { flex: 1 1 100%; }
+@keyframes rivy-fade { from { opacity: 0; } }
+@keyframes rivy-slide-in { from { transform: translateX(1.5rem); opacity: 0; } }
+@keyframes rivy-slide-up { from { transform: translateY(2rem); opacity: 0; } }
+@media (max-width: 40rem) {
+  .rivy-button { right: 1rem; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 0.75rem); }
+  html:has(.rivy-button) { scroll-padding-bottom: calc(var(--tabbar-h) + 5.5rem); }
+  .rivy-panel.modal { top: 0.75rem; width: 100%; border-radius: 14px 14px 0 0; animation-name: rivy-slide-up; }
+  .rivy-panel.modal .rivy-panel-head { border-radius: 14px 14px 0 0; }
 }
