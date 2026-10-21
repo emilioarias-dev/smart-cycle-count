@@ -1,5 +1,7 @@
 // Modal keyboard, inert background, reduced motion on ::after, and the
 // waiting announcement (audit, point 5). Gemini SIMULATED (slow3 = 3 s).
+// The modal panel is checked on a tablet (800 px): on phones there is no
+// floating button, and Rivy's tab in the tab bar shows its state (step 5).
 const os = require('os');
 const path = require('path');
 // Runtime state (proxy and Gemini modes, request log), outside the repository.
@@ -16,7 +18,7 @@ const ok = (c, n, d = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS' : 
 (async () => {
   setGemini('ok');
   const b = await chromium.launch();
-  const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
+  const p = await (await b.newContext({ viewport: { width: 800, height: 1024 }, isMobile: true, hasTouch: true })).newPage();
   await p.goto(B + '/tasks');
   await p.waitForLoadState('networkidle');
 
@@ -78,6 +80,30 @@ const ok = (c, n, d = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS' : 
   const ring = await rm.evaluate(() => getComputedStyle(document.querySelector('.rivy-button.busy'), '::after').animationName);
   ok(ring === 'none', 'reduced motion: the busy ring (::after) does not spin', ring);
   await rm.waitForSelector('.rivy-button-dot', { timeout: 15000 });
+  setGemini('ok');
+
+  // 5. Phone: no floating button over the page; the Rivy tab says when Rivy
+  // is answering and when a new answer is waiting, until /rivy is opened.
+  const ph = await (await b.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
+  await ph.goto(B + '/');
+  await ph.waitForLoadState('networkidle');
+  ok((await ph.locator('.rivy-button').isVisible().catch(() => false)) === false, 'phone: no floating Rivy button');
+  setGemini('slow3');
+  await ph.locator('.tabbar a[href="/rivy"]').tap();
+  await ph.waitForURL('**/rivy');
+  await ph.fill('#rivy-question', 'How is the risk score calculated?');
+  await ph.press('#rivy-question', 'Enter');
+  await ph.locator('.tabbar a[href="/tasks"]').tap();
+  await ph.waitForURL('**/tasks');
+  const busy = await ph.locator('.tabbar a[href="/rivy"] .tab-dot.busy').count();
+  const busyName = await ph.locator('.tabbar a[href="/rivy"]').getAttribute('aria-label');
+  await ph.waitForSelector('.tabbar a[href="/rivy"] .tab-dot:not(.busy)', { timeout: 15000 });
+  const newName = await ph.locator('.tabbar a[href="/rivy"]').getAttribute('aria-label');
+  await ph.locator('.tabbar a[href="/rivy"]').tap();
+  await ph.waitForURL('**/rivy');
+  await ph.waitForTimeout(300);
+  const cleared = await ph.locator('.tabbar a[href="/rivy"] .tab-dot').count();
+  ok(busy === 1 && busyName === 'Rivy, answering' && newName === 'Rivy, new answer' && cleared === 0, 'phone: the Rivy tab shows answering, then a new answer, cleared on /rivy', `${busyName} → ${newName} → dots ${cleared}`);
   setGemini('ok');
 
   await b.close();

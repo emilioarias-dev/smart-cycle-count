@@ -2,7 +2,9 @@
 
 import Link, { useLinkStatus } from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 import { Icon, type IconName } from './Icon';
+import { useRivy } from './RivyProvider';
 
 // The same three destinations in the top bar (wide screens) and in the tab
 // bar (phones). Bin pages belong to the warehouse.
@@ -45,13 +47,31 @@ export function TopNav() {
   );
 }
 
+// On phones the tab bar is Rivy's way in (the floating button would cover
+// the page there): its tab shows that Rivy is answering or has a new answer.
 export function TabBar() {
   const isActive = useActive();
+  const { pending, unread, markRead } = useRivy();
+  const onRivy = isActive('/rivy');
+  useEffect(() => {
+    if (onRivy && unread) {
+      markRead();
+    }
+  }, [onRivy, unread, markRead]);
+  const rivyState = pending ? 'answering' : unread ? 'new answer' : null;
   return (
     <nav className="tabbar" aria-label="Main (phone)">
       {LINKS.map((link) => (
-        <Link key={link.href} href={link.href} aria-current={isActive(link.href) ? 'page' : undefined}>
-          <Icon name={link.icon} />
+        <Link
+          key={link.href}
+          href={link.href}
+          aria-current={isActive(link.href) ? 'page' : undefined}
+          aria-label={link.href === '/rivy' && rivyState ? `${link.label}, ${rivyState}` : undefined}
+        >
+          <span className="tab-icon">
+            <Icon name={link.icon} />
+            {link.href === '/rivy' && rivyState && <span className={`tab-dot${pending ? ' busy' : ''}`} aria-hidden="true" />}
+          </span>
           {link.label}
           <Pending />
         </Link>

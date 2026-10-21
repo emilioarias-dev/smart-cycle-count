@@ -30,8 +30,10 @@ type Rivy = {
   // The floating panel.
   open: boolean;
   setOpen: (open: boolean) => void;
-  // An answer (or a failure) arrived while the panel was closed.
+  // An answer (or a failure) arrived while the panel was closed; read once
+  // the panel or /rivy shows it.
   unread: boolean;
+  markRead: () => void;
   // A count form is open: the floating button steps aside (Rivy stays in the
   // navigation).
   countActive: boolean;
@@ -114,6 +116,8 @@ export function RivyProvider({ children }: { children: ReactNode }) {
     [exchanges],
   );
 
+  const markRead = useCallback(() => setUnread(false), []);
+
   const clear = useCallback(() => {
     setExchanges([]);
     setFailure(null);
@@ -121,8 +125,8 @@ export function RivyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ exchanges, dropped, failure, asking, startedAt, pending, draft, setDraft, send, clear, open, setOpen, unread, countActive, setCountActive }),
-    [exchanges, dropped, failure, asking, startedAt, pending, draft, send, clear, open, setOpen, unread, countActive],
+    () => ({ exchanges, dropped, failure, asking, startedAt, pending, draft, setDraft, send, clear, open, setOpen, unread, markRead, countActive, setCountActive }),
+    [exchanges, dropped, failure, asking, startedAt, pending, draft, send, clear, open, setOpen, unread, markRead, countActive],
   );
   return <RivyContext.Provider value={value}>{children}</RivyContext.Provider>;
 }
