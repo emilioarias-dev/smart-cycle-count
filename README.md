@@ -40,57 +40,119 @@ in the app are real records of this app.
   a Gemini API key (see [Rivy](#rivy)); without one, the rest of the app
   works as usual.
 
+For a short overview of the design and what was decided, see
+[`docs/DECISIONS_SUMMARY.md`](docs/DECISIONS_SUMMARY.md).
+
 ## Requirements
 
-- Node.js **24.22.0** and npm **11.19.1** (the npm bundled with that Node
-  release). Any later 24.x works; other major versions are rejected by
-  `npm ci` (`engine-strict`).
-- Docker with Docker Compose (for PostgreSQL 16.15).
-- Free local ports: `5433` (PostgreSQL container), `3001` (API) and `3000`
-  (web). The container uses host port 5433 so it does not collide with a
-  PostgreSQL already installed on the machine (usually on 5432), which is
-  left untouched.
+| Tool | Version | Notes |
+|---|---|---|
+| Git | any recent | Optional: you can download the ZIP instead (step 1) |
+| Node.js | **24.22.0** (`.nvmrc`) | Any later 24.x also works; other major versions are rejected by `npm ci` (`engine-strict`) |
+| npm | **11.19.1** | The npm bundled with Node 24.22.0 |
+| Docker with Compose v2 | Docker Desktop (Windows, macOS) or Docker Engine with the Compose plugin (Linux) | Runs PostgreSQL 16.15; must be running before step 5 |
+
+Free local ports: `5433` (PostgreSQL container, bound to `127.0.0.1`), `3001`
+(API) and `3000` (web). Host port 5433 avoids a PostgreSQL already installed
+on the machine (usually on 5432), which is left untouched.
+
+### Compatibility
+
+| System | Status | Evidence |
+|---|---|---|
+| Linux x86_64 (Ubuntu 24.04, Docker Engine 29, Compose v5) | Run by Claude Code, including an install from a clean clone following this README | [`VERIFICATION.md`](VERIFICATION.md), entries marked CC |
+| Windows x64 (Windows PowerShell, Docker with Compose) | Run by the author: `npm ci`, tests and builds with shared outputs, plus manual reviews of the interface | [`VERIFICATION.md`](VERIFICATION.md), entries marked WIN |
+| macOS (Intel or Apple Silicon) | **Not run** | Expected to work, not verified: the lockfile includes the macOS builds (`darwin-x64` and `darwin-arm64`) of the native packages (`@next/swc`, `lightningcss`, `@img/sharp`, `@rolldown/binding`), and the pinned PostgreSQL digest is a multi-platform index that includes `linux/amd64` and `linux/arm64/v8`, so Docker picks the right image without forcing a platform |
+
+### What is downloaded the first time
+
+- `npm ci`: the packages of the lockfile from the npm registry (about 460),
+  including the native builds for your system, and Prisma's schema engine
+  from `binaries.prisma.sh` (a step of the Prisma install).
+- `npm run db:up`: the PostgreSQL image from Docker Hub (about 160 MB).
+- Rivy only, if you configure a key: each question goes to Google Gemini.
+
+After that, running the app, the tests and the build downloads nothing
+else: the Onest font is stored in the repository (the web build was
+checked with the network blocked), and the tests use a simulated Gemini.
+This is not an offline installation: the first install needs the network.
 
 ## Install and run
 
 Run every command from the repository root. Commands are the same in bash
-and PowerShell except where two variants are shown (in PowerShell,
-`npm.cmd` can be used instead of `npm`).
+(Linux, macOS) and PowerShell (Windows) except where two variants are
+shown. In PowerShell, `npm.cmd` can be used instead of `npm` if script
+execution is blocked.
 
-### 1. Install the dependencies
+### 1. Get the code
 
-Installs the exact dependency tree from the lockfile:
+With Git:
 
 ```
-npm ci
+git clone https://github.com/emilioarias-dev/smart-cycle-count.git
+cd smart-cycle-count
 ```
 
-### 2. Configure
+Or, without Git: on <https://github.com/emilioarias-dev/smart-cycle-count>,
+**Code → Download ZIP**, extract it and open a terminal in the extracted
+folder (`smart-cycle-count-main`).
+
+### 2. Check the versions
+
+```
+node --version             # v24.22.0 (or a later v24)
+npm --version              # 11.19.1 (or a later 11.x)
+docker --version
+docker compose version     # v2 or later
+```
+
+Docker Desktop must be running (on Linux, the Docker service). If `node`
+is another major version, install Node 24.22.0 first (for example with
+`nvm install` in this folder, which reads `.nvmrc`).
+
+### 3. Configure
 
 Create the local environment files from the templates. They hold local
 development values only, no secrets:
 
 ```bash
-# bash
+# bash (Linux, macOS)
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 ```
 
 ```powershell
-# PowerShell
+# PowerShell (Windows)
 Copy-Item apps/api/.env.example apps/api/.env
 Copy-Item apps/web/.env.example apps/web/.env
 ```
 
-- `apps/api/.env`: `DATABASE_URL` (the development database),
-  `TEST_DATABASE_URL` (a separate database for the tests), `PORT` (3001)
-  and, optionally, `SEED_NOW` (see [Demo data](#demo-data)) and the Gemini
-  settings for Rivy (see [Rivy](#rivy)). The template has no key: Rivy
-  says it is not configured until you add yours.
-- `apps/web/.env`: `API_BASE_URL`, read only on the Next.js server; the
-  browser never calls the API directly.
+- `apps/api/.env`: `DATABASE_URL` (the development database,
+  `smart_cycle_count`), `TEST_DATABASE_URL` (a separate database for the
+  tests, `smart_cycle_count_test`), `PORT` (3001) and, optionally,
+  `SEED_NOW` (see [Demo data](#demo-data)) and the Gemini settings for Rivy
+  (see [Rivy](#rivy)). The template has no key: Rivy then answers that it
+  is not configured, and the rest of the app works.
+- `apps/web/.env`: `API_BASE_URL` (`http://localhost:3001`), read only on
+  the Next.js server; the browser never calls the API directly.
 
-### 3. Start PostgreSQL
+**Already have this project's database with data you want to keep?** Use
+another database name in `DATABASE_URL`, for example
+`postgresql://scc:scc_local_dev@localhost:5433/smart_cycle_count_review`
+(the next steps create it), and a different one in `TEST_DATABASE_URL`, for
+example `…/smart_cycle_count_review_test`. The demo reset only accepts
+`smart_cycle_count` or `smart_cycle_count_<suffix>`.
+
+### 4. Install the dependencies
+
+Installs the exact dependency tree of the lockfile (no version is
+resolved again):
+
+```
+npm ci
+```
+
+### 5. Start PostgreSQL
 
 ```
 npm run db:up
@@ -99,16 +161,17 @@ npm run db:up
 It waits until the database is healthy. `docker compose ps` should show the
 `db` service as `healthy` with `127.0.0.1:5433->5432/tcp`.
 
-### 4. Create the database schema
+### 6. Create the database schema
 
-Generate the Prisma client and apply the migrations:
+Generate the Prisma client and apply the migrations (the database of
+`DATABASE_URL` is created if it does not exist):
 
 ```
 npm run db:generate
 npm run db:migrate
 ```
 
-### 5. Load the demo data
+### 7. Load the demo data
 
 > **Warning: this deletes data.** `npm run db:reset-demo` deletes **all**
 > bins, products, pallets, movements and scores, and **all audit plans,
@@ -137,12 +200,12 @@ To get exactly the data used in the examples of this README, set the
 reference time (see [Demo data](#demo-data)):
 
 ```bash
-# bash
+# bash (Linux, macOS)
 SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo
 ```
 
 ```powershell
-# PowerShell
+# PowerShell (Windows)
 $env:SEED_NOW = "2026-10-18T12:00:00Z"; npm.cmd run db:reset-demo; Remove-Item Env:SEED_NOW
 ```
 
@@ -152,7 +215,18 @@ the same warehouse with a few bins that really reach the high band (see
 `db:reset-demo` to go back to the original demo. `SEED_NOW` works the same
 way.
 
-### 6. Start the app
+### 8. Run the tests (optional)
+
+```
+npm test
+```
+
+Expected: the API tests (`Test Files 17 passed`, `Tests 142 passed`) and
+then the web tests (`pass 19`, `fail 0`). They use the separate test
+database and a simulated Gemini; see [Other commands](#other-commands) for
+the two messages in the output that are expected.
+
+### 9. Start the app
 
 Starts the API and the web app together:
 
@@ -166,6 +240,10 @@ npm run dev
 Ctrl+C stops both. On Windows, `cmd.exe` asks `Terminate batch job (Y/N)?`
 (`¿Desea terminar el trabajo por lotes (S/N)?` in Spanish) once per
 process; answer `Y` / `S`.
+
+To check the production build instead: stop `dev`, run `npm run build`,
+then `npm run start -w apps/api` and, in another terminal,
+`npm run start -w apps/web`.
 
 To stop PostgreSQL: `npm run db:down` (the data is kept in a Docker volume).
 
@@ -283,10 +361,15 @@ counts it deleted (with how many counts were PASS and FAIL); the copied
 scores that explained each selection and the PASS/FAIL history are lost
 with them.
 
-**After a reset, reload every open tab.** Pages already open still show the
-data from before (and Rivy's conversation, kept in the page, refers to it);
-a count form opened before the reset belongs to a task that no longer
-exists, so its count is rejected.
+**After a reset, close or reload every open tab.** Pages already open still
+show the data from before (and Rivy's conversation, kept in the page,
+refers to it). A count form opened before the reset is **not** always
+rejected: the reset restarts the numbering of plans and tasks, so its task
+number can belong to a task created after the reset. Usually it is then
+rejected (no such task, a different bin's pallets, or another inventory
+version), but with the same `SEED_NOW` the rebuilt data is identical, and
+it could be saved as a count of that new task. Reload the count page
+before counting.
 
 ## Risk score
 
@@ -419,10 +502,16 @@ the app's own records. It is **read-only**: it cannot create plans, record
 counts, change inventory or the formula, and it never runs SQL written by
 the model.
 
-**Set up the key (optional).** Create a Gemini API key in Google AI Studio
+**Optional.** Rivy is the only part that needs an external service. Without
+a key, a question to Rivy is answered with "Rivy is not configured: set
+GEMINI_API_KEY in apps/api/.env and restart the API.", and everything else
+(dashboard, plans, counts, insights, tests and build) works as usual.
+
+**Set up your own key.** Create a Gemini API key in Google AI Studio
 (<https://aistudio.google.com/apikey>) on the free tier, without enabling
-billing. Open `apps/api/.env` in a text editor (it is git-ignored) and
-fill in the line copied from the template:
+billing. The key is yours and is sent by the API directly to Google; no
+other service or proxy is involved. Open `apps/api/.env` in a text editor
+(it is git-ignored) and fill in the line copied from the template:
 
 ```
 GEMINI_API_KEY=<your key>
@@ -430,8 +519,10 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
 Do not put the key in `.env.example`, a commit, a chat or a command line.
-Restart `npm run dev`. The tests never contact Google: they use a simulated
-Gemini and ignore these settings.
+Restart `npm run dev`. Leave `GEMINI_KEY_VIA_PROXY` unset: it exists only
+for the development container used to build this project, whose network
+proxy adds the key itself. The tests never contact Google: they use a
+simulated Gemini and ignore these settings.
 
 **Free tier terms.** Questions and answers go to Google, which may use them
 to improve its products, and human reviewers may read them: do not type
@@ -575,8 +666,7 @@ initial JavaScript grows by about 5 KB.
 
 | Command | What it does |
 |---|---|
-| `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data), including Rivy's against a simulated Gemini (no request to Google),
-then the web tests (`node --test`: the 3D heatmap geometry, how the API client classifies answers to a write, and tap or drag for Rivy's button, no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
+| `npm test` | The API tests (142) against the separate test database of `TEST_DATABASE_URL` (created and migrated automatically; the tests replace its data), including Rivy's against a simulated Gemini (no request to Google); then the web tests (19, `node --test`: the 3D heatmap geometry, how the API client classifies answers to a write, and tap or drag for Rivy's button; no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check |
 | `npm run db:reset-demo-high-risk` | Replaces the demo data with the high-risk scenario (deletes the same data as `db:reset-demo`) |
 | `npm run build` | Type-checks and builds the API and the web app. Stop `npm run dev` first (see [Known limitations](#known-limitations)) |
 | `npm run db:down` | Stops PostgreSQL (data is kept in a Docker volume) |
@@ -640,8 +730,9 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
 
 | File | Contents |
 |---|---|
+| [`docs/DECISIONS_SUMMARY.md`](docs/DECISIONS_SUMMARY.md) | A short summary of the design and the main decisions |
 | [`DECISIONS.md`](DECISIONS.md) | Product and technical decisions, with their status (accepted, proposed, deferred) |
 | [`PROGRESS.md`](PROGRESS.md) | What is implemented, per milestone |
 | [`VERIFICATION.md`](VERIFICATION.md) | Commands actually executed, per environment, and their results |
 | [`HANDOFF.md`](HANDOFF.md) | Historical snapshot of the project state on 2026-10-17 |
-| [`docs/browser-checks/`](docs/browser-checks/README.md) | Browser regression scripts kept from the verification (not part of `npm test`; need Playwright) |
+| [`docs/browser-checks/`](docs/browser-checks/README.md) | Extra browser regression scripts kept from the verification. Written for and run on Linux with Chromium (Playwright); not needed to run the app or `npm test` |

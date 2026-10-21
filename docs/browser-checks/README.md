@@ -2,7 +2,9 @@
 
 Scripts kept from the verifications of 2026-10-21 (see `VERIFICATION.md`):
 real browser checks of cases that the unit and API tests cannot reach.
-They are **not part of `npm test`** and add no dependency to the project:
+They are **not needed to run the app or `npm test`**, are **not part of
+`npm test`** and add no dependency to the project. They were written for
+and run only on Linux with Chromium:
 they need [Playwright](https://playwright.dev) with Chromium installed on
 the machine, and a bash shell (the plan check stops and restarts the proxy
 with `fuser` and `nohup`). They were run on Linux.
