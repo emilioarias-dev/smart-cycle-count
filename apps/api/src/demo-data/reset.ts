@@ -19,6 +19,7 @@ export class DemoResetRefusedError extends Error {
 }
 
 export type DemoSummary = {
+  scenario: DemoData['scenario'];
   bins: number;
   emptyBins: number;
   neverAuditedBins: number;
@@ -85,7 +86,11 @@ export async function resetDemoData(
           unexpectedPallets: await tx.unexpectedPallet.count(),
         },
       };
-      await tx.$executeRaw`TRUNCATE count_unexpected_pallets, count_lines, counts, audit_tasks, audit_plans, bin_scores, movements, pallets, products, bins RESTART IDENTITY`;
+      await tx.$executeRaw`TRUNCATE count_unexpected_pallets, count_lines, counts, audit_tasks, audit_plans, bin_scores, movements, pallets, products, bins, demo_dataset RESTART IDENTITY`;
+      // Which scenario is loaded (D-017), with the same transaction.
+      await tx.demoDataset.create({
+        data: { scenario: data.scenario, generatorVersion: data.generatorVersion, seed: data.seed, referenceAt: data.reference, loadedAt: new Date() },
+      });
 
       await tx.product.createMany({ data: data.products });
       await tx.bin.createMany({ data: data.bins });
@@ -110,6 +115,7 @@ export async function resetDemoData(
         movements[row.type] = row._count._all;
       }
       return {
+        scenario: data.scenario,
         bins,
         emptyBins,
         neverAuditedBins,

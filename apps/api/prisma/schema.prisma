@@ -236,3 +236,18 @@ model UnexpectedPallet {
   @@index([productId])
   @@map("count_unexpected_pallets")
 }
+
+// Which generator produced the demo data now loaded (D-017): one row, written
+// by the demo reset in the same transaction. Nothing in the data itself can
+// tell the scenarios apart once movements or counts are added, so it is
+// recorded here. No row: the data was loaded before this table existed.
+model DemoDataset {
+  id               Int      @id @default(1)
+  scenario         String
+  generatorVersion Int      @map("generator_version")
+  seed             Int
+  referenceAt      DateTime @map("reference_at") @db.Timestamptz(3)
+  loadedAt         DateTime @map("loaded_at") @db.Timestamptz(3)
+
+  @@map("demo_dataset")
+}

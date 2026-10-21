@@ -20,6 +20,7 @@ describe('Demo data reset (PostgreSQL)', () => {
     await clearInventory(prisma);
     const summary = await resetDemoData(prisma, data, { confirmReset: true });
     expect(summary).toEqual({
+      scenario: 'standard',
       bins: 30,
       emptyBins: 2,
       neverAuditedBins: 11,
