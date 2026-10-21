@@ -68,7 +68,8 @@ on the machine (usually on 5432), which is left untouched.
 
 - `npm ci`: the packages of the lockfile from the npm registry (about 460),
   including the native builds for your system, and Prisma's schema engine
-  from `binaries.prisma.sh` (a step of the Prisma install).
+  from `binaries.prisma.sh` (a step of the Prisma install; skipped if it is
+  already in Prisma's cache on the machine).
 - `npm run db:up`: the PostgreSQL image from Docker Hub (about 160 MB).
 - Rivy only, if you configure a key: each question goes to Google Gemini.
 
@@ -151,6 +152,10 @@ resolved again):
 ```
 npm ci
 ```
+
+Expected: `added 4xx packages` and `found 0 vulnerabilities`. If npm
+suggests a newer major version (npm 12), do not update: the project
+requires npm 11 and `npm ci` would refuse to run.
 
 ### 5. Start PostgreSQL
 

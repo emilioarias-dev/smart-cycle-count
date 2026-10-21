@@ -5,6 +5,19 @@ listed under "Pending" should be read as passing. Decisions are in
 `DECISIONS.md`; implementation status is in `PROGRESS.md`. Checks before
 2026-10-18 are recorded in `HANDOFF.md` §7.
 
+**Kinds of evidence.** Each entry says which kind it is:
+
+- **Run here (CC):** commands executed by Claude Code in its Linux
+  container, with their output read directly.
+- **Shared outputs (WIN):** PowerShell transcripts the author pasted into
+  the conversation; recorded as shown, with the commit when it was printed.
+  No transcript file is kept in the repository.
+- **Reported or manual (WIN):** what the author says they checked by hand
+  (visual reviews, Rivy's real questions), without outputs. These never
+  count as test or build evidence.
+
+macOS (Intel or Apple Silicon) has no entry: it was not run.
+
 ## Environments
 
 | ID | Environment | Notes |
@@ -1231,6 +1244,45 @@ were restarted; no data change).
 
 Not checked: Safari, Firefox, real phones (real touch screens) and Windows.
 
+## 2026-10-21 — CC: delivery acceptance from a clean clone, following only the README (docs `0492182`, code `fd0328e`)
+
+**Run here (CC).** A fresh `git clone` of
+`https://github.com/emilioarias-dev/smart-cycle-count.git` into an empty
+folder outside the working copy, `git switch m6-audit-insights` (head
+`0492182ff25c1488db0188960617660562b3c255`; the README clones `main`, which
+will hold the same files after the merge), then the README's steps in
+order. A **new dedicated database** (`smart_cycle_count_accept`, tests in
+`smart_cycle_count_accept_test`), set in `apps/api/.env` as the README's
+note for an existing install says; the existing databases were not touched
+(`smart_cycle_count` still had its 30 bins afterwards). Code identical to
+the PR head before it: `git diff fd0328e..0492182 -- apps docker-compose.yml
+package.json package-lock.json .npmrc .nvmrc .node-version` is empty.
+
+| README step | Result |
+|---|---|
+| 1. `git clone …`; `cd` | Cloned; `git status` clean |
+| 2. Versions | `node` v24.22.0, `npm` 11.19.1, Docker 29.8.2, Compose v5.6.0 |
+| 3. `cp apps/api/.env.example apps/api/.env`, same for web; database names changed to the dedicated ones | `PORT=3001`, `GEMINI_API_KEY` empty, `API_BASE_URL=http://localhost:3001` |
+| 4. `npm ci` (with an empty npm cache, set by `npm_config_cache`, so every package came from the registry) | Exit 0, 23 s: `added 458 packages, and audited 461 packages`, `found 0 vulnerabilities`. npm printed a notice about npm 12 (now explained in the README: do not update). Prisma's schema engine was present afterwards; this machine already had Prisma's cache (`~/.cache/prisma`), so this run does not show its download |
+| 5. `npm run db:up` | Container `Healthy`; `docker compose ps`: `127.0.0.1:5433->5432/tcp` |
+| 6. `npm run db:generate`; `npm run db:migrate` | Prisma Client 7.10.1 generated; "PostgreSQL database smart_cycle_count_accept created"; 6 migrations applied; exit 0 |
+| 7. `SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo` | Target printed (`smart_cycle_count_accept`); 30 bins (2 empty, 11 never audited), 12 products, 110 pallets; 0 high, 9 medium, 21 low; exit 0 |
+| 8. `npm test` | Test database created; API **142/142** (17 files); web **19/19**; exit 0; the two expected messages only (`[Nest] ERROR … simulated failure while recomputing`, one `pg` DeprecationWarning) |
+| 9. `npm run build` | API and web built; routes `/`, `/api/rivy`, `/bins/[code]`, `/count`, `/rivy`, `/tasks`; exit 0 |
+| 9. `npm run dev` | Web `/`, `/tasks`, `/count`, `/rivy`, `/bins/A-01-03`: 200; API `/warehouse`, `/scores/top`, `/insights/audits`, `/demo`: 200 |
+| Rivy without a key | `POST /api/rivy` → `NOT_CONFIGURED`, "Rivy is not configured: set GEMINI_API_KEY in apps/api/.env and restart the API."; in the browser the same message with "The rest of the app keeps working", then Warehouse with Audit insights loads; no page errors |
+| Existing walkthroughs on this install | 2D flows **33/33** (plan, counts PASS / FAIL / conflict, recompute, phone button); `docs/browser-checks/rivy-drag.cjs` **16/16** |
+| Afterwards | `git status` of the clone: no tracked change |
+
+Also confirmed for the README's compatibility notes: the lockfile has the
+`darwin-x64` and `darwin-arm64` builds of `@next/swc`, `lightningcss`,
+`@img/sharp` (and `sharp-libvips`) and `@rolldown/binding`; the pinned
+PostgreSQL digest `ca0bd484…b641d` is a multi-platform index (`docker image
+ls --tree`: linux/amd64, linux/arm64/v8, arm/v5, arm/v7, 386, ppc64le,
+riscv64, s390x; only amd64 is downloaded here). The `16.15` tag on Docker
+Hub was republished on 2026-10-21 with another digest; the pin is
+unchanged. macOS itself was not run.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1272,13 +1324,19 @@ Windows (WIN):
 
 Polish (`m6-polish`): nothing pending (merged through PR #10 as `64e2fa4`).
 
-Audit insights (`m6-audit-insights`): the author's visual review and
-acceptance of the block on Windows are recorded above. Still pending before
-the merge, in one round on the final commit: `npm.cmd test` (142 API + 19
-web) and `npm.cmd run build`, with the commit (`git rev-parse HEAD`); and a
-look at the presentation adjustments (light top bar, band and tab bar with
-the dark logo; Recompute scores on a narrow window; dragging Rivy's button
-with the mouse and, if possible, on a phone or a touch screen).
+Audit insights and delivery (`m6-audit-insights`, PR #11): the author's
+visual review of the block is recorded above, and the clean-clone
+acceptance here. Still pending before the merge, in **one round on Windows
+on the candidate commit**: `npm.cmd test` (142 API + 19 web) and
+`npm.cmd run build`, with `git rev-parse HEAD`; and a short walk through
+Audit insights and the latest Rivy adjustments (light chrome, Recompute
+scores on a narrow window, dragging Rivy's button). If only documentation
+changes afterwards to record the results, the code delivered is shown to
+be the one tested with `git diff <tested>..<final> -- apps
+docker-compose.yml package.json package-lock.json .npmrc .nvmrc
+.node-version` (empty), without repeating the suite.
+
+Not run: macOS (Intel and Apple Silicon), Safari, Firefox, real phones.
 
 Later or optional:
 
