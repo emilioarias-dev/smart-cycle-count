@@ -265,9 +265,10 @@ the bin's inventory version.
 
 ### Limitations
 
-- After a FAIL, the system keeps expecting the recorded quantities until
-  someone adjusts them, so a recount of the same bin will fail again for the
-  same reason.
+- After a FAIL, the system keeps expecting the same quantities (nothing in
+  the app adjusts the inventory), so a later count fails again if the
+  discrepancy is still there; it passes if the quantities then match (for
+  example, when the earlier count was the mistake).
 - The MVP has no reconciliation workflow.
 
 ---
@@ -450,14 +451,31 @@ data change; no new dependency.
   check with the server's own result once it confirmed it (partial plans
   with their real counts, e.g. "25 of 30 tasks created"), then read their
   action again after 4 s; the message stays. Errors: **rejected** (the API
-  said no: its message, no retry), **failed** (nothing was done: Retry) and
-  **not confirmed** (a write was sent and no answer came back). A plan not
-  confirmed may exist, so there is no Retry, only a link to Tasks; a
-  recompute can always be retried. A count not confirmed shows "Result
-  unknown" and offers to send the same count again, which D-012 makes safe
-  (the saved count comes back as recovered). Buttons stay focusable while
-  working (`aria-disabled`, presses ignored); a saved count moves the focus
+  said no with 400 / 409: its message, no retry), **failed** (nothing was
+  sent: a refused connection; Retry) and **not confirmed** (the outcome is
+  unknown). Not confirmed, corrected 2026-10-21 after an audit: besides a
+  lost answer, a 5xx after a write (a 502 from a gateway can follow a
+  saved plan), a success whose body cannot be read or lacks the result,
+  and a lost answer from the Server Action itself; none of them is shown
+  as "No plan created". When the API did answer, the page is refreshed to
+  show what it has now. A plan not confirmed may exist, so there is no
+  Retry, only a link to Tasks; a recompute can always be retried. Retry
+  ignores presses while it is pending (a guard set in the click itself;
+  `aria-disabled` alone does not stop clicks).
+- **Counts with an unknown result** (corrected 2026-10-21): the page keeps
+  the count exactly as it was sent; the quantities are read-only while it
+  is sent and while its result is unknown; **Send the same count again**
+  resends exactly that count (D-012: if it was saved, it comes back as
+  recovered). **Change quantities** unlocks the fields for a new count,
+  with a note that, if the first one was saved, it is kept and the new
+  quantities are rejected. A success without a readable count is unknown
+  too. Buttons stay focusable while working; a saved count moves the focus
   to its result.
+- **Modal panel, corrected 2026-10-21:** Shift+Tab right after opening
+  (focus on the title) stays inside; the rest of the page is `inert` while
+  the panel is modal; the waiting seconds are shown but not announced (the
+  log is a live region); reduced motion also stops `::after` animations
+  (Rivy's busy ring).
 - **Motion (refined the same day at the author's request):** on
   navigation the page's main blocks enter one after another (0.26 s each,
   40 ms apart, the sixth and later together: at most 0.2 s of offset); the
@@ -577,9 +595,12 @@ reads. The data analysis follows in its own branch.
     not match, the records read are still shown, and the page offers Try
     again (200 with `withheld`). If no record was read, the question fails
     with `UNSUPPORTED` (502, retryable). The API logs what was withheld.
-  - Not a language checker: wording that misreads a correct figure, or a
-    number in words, is not caught; a correct sentence that repeats a value
-    only the question gave ("it is not 99") is withheld.
+  - Not a language checker, and no guarantee that the explanation is true:
+    it filters codes, links, dates, times and numbers. Wording that
+    misreads a correct figure (seen with the real model: "85.81 days" called
+    a longer time than "never audited"), reasoning, or a number in words is
+    not caught; a correct sentence that repeats a value only the question
+    gave ("it is not 99") is withheld. The records table is the reference.
   - A bin's page is listed as a source only if the answer names that bin;
     "Data as of" is the query time of the API. When no tool returns what a
     question needs, the expected answer says the records do not show it.
@@ -598,7 +619,17 @@ reads. The data analysis follows in its own branch.
   Node's `fetch` in the API, no SDK (no new dependency). The model's turn
   is sent back exactly as received, so thought signatures are kept. The
   key stays on the API server (`GEMINI_API_KEY` in `apps/api/.env`); the
-  browser talks only to the Next.js server, as for every page.
+  browser talks only to the Next.js server, as for every page. Questions
+  go through a Next.js route handler (`/api/rivy`) that forwards to
+  `POST /assistant/ask`, not through a Server Action (corrected
+  2026-10-21): Next.js runs a page's Server Actions one after another, and
+  a question waiting for Gemini held back Create plan, Recompute and counts
+  for up to 30 s. While Rivy answers, its waiting state is plain state,
+  not a React transition, so other actions' results are shown at once.
+- **compare_bins reads both bins once,** in one consistent snapshot
+  (corrected 2026-10-21): it used to read the scores for the order and
+  again for the figures, so a recompute between the two reads could show
+  figures that contradicted the order and its deciding rule.
 - **Limits per question:** at most 2 Gemini calls (the first may ask for
   tools; the second may not) and 2 tool runs; 500 characters per question;
   800 output tokens per call; 30 s per call and 60 s per question. A local
@@ -897,7 +928,10 @@ with real count results.
   **once per affected bin** (a move counts for its source and its
   destination; an adjustment once).
 - **Reference time:** after a demo reset, the reset's reference; the
-  recompute button uses the current time.
+  recompute button uses the current time, taken once it holds the scores
+  lock (corrected 2026-10-21: it was taken before waiting, so a count that
+  committed during the wait, with a later count time, fell outside the
+  window and its FAIL and audit date were dropped).
 - **Pallet count** is shown as context only; it is not a factor.
 - **Bands:** 0–39 low priority (green), 40–69 medium (yellow), 70–100 high
   (red), always shown with the number and the label.

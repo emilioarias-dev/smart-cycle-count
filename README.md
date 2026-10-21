@@ -265,6 +265,11 @@ counts it deleted (with how many counts were PASS and FAIL); the copied
 scores that explained each selection and the PASS/FAIL history are lost
 with them.
 
+**After a reset, reload every open tab.** Pages already open still show the
+data from before (and Rivy's conversation, kept in the page, refers to it);
+a count form opened before the reset belongs to a task that no longer
+exists, so its count is rejected.
+
 ## Risk score
 
 Each bin gets a 0–100 **audit priority** (decisions D-010 and D-012,
@@ -306,7 +311,9 @@ its own reference time. The **Recompute scores** button (or
 `POST /scores/recompute`) scores every bin for the current time, and so does
 every saved count, for the count's time. Each time all inputs are read and
 all scores replaced in one transaction: every bin gets its new score, or
-none does. Recomputes take turns, so one never overwrites another's result.
+none does. Recomputes take turns, so one never overwrites another's result,
+and the button's current time is taken once it has its turn: a count saved
+while it waited is included.
 Only the latest score is kept, with a breakdown that reproduces it
 (reference time, formula version, inputs, weights, caps and contributions);
 the bin page shows it under "Why this score".
@@ -380,8 +387,10 @@ transaction. A count never changes the inventory.
   pallets, and every quantity is entered again.
 - **The same count sent again** (for example after a lost connection)
   shows the saved count as **recovered**: nothing is saved twice. If the
-  page cannot confirm whether a count was saved, it says so and offers to
-  send the same count again.
+  page cannot confirm whether a count was saved ("Result unknown"), the
+  quantities stay as they were sent and **Send the same count again**
+  resends exactly them; **Change quantities** starts a new count instead,
+  which is rejected if the first one was saved.
 - **Different quantities for a task already counted** are rejected: the
   page shows the saved result and says the new quantities were not saved.
 
@@ -420,7 +429,9 @@ drawer on tablets and a nearly full-screen sheet on phones. Esc or ✕ closes
 it; ⤢ opens the full page. The conversation is kept while you move between
 pages. The button is hidden on the Rivy page and while a count is being
 entered (Rivy stays in the navigation). A dot on the button means an answer
-arrived while the panel was closed.
+arrived while the panel was closed. While Rivy waits for Gemini, the rest
+of the app keeps working: Create plan, Recompute and counts are not held
+back.
 
 **Use.** Open **Rivy** and pick a suggested question or type one (up to
 500 characters; Enter sends, Shift + Enter adds a line). For example:
@@ -463,6 +474,9 @@ answers), and that a figure written next to a bin is that bin's. If not,
 the text is replaced by a note naming what did not match; the records are
 still shown, and **Try again** asks again. Questions the records cannot
 answer (for example, the lowest scores) get "the records do not show it".
+The check is a filter of codes, links, dates, times and numbers, not proof
+that the explanation is right: a text can pass it and still describe the
+records wrongly, so **Records read** is the reference.
 
 ## Interface
 
@@ -479,10 +493,11 @@ Rivy reads the records its avatar pulses; a new answer, already checked, is
 revealed block by block. **Create plan** and
 **Recompute scores** show that they are working, then a check with the
 server's own result (for example "25 of 30 tasks created" when 5 bins
-already have a pending task), or an error: **Retry** when nothing was done;
-"not confirmed" with a link to Tasks when the request was sent and no
-answer came back (the plan may exist). A count whose answer is lost shows
-"Result unknown" and offers to send the same count again, which is safe
+already have a pending task), or an error: **Retry** when nothing was sent;
+"not confirmed" with a link to Tasks when the outcome is unknown (no answer,
+a server or gateway error after the request, or an answer that cannot be
+read: the plan may exist). A count whose result is unknown keeps the
+quantities as sent and offers to send that same count again, which is safe
 (D-012). Nothing waits on purpose; with the system's "reduce motion"
 setting there is no animation. Buttons keep the keyboard focus while
 working.
@@ -511,9 +526,9 @@ initial JavaScript grows by about 5 KB.
 - There is no way to record movements from the app: movements only come
   from the demo generator, so the "inventory changed" path of the count is
   exercised by the tests rather than by normal use.
-- A FAIL does not correct the inventory (decision D-004): the next count of
-  that bin fails again until someone adjusts it, and the app has no
-  reconciliation workflow.
+- A FAIL does not correct the inventory (decision D-004): a later count of
+  that bin fails again if the discrepancy is still there (it passes if the
+  quantities then match), and the app has no reconciliation workflow.
 - Weights and caps are initial heuristics, not calibrated with real count
   results.
 - With an old `SEED_NOW`, a recompute (button or count) moves every score to
@@ -531,7 +546,7 @@ initial JavaScript grows by about 5 KB.
 | Command | What it does |
 |---|---|
 | `npm test` | API tests against a separate PostgreSQL test database (`smart_cycle_count_test`, created and migrated automatically; the tests replace its data), including Rivy's against a simulated Gemini (no request to Google),
-then the web tests (`node --test`: the 3D heatmap geometry, no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
+then the web tests (`node --test`: the 3D heatmap geometry and how the API client classifies answers to a write, no database). Needs `npm run db:up`. Two messages in its output are expected: a `[Nest] ERROR … simulated failure while recomputing` log (a rollback test) and one `pg` DeprecationWarning, provoked on purpose by the self-test of the queued-query check. |
 | `npm run db:reset-demo-high-risk` | Replaces the demo data with the high-risk scenario (deletes the same data as `db:reset-demo`) |
 | `npm run build` | Type-checks and builds the API and the web app. Stop `npm run dev` first (see [Known limitations](#known-limitations)) |
 | `npm run db:down` | Stops PostgreSQL (data is kept in a Docker volume) |
@@ -597,3 +612,4 @@ count_unexpected_pallets                    POST /audit-tasks/:taskId/count
 | [`PROGRESS.md`](PROGRESS.md) | What is implemented, per milestone |
 | [`VERIFICATION.md`](VERIFICATION.md) | Commands actually executed, per environment, and their results |
 | [`HANDOFF.md`](HANDOFF.md) | Historical snapshot of the project state on 2026-10-17 |
+| [`docs/browser-checks/`](docs/browser-checks/README.md) | Browser regression scripts kept from the verification (not part of `npm test`; need Playwright) |

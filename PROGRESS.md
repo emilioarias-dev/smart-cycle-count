@@ -283,8 +283,8 @@ on the page background it measured 4.32:1, below 4.5:1.
 
 ### Known limitations
 
-- After a FAIL the inventory is not corrected (D-004): the next count of the
-  bin fails again until someone adjusts it.
+- After a FAIL the inventory is not corrected (D-004): a later count of the
+  bin fails again if the discrepancy is still there.
 - With an old `SEED_NOW`, a count recomputes every score for the current
   time, which moves the activity window past the demo activity.
 - Counts are serialised by the scores lock (30 bins recomputed each time):
@@ -404,7 +404,8 @@ formula, weight, band or color change. Opened after PR #9 was merged.
 | Staggered entry of the main blocks, link loading bar, theme cross-fade, Rivy reading indicator, progressive reveal of a validated answer; no motion with reduced motion | `app/template.tsx`, `Navigation.tsx`, `ThemeToggle.tsx`, `RivyChat.tsx`, `globals.css` | Yes (20 checks) | Pending |
 | High-risk scenario: planned inputs for 8 high, 12 medium, 10 low, different scores per band, with the unchanged formula; original demo unchanged; scenario in the top bar | `src/demo-data/high-risk.ts`, `demo.controller.ts`, migration | Yes (tests: SQL formula, plan, fingerprint; a wrong plan fails) | Pending |
 | Earlier checks kept | — | Yes (2D flows 33/33, Count fields, chart, 56 views, 3D 30/30 + interaction + 8 views, Rivy 67/67 + 22/22) | — |
-| Tests and builds | `npm test`, `npm run build` | Yes (API 131/131, web 11/11) | Pending |
+| Audit fixes (2026-10-21): recompute time after the lock; ambiguous plan answers not confirmed, Retry guarded; exact count retry, fields locked; compare_bins in one snapshot; modal Shift+Tab, inert page, `::after` reduced motion, seconds not announced; Rivy through a route handler | `scoring/recompute.ts`, `lib/api.ts`, `app/actions.ts`, `WarehouseHead.tsx`, `CountForm.tsx`, `assistant/tools.ts`, `RivyDock.tsx`, `RivyProvider.tsx`, `app/api/rivy/route.ts` | Yes (each reproduced first, then fixed; API and web tests, 17 browser checks kept in `docs/browser-checks/`) | Pending |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 133/133, web 14/14) | Pending |
 
 Next: the author's data analysis, on its own branch. Delivery planned for
 Thursday 2026-10-22; final acceptance of the whole (clean clones, version
