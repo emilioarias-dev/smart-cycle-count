@@ -172,7 +172,9 @@ export type RivyOutcome = { status: 'ok'; data: RivyAnswer } | { status: 'error'
 // was done: retrying is safe) or `unconfirmed` (a write was sent and no
 // answer came back: it may or may not have been applied).
 export type ErrorKind = 'rejected' | 'failed' | 'unconfirmed';
-export type ApiResult<T> = { status: 'ok'; data: T } | { status: 'not-found' } | { status: 'error'; reason: string; kind?: ErrorKind };
+// `responded`: the API answered (an error status or an unreadable body), so it
+// is reachable and the page can be refreshed to show what it has now.
+export type ApiResult<T> = { status: 'ok'; data: T } | { status: 'not-found' } | { status: 'error'; reason: string; kind?: ErrorKind; responded?: boolean };
 
 // The demo scenario loaded (D-017); `scenario` is null when not recorded.
 export type DemoDataset = { scenario: 'standard' | 'high-risk' | null; label: string; reference: string | null; loadedAt: string | null };
@@ -234,7 +236,12 @@ export async function submitCount(taskId: number, payload: CountPayload): Promis
     return unconfirmed('The API did not answer.');
   }
   const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-  if ((response.status === 200 || response.status === 201) && body) {
+  if (response.status === 200 || response.status === 201) {
+    // A success without a readable count is not shown as saved.
+    const count = body?.count as Partial<CountView> | undefined;
+    if (!count || (count.result !== 'PASS' && count.result !== 'FAIL') || !Array.isArray(count.lines) || !count.bin) {
+      return unconfirmed("The API's answer could not be read.");
+    }
     return { status: 'saved', ...(body as { recovered: boolean; count: CountView; score: ScoreSummary | null }) };
   }
   const message = typeof body?.message === 'string' ? body.message : `The API responded with HTTP ${response.status}.`;
@@ -303,7 +310,7 @@ async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: u
     // a write was sent leaves its outcome unknown.
     const refused = (error as { cause?: { code?: string } }).cause?.code === 'ECONNREFUSED';
     if (method === 'POST' && !refused) {
-      return { status: 'error', kind: 'unconfirmed', reason: 'The API did not answer, so it is not known whether this was done.' };
+      return { status: 'error', kind: 'unconfirmed', reason: 'The API did not answer. It is not known whether this was done.' };
     }
     return {
       status: 'error',
@@ -312,6 +319,9 @@ async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: u
     };
   }
 
+  // After a write, an error from a server or a gateway (5xx) or an answer that
+  // cannot be read does not show that nothing was done: not confirmed.
+  const unknownWrite = (why: string): ApiResult<T> => ({ status: 'error', kind: 'unconfirmed', responded: true, reason: `${why} It is not known whether this was done.` });
   if (response.status === 404) {
     return { status: 'not-found' };
   }
@@ -324,7 +334,17 @@ async function getJson<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: u
   }
   if (!response.ok) {
     console.error(`Request to ${url.href} returned HTTP ${response.status}`);
+    if (method === 'POST' && response.status >= 500) {
+      return unknownWrite(`The API responded with HTTP ${response.status}.`);
+    }
     return { status: 'error', kind: 'failed', reason: `The API responded with HTTP ${response.status}.` };
   }
-  return { status: 'ok', data: (await response.json()) as T };
+  try {
+    return { status: 'ok', data: (await response.json()) as T };
+  } catch (error) {
+    console.error(`Request to ${url.href}: the answer could not be read:`, error);
+    return method === 'POST'
+      ? unknownWrite("The API's answer could not be read.")
+      : { status: 'error', kind: 'failed', reason: "The API's answer could not be read." };
+  }
 }

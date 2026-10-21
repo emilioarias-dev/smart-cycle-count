@@ -76,6 +76,19 @@ export function RivyDock() {
     setOpen(false);
   }
 
+  // While the panel is modal, the rest of the page is inert: no focus, no
+  // clicks, hidden from screen readers. Restored when it closes.
+  useEffect(() => {
+    if (!modal) {
+      return;
+    }
+    const others = [...document.body.children].filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && !el.classList.contains('rivy-panel') && !el.classList.contains('rivy-backdrop') && !el.inert,
+    );
+    others.forEach((el) => (el.inert = true));
+    return () => others.forEach((el) => (el.inert = false));
+  }, [modal]);
+
   // Esc closes the panel wherever the focus is (also while Rivy answers).
   useEffect(() => {
     if (!shown) {
@@ -97,10 +110,12 @@ export function RivyDock() {
       const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
       const first = items[0];
       const last = items.at(-1);
-      if (event.shiftKey && document.activeElement === first) {
+      // From the title (focused on opening) or from either end, wrap around.
+      const outside = !items.includes(document.activeElement as HTMLElement);
+      if (event.shiftKey && (outside || document.activeElement === first)) {
         event.preventDefault();
         last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (outside || document.activeElement === last)) {
         event.preventDefault();
         first?.focus();
       }

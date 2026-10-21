@@ -77,7 +77,9 @@ export function RivyChat() {
               <span className="rivy-thinking" aria-hidden="true">
                 <RivyAvatar size={28} />
               </span>
-              Rivy is reading the app&apos;s records… {elapsed > 0 ? `${elapsed} s` : ''}
+              Rivy is reading the app&apos;s records…{' '}
+              {/* Seen, not announced: the log is a live region. */}
+              <span aria-hidden="true">{elapsed > 0 ? `${elapsed} s` : ''}</span>
             </p>
           </article>
         )}

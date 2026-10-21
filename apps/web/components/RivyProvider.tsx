@@ -1,8 +1,7 @@
 'use client';
 
-import { type ReactNode, createContext, useCallback, useContext, useMemo, useRef, useState, useTransition } from 'react';
-import { askRivyAction } from '../app/actions';
-import type { RivyAnswer, RivyExchange } from '../lib/api';
+import { type ReactNode, createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import type { RivyAnswer, RivyExchange, RivyOutcome } from '../lib/api';
 
 // Rivy's conversation for the whole app (D-016): the /rivy page and the
 // floating panel show the same one. It lives in the browser's memory only:
@@ -51,7 +50,11 @@ export function RivyProvider({ children }: { children: ReactNode }) {
   const [open, setOpenState] = useState(false);
   const [unread, setUnread] = useState(false);
   const [countActive, setCountActive] = useState(false);
-  const [pending, startTransition] = useTransition();
+  // Plain state, not a transition: React holds back other transitions'
+  // updates (a plan's result, a count's) until a pending async transition
+  // ends, and Gemini can take up to a minute.
+  const [pending, setPending] = useState(false);
+  const busy = useRef(false);
   // Read when an answer arrives, after the user may have closed the panel.
   const openRef = useRef(false);
   const onRivyPage = () => typeof window !== 'undefined' && window.location.pathname === '/rivy';
@@ -67,17 +70,26 @@ export function RivyProvider({ children }: { children: ReactNode }) {
   const send = useCallback(
     (question: string) => {
       const text = question.trim();
-      if (!text || pending) {
+      if (!text || busy.current) {
         return;
       }
+      busy.current = true;
+      setPending(true);
       const history: RivyExchange[] = exchanges.map((e) => ({ question: e.question, answer: e.answer.answer }));
       setFailure(null);
       setAsking(text);
       setStartedAt(Date.now());
-      startTransition(async () => {
-        let outcome: Awaited<ReturnType<typeof askRivyAction>>;
+      void (async () => {
+        let outcome: RivyOutcome;
         try {
-          outcome = await askRivyAction(text, history);
+          // A route handler, not a Server Action: a slow answer must not hold
+          // back the page's other actions (app/api/rivy/route.ts).
+          const response = await fetch('/api/rivy', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ question: text, history }),
+          });
+          outcome = (await response.json()) as RivyOutcome;
         } catch {
           // The Next.js server itself did not answer (for example, stopped).
           outcome = { status: 'error', code: 'APP_UNREACHABLE', message: 'The app server did not answer. Check that it is running, then try again.', retryable: true };
@@ -95,9 +107,11 @@ export function RivyProvider({ children }: { children: ReactNode }) {
         if (!openRef.current && !onRivyPage()) {
           setUnread(true);
         }
-      });
+        busy.current = false;
+        setPending(false);
+      })();
     },
-    [exchanges, pending],
+    [exchanges],
   );
 
   const clear = useCallback(() => {

@@ -32,6 +32,14 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
   const [outcome, setOutcome] = useState<CountOutcome | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [pending, startTransition] = useTransition();
+  // The count as it was sent last time. When its result is unknown, "Send the
+  // same count again" resends exactly this, never what the fields show now.
+  const [sent, setSent] = useState<CountPayload | null>(null);
+  // After an unknown result the fields stay as sent until the operator
+  // chooses to change them: a change is a new submission, not a retry.
+  const [changing, setChanging] = useState(false);
+  const unknown = outcome?.status === 'unconfirmed' && sent !== null;
+  const locked = pending || (unknown && !changing);
 
   const productBySku = new Map(sheet.products.map((p) => [p.sku, p]));
 
@@ -46,14 +54,26 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending) {
+    if (locked) {
+      // While the result is unknown, the bar's button resends the same count.
+      if (unknown && !pending) {
+        send(sent!);
+      }
       return;
     }
-    const payload: CountPayload = {
+    send({
       inventoryVersion: active.inventoryVersion,
       lines: active.lines.map((line) => ({ palletCode: line.palletCode, countedQuantity: asNumber(counted[line.palletCode] ?? '') })),
       unexpected: unexpected.map((row) => ({ code: row.code, quantity: asNumber(row.quantity), productSku: row.productSku || null })),
-    };
+    });
+  }
+
+  function send(payload: CountPayload) {
+    if (pending) {
+      return;
+    }
+    setSent(payload);
+    setChanging(false);
     startTransition(async () => {
       let result: CountOutcome;
       try {
@@ -124,10 +144,28 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
               Updated recount: enter every quantity again. The previous attempt above was not saved.
             </p>
           )}
-          {outcome && (outcome.status === 'rejected' || outcome.status === 'unconfirmed') && (
-            <section className={`callout ${outcome.status === 'rejected' ? 'error' : 'info'}`} role="alert">
-              <h2>{outcome.status === 'rejected' ? 'Not saved' : 'Result unknown'}</h2>
+          {outcome && outcome.status === 'rejected' && (
+            <section className="callout error" role="alert">
+              <h2>Not saved</h2>
               <p>{outcome.message}</p>
+            </section>
+          )}
+          {outcome && outcome.status === 'unconfirmed' && (
+            <section className="callout info" role="alert">
+              <h2>Result unknown</h2>
+              <p>{outcome.message}</p>
+              {changing ? (
+                <p>
+                  Changed quantities are a new count: if the first one was saved, it is kept and the new quantities are rejected.
+                </p>
+              ) : (
+                <>
+                  <p>The quantities below are the ones sent, kept as they were.</p>
+                  <button type="button" className="btn btn-text btn-sm" onClick={() => setChanging(true)} disabled={pending}>
+                    Change quantities
+                  </button>
+                </>
+              )}
             </section>
           )}
 
@@ -169,6 +207,7 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
                             step={1}
                             required
                             value={counted[line.palletCode] ?? ''}
+                            readOnly={locked}
                             onChange={(e) => setCounted({ ...counted, [line.palletCode]: e.target.value })}
                           />
                         </div>
@@ -205,6 +244,7 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
                         required
                         maxLength={40}
                         autoCapitalize="characters"
+                        readOnly={locked}
                         onChange={(e) => update({ code: e.target.value })}
                       />
                     </div>
@@ -212,7 +252,13 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
                       <label className="field-label" htmlFor={`unexpected-product-${row.key}`}>
                         Product
                       </label>
-                      <select id={`unexpected-product-${row.key}`} className="input" value={row.productSku} onChange={(e) => update({ productSku: e.target.value })}>
+                      <select
+                        id={`unexpected-product-${row.key}`}
+                        className="input"
+                        value={row.productSku}
+                        aria-disabled={locked || undefined}
+                        onChange={(e) => !locked && update({ productSku: e.target.value })}
+                      >
                         <option value="">Product unknown</option>
                         {sheet.products.map((p) => (
                           <option key={p.sku} value={p.sku}>
@@ -234,10 +280,11 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
                         step={1}
                         required
                         value={row.quantity}
+                        readOnly={locked}
                         onChange={(e) => update({ quantity: e.target.value })}
                       />
                     </div>
-                    <button type="button" className="btn btn-text remove" onClick={() => setUnexpected(unexpected.filter((r) => r.key !== row.key))}>
+                    <button type="button" className="btn btn-text remove" disabled={locked} onClick={() => setUnexpected(unexpected.filter((r) => r.key !== row.key))}>
                       Remove
                     </button>
                     {!product && <p className="field-hint">Product unknown: the quantity is kept as declared, without a catalog unit.</p>}
@@ -248,7 +295,7 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
                 type="button"
                 className="btn btn-outline btn-sm"
                 style={{ marginTop: '1rem' }}
-                disabled={unexpected.length >= MAX_UNEXPECTED}
+                disabled={locked || unexpected.length >= MAX_UNEXPECTED}
                 onClick={() => {
                   setUnexpected([...unexpected, { key: nextKey, code: '', quantity: '', productSku: '' }]);
                   setNextKey(nextKey + 1);
@@ -272,7 +319,7 @@ export function CountForm({ sheet }: { sheet: CountSheet }) {
             </span>
             <button type="submit" className="btn btn-primary" aria-disabled={pending || undefined} aria-busy={pending}>
               {pending && <span className="spinner" aria-hidden="true" />}
-              {pending ? 'Saving…' : outcome?.status === 'unconfirmed' ? 'Send the same count again' : 'Submit count'}
+              {pending ? 'Saving…' : unknown && !changing ? 'Send the same count again' : 'Submit count'}
               {!pending && <Icon name="arrow" className="arrow" />}
             </button>
           </div>

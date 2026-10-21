@@ -33,6 +33,15 @@ function useConfirmed(state: RecomputeState | CreatePlanState): boolean {
   return state.status === 'ok' && shown === state.at;
 }
 
+// The app server's own answer to an action can be lost: the outcome is then
+// unknown, never an error page.
+const appDidNotAnswer = () => ({
+  status: 'error' as const,
+  kind: 'unconfirmed' as const,
+  message: 'The app did not answer. It is not known whether this was done.',
+  at: Date.now(),
+});
+
 const ignoreWhile = (busy: boolean) => (event: MouseEvent) => {
   if (busy) {
     event.preventDefault();
@@ -40,8 +49,20 @@ const ignoreWhile = (busy: boolean) => (event: MouseEvent) => {
 };
 
 export function WarehouseHead({ binCount, aisleCount, scoresAsOf }: { binCount: number; aisleCount: number; scoresAsOf: string }) {
-  const [recompute, recomputeAction, recomputing] = useActionState<RecomputeState>(recomputeScoresAction, { status: 'idle' });
-  const [plan, planAction, creating] = useActionState<CreatePlanState, FormData>(createPlanAction, { status: 'idle' });
+  const [recompute, recomputeAction, recomputing] = useActionState<RecomputeState>(async (previous) => {
+    try {
+      return await recomputeScoresAction(previous);
+    } catch {
+      return appDidNotAnswer();
+    }
+  }, { status: 'idle' });
+  const [plan, planAction, creating] = useActionState<CreatePlanState, FormData>(async (previous, form) => {
+    try {
+      return await createPlanAction(previous, form);
+    } catch {
+      return appDidNotAnswer();
+    }
+  }, { status: 'idle' });
   const recomputed = useConfirmed(recompute);
   const planned = useConfirmed(plan);
   const [edited, setEdited] = useState(false);
@@ -49,13 +70,26 @@ export function WarehouseHead({ binCount, aisleCount, scoresAsOf }: { binCount: 
   const planButton = useRef<HTMLButtonElement>(null);
   const recomputeButton = useRef<HTMLButtonElement>(null);
 
+  // Set in the click itself, so a second press before the next render is
+  // ignored too (aria-disabled does not stop clicks); cleared by the result.
+  const retrying = useRef(false);
+  useEffect(() => {
+    retrying.current = false;
+  }, [plan, recompute]);
+
   function retryPlan() {
-    if (lastPlan.current) {
-      startTransition(() => planAction(lastPlan.current!));
-      planButton.current?.focus();
+    if (retrying.current || creating || !lastPlan.current) {
+      return;
     }
+    retrying.current = true;
+    startTransition(() => planAction(lastPlan.current!));
+    planButton.current?.focus();
   }
   function retryRecompute() {
+    if (retrying.current || recomputing) {
+      return;
+    }
+    retrying.current = true;
     startTransition(() => recomputeAction());
     recomputeButton.current?.focus();
   }
