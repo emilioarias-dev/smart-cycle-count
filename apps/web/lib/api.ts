@@ -134,8 +134,30 @@ export type TopScore = { rank: number; binCode: string; score: ScoreDetail };
 
 // Rivy (D-016): one answer, built by the API from its read-only tools.
 export type RivyExchange = { question: string; answer: string };
+type RivyScore = { value: number; band: string; scoreTime: string | null };
+// Mirrors the API's Fact (apps/api/src/assistant/facts.ts).
+export type RivyFact =
+  | { kind: 'bin'; code: string; score: RivyScore | null; factors: { factor: string; input: string; points: number }[]; lastAudit: string | null; pallets: number; pendingPlan: number | null }
+  | { kind: 'missing'; message: string }
+  | { kind: 'compare'; first: string | null; decidedBy: string; bins: { code: string; score: RivyScore | null; forNewPlan: string }[] }
+  | { kind: 'top'; bins: { rank: number; code: string; score: RivyScore }[] }
+  | {
+      kind: 'history';
+      code: string;
+      current: { value: number; scoreTime: string | null } | null;
+      note: string | null;
+      tasks: {
+        planId: number;
+        status: string;
+        atSelection: RivyScore;
+        count: { result: string; countedAt: string | null; lines: { pallet: string; sku: string; unit: string; expected: number; counted: number; variance: number }[]; unexpected: number } | null;
+      }[];
+    }
+  | { kind: 'rules'; version: string };
 export type RivyAnswer = {
   answer: string;
+  facts: RivyFact[];
+  withheld: string[] | null;
   references: { label: string; href: string }[];
   queriedAt: string | null;
   tools: { name: string; args: Record<string, unknown> }[];

@@ -126,6 +126,7 @@ export class AssistantTools {
       lastAudit: bin.lastAuditedAt
         ? { date: iso(bin.lastAuditedAt), note: 'The latest count in the app; before a first count it is simulated demo data.' }
         : { date: null, note: 'Never audited.' },
+      palletCount: bin.pallets.length,
       pallets: bin.pallets.map((p) => ({ code: p.code, sku: p.product.sku, product: p.product.name, quantity: p.quantity, unit: p.product.unit })),
       pendingTask: pending ? { planId: pending.planId, rank: pending.rank } : null,
       links: [{ label: `Bin ${bin.code}`, href: `/bins/${bin.code}` }, ...(pending ? [{ label: 'Tasks', href: '/tasks' }] : [])],
@@ -182,6 +183,7 @@ export class AssistantTools {
       found: true,
       queriedAt,
       order: 'Highest priority first, as plans order bins: score, then never audited or older audit, then bin code. Bins with a pending task are included.',
+      size: TOP_SIZE,
       bins: top.map((t) => ({ rank: t.rank, code: t.binCode, currentScore: t.score.value, band: t.score.label, scoreTime: iso(t.score.reference) })),
       links: [...top.map((t) => ({ label: `Bin ${t.binCode}`, href: `/bins/${t.binCode}` })), { label: 'Warehouse', href: '/' }],
     };
@@ -225,6 +227,7 @@ export class AssistantTools {
       code: bin.code,
       queriedAt,
       currentScore: bin.score ? { value: bin.score.score, scoreTime: iso(bin.score.referenceAt) } : null,
+      taskCount: items.length,
       tasks: items,
       ...(items.length === 0 ? { note: 'No audit task or count is stored for this bin: its count history is unknown, not PASS.' } : {}),
       ...(tasks.length === HISTORY_LIMIT ? { note: `Only the latest ${HISTORY_LIMIT} tasks are listed.` } : {}),
@@ -251,7 +254,7 @@ function currentScore(bin: BinDetail) {
     formulaVersion: bin.score.formulaVersion,
     factors: [
       { factor: 'time since last audit', weight: factors.age.weight, input: factors.age.neverAudited ? 'never audited' : `${round2(factors.age.input)} days`, cap: `${factors.age.cap} days`, points: round2(factors.age.contribution) },
-      { factor: 'activity', weight: factors.activity.weight, input: `${factors.activity.input} movements`, cap: factors.activity.cap, points: round2(factors.activity.contribution) },
+      { factor: 'activity', weight: factors.activity.weight, input: `${factors.activity.input} movements in ${WINDOW_DAYS} days`, cap: factors.activity.cap, points: round2(factors.activity.contribution) },
       { factor: 'adjustments', weight: factors.adjustments.weight, input: factors.adjustments.input, cap: factors.adjustments.cap, points: round2(factors.adjustments.contribution) },
       ...(factors.lastResult
         ? [{ factor: 'last count result', weight: factors.lastResult.weight, input: factors.lastResult.result ?? 'no count (unknown, not PASS)', cap: 'FAIL', points: round2(factors.lastResult.contribution) }]
@@ -262,19 +265,20 @@ function currentScore(bin: BinDetail) {
 }
 
 type Candidate = { code: string; score: { value: number; breakdown: { factors: { age: { neverAudited: boolean; lastAuditedAt: string | null } } } } };
+// Without figures: each score is given with its own bin.
 function decider(a: Candidate, b: Candidate): string {
   if (a.score.value !== b.score.value) {
-    return `score: ${Math.max(a.score.value, b.score.value)} is higher than ${Math.min(a.score.value, b.score.value)}`;
+    return `higher score: ${a.score.value > b.score.value ? a.code : b.code}`;
   }
   const [aa, ba] = [a.score.breakdown.factors.age, b.score.breakdown.factors.age];
   const neverA = aa.neverAudited || aa.lastAuditedAt === null;
   const neverB = ba.neverAudited || ba.lastAuditedAt === null;
   if (neverA !== neverB) {
-    return `tie at ${a.score.value}: ${neverA ? a.code : b.code} was never audited`;
+    return `same score: ${neverA ? a.code : b.code} was never audited`;
   }
   if (!neverA && aa.lastAuditedAt !== ba.lastAuditedAt) {
     const older = Date.parse(aa.lastAuditedAt!) < Date.parse(ba.lastAuditedAt!) ? a : b;
-    return `tie at ${a.score.value}: ${older.code} has the older audit (${older.score.breakdown.factors.age.lastAuditedAt})`;
+    return `same score: ${older.code} has the older audit (${older.score.breakdown.factors.age.lastAuditedAt})`;
   }
-  return `tie at ${a.score.value} with the same audit information: bin code order`;
+  return 'same score and audit information: bin code order';
 }

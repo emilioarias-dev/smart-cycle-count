@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type Content, type GeminiConfig, GeminiError, type GeminiErrorCode, type Part, type Usage, generateContent, geminiConfig } from './gemini.js';
+import { type Fact, factsOf } from './facts.js';
 import { unsupported } from './grounding.js';
 import { AssistantTools, TOOL_DECLARATIONS, type ToolResult } from './tools.js';
 
@@ -21,6 +22,10 @@ export type Exchange = { question: string; answer: string };
 export type AskInput = { question: string; history: Exchange[] };
 export type AskResult = {
   answer: string;
+  // The records read, as structured data shown under the answer.
+  facts: Fact[];
+  // What the model's text stated without support; the text was replaced.
+  withheld: string[] | null;
   references: { label: string; href: string }[];
   queriedAt: string | null;
   tools: { name: string; args: Record<string, unknown> }[];
@@ -43,7 +48,8 @@ export class AskError extends Error {
 }
 
 const SYSTEM = `You are Rivy, the read-only assistant of Smart Cycle Count, a warehouse cycle-count app. All data is synthetic demo data.
-- Use the tools for every bin, figure, date and link, and state only what the tool results of THIS question contain. Never invent, estimate or compute new numbers. If a tool says a bin does not exist, or no tool returns what the question needs, say plainly that the app's records do not show it.
+- Use the tools for every bin, figure, date and link, and state only what the tool results of THIS question contain. Never invent, estimate, count or compute numbers, and never repeat a figure from the question unless a tool returned it. If a tool says a bin does not exist, or no tool returns what the question needs, say plainly that the app's records do not show it.
+- The page shows the records you read (scores, bands, times, counts) in a table under your answer. Explain the reasons in words; when you give a bin's figure, write it right after that bin's code, as returned, e.g. "A-02-01 (57)".
 - For the bins with the highest scores or priority overall, use get_top_bins; never infer a ranking from other bins.
 - Earlier answers in this conversation may be outdated and are not a source: for any figure, call the tools again.
 - Keep three things apart: the CURRENT score (get_bin, with its score time), the score AT SELECTION copied when a plan selected the bin (get_bin_history), and a COUNT RESULT (PASS or FAIL, with its count time). No stored count means unknown, never PASS.
@@ -78,6 +84,7 @@ export class AssistantService {
     const usage = { modelCalls: 0, promptTokens: 0, outputTokens: 0, totalTokens: 0 };
     const used: AskResult['tools'] = [];
     const results: ToolResult[] = [];
+    const facts: Fact[] = [];
     const references = new Map<string, string>();
     let queriedAt: string | null = null;
 
@@ -110,6 +117,7 @@ export class AssistantService {
             used.push({ name, args });
             response = await this.tools.run(name, args);
             results.push(response);
+            facts.push(...factsOf(name, response));
             for (const link of response.links ?? []) {
               references.set(link.href, link.label);
             }
@@ -130,16 +138,20 @@ export class AssistantService {
         throw new AskError('LIMIT', `Rivy could not finish an answer within ${LIMITS.modelCalls} model calls. Try a more specific question.`);
       }
       // Nothing the tool results of this question do not contain is shown.
-      const missing = unsupported(answer, results, question);
+      const missing = unsupported(answer, results);
+      const read = used.map((t) => t.name).join(', ') || 'none';
       if (missing.length > 0) {
-        this.logger.warn(`Answer withheld; not in the records read (${used.map((t) => t.name).join(', ') || 'none'}): ${missing.join(', ')}`);
-        throw new AskError(
-          'UNSUPPORTED',
-          `Rivy's answer was not shown: it mentioned ${list(missing)}, which the app's records read for this question (${used.map((t) => t.name).join(', ') || 'none'}) do not contain. Try again, or ask more specifically.`,
-        );
+        this.logger.warn(`Answer withheld; not in the records read (${read}): ${missing.join(', ')}`);
+        const why = `it mentioned ${list(missing)}, which the app's records read for this question (${read}) do not contain`;
+        if (facts.length === 0) {
+          throw new AskError('UNSUPPORTED', `Rivy's answer was not shown: ${why}. Try again, or ask more specifically.`);
+        }
       }
+      const withheld = missing.length > 0 ? missing : null;
       return {
-        answer,
+        answer: withheld ? `Rivy's wording was not shown: ${list(missing)} did not match the app's records read for this question (${read}). The records themselves are below.` : answer,
+        facts,
+        withheld,
         // A bin's page is a source only if the answer names that bin.
         references: [...references].filter(([href]) => !href.startsWith('/bins/') || answer.includes(href.slice('/bins/'.length))).map(([href, label]) => ({ label, href })),
         queriedAt,

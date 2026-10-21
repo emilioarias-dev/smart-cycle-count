@@ -6,6 +6,7 @@ import { askRivyAction } from '../app/actions';
 import type { RivyAnswer, RivyExchange } from '../lib/api';
 import { utcDateTime } from '../lib/format';
 import { Icon } from './Icon';
+import { RivyFacts } from './RivyFacts';
 
 // The conversation, in this page's memory only. Rivy is sent the last six
 // complete exchanges with each question; older ones are dropped here too.
@@ -100,7 +101,17 @@ export function RivyChat() {
           <article key={`${i}-${e.question}`} className="rivy-exchange">
             <p className="rivy-question">{e.question}</p>
             <div className="rivy-answer">
-              <p className="rivy-text">{withLinks(e.answer.answer, e.answer.references)}</p>
+              {e.answer.withheld ? (
+                <div className="callout info rivy-withheld" role="note">
+                  <p>{e.answer.answer}</p>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => send(e.question)} disabled={pending}>
+                    Try again
+                  </button>
+                </div>
+              ) : (
+                <p className="rivy-text">{withLinks(e.answer.answer, e.answer.references)}</p>
+              )}
+              <RivyFacts facts={e.answer.facts} />
               {e.answer.truncated && <p className="note">The answer reached its length limit and may be cut.</p>}
               {e.answer.references.length > 0 && (
                 <p className="rivy-refs">

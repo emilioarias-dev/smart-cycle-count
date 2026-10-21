@@ -136,7 +136,7 @@ describe('Rivy assistant with a simulated Gemini (PostgreSQL)', () => {
     await ask({ question: 'Compare A-02-01 and B-01-05', history: [] }).expect(200);
     let [response] = toolResponses();
     expect(response.response).toMatchObject({ found: true, higherPriority: 'B-01-05' });
-    expect(response.response.decidedBy).toBe('tie at 57: B-01-05 was never audited');
+    expect(response.response.decidedBy).toBe('same score: B-01-05 was never audited');
     expect(response.response.bins.map((b: any) => [b.code, b.currentScore.value, b.forNewPlan])).toEqual([
       ['A-02-01', 57, 'Available for a new plan.'],
       ['B-01-05', 57, 'Available for a new plan.'],
@@ -300,31 +300,78 @@ describe('Rivy assistant with a simulated Gemini (PostgreSQL)', () => {
   // tienen la mayor puntuacion", the model read compare_bins for B-02-03 and
   // A-02-01, then wrote A-01-01 (71) and A-01-02 (70) and a "data as of"
   // time that no tool returned. Such an answer must not be shown.
-  it('regression: an answer with bins, scores, links or times that this question\'s tools did not return is withheld with a clear message', async () => {
+  it('regression: an answer with bins, scores, links or times that this question\'s tools did not return is replaced; the records read are still shown', async () => {
     const history = [{ question: 'Why does bin B-02-03 have its priority?', answer: 'B-02-03 has a current score of 63 (score time 2026-10-20T22:38:58.831Z).' }];
     script = [
       { body: call('compare_bins', { first: 'B-02-03', second: 'A-02-01' }) },
       { body: text('Los bins con mayor puntuación y prioridad son:\n- /bins/A-01-01 (score 71, High priority)\n- /bins/A-01-02 (score 70, High priority)\n\nDatos al 2026-10-20T23:14:45.122Z. Soy de solo lectura; consulta /warehouse, /tasks o /count.') },
     ];
-    const { body } = await ask({ question: 'que bins tienen la mayor puntuacion', history }).expect(502);
-    const sent = JSON.stringify(toolResponses());
-    expect(sent).not.toContain('A-01-01');
-    expect(body).toMatchObject({ code: 'UNSUPPORTED', retryable: true });
-    for (const item of ['/bins/A-01-01', '/bins/A-01-02', '71', '70', '2026-10-20T23:14:45.122Z', '/warehouse', 'compare_bins']) {
-      expect(body.message).toContain(item);
-    }
-    expect(body.message).toMatch(/^Rivy's answer was not shown: it mentioned .* which the app's records read for this question \(compare_bins\) do not contain\. Try again, or ask more specifically\.$/);
-
-    // The same tool results with an answer that only uses them is shown.
+    const { body } = await ask({ question: 'que bins tienen la mayor puntuacion', history }).expect(200);
     const [{ response }] = toolResponses();
+    expect(JSON.stringify(response)).not.toContain('A-01-01');
+    expect(body.withheld).toEqual(['/bins/A-01-01', '/bins/A-01-02', '/warehouse', '2026-10-20T23:14:45.122Z', '71 for A-01-01', '70 for A-01-02']);
+    expect(body.answer).toBe(
+      "Rivy's wording was not shown: /bins/A-01-01, /bins/A-01-02, /warehouse, 2026-10-20T23:14:45.122Z, 71 for A-01-01, 70 for A-01-02 did not match the app's records read for this question (compare_bins). The records themselves are below.",
+    );
+    // The records read, from the API's structured results, not the model's text.
+    expect(body.facts).toEqual([
+      {
+        kind: 'compare',
+        first: response.higherPriority,
+        decidedBy: response.decidedBy,
+        bins: response.bins.map((b: any) => ({ code: b.code, score: { value: b.currentScore.value, band: b.currentScore.band, scoreTime: b.currentScore.scoreTime }, forNewPlan: b.forNewPlan })),
+      },
+    ]);
+    expect(body.references.map((r: any) => r.href)).toEqual([]);
+
+    // The same results with an answer that only uses them is shown.
     const [b, a] = response.bins;
     requests = [];
     script = [
       { body: call('compare_bins', { first: 'B-02-03', second: 'A-02-01' }) },
-      { body: text(`${response.higherPriority} va primero (${response.decidedBy}). ${b.code}: ${b.currentScore.value}; ${a.code}: ${a.currentScore.value}. Hora de la puntuación: ${b.currentScore.scoreTime}. Ver /bins/${b.code}.`) },
+      { body: text(`${response.higherPriority} va primero. ${b.code} (${b.currentScore.value}); ${a.code} (${a.currentScore.value}). Hora de la puntuación: ${b.currentScore.scoreTime}. Ver /bins/${b.code}.`) },
     ];
     const ok = await ask({ question: 'compara B-02-03 y A-02-01', history }).expect(200);
+    expect(ok.body.withheld).toBeNull();
     expect(ok.body.references.map((r: any) => r.href)).toEqual(['/bins/B-02-03', '/bins/A-02-01']);
+  });
+
+  it('figures swapped between two bins, a value only the question gave, and a small invented quantity are withheld', async () => {
+    script = [{ body: call('compare_bins', { first: 'A-02-01', second: 'B-01-05' }) }, { body: text('ok') }];
+    await ask({ question: 'Compare A-02-01 and B-01-05', history: [] }).expect(200);
+    const [{ response: cmp }] = toolResponses();
+    const [x, y] = cmp.bins;
+    expect(x.currentScore.value).not.toBe(y.currentScore.value);
+
+    requests = [];
+    script = [{ body: call('compare_bins', { first: 'A-02-01', second: 'B-01-05' }) }, { body: text(`${x.code} (${y.currentScore.value}) and ${y.code} (${x.currentScore.value}).`) }];
+    let r = await ask({ question: 'Compare A-02-01 and B-01-05', history: [] }).expect(200);
+    expect(r.body.withheld).toEqual([`${y.currentScore.value} for ${x.code}`, `${x.currentScore.value} for ${y.code}`]);
+    expect(r.body.facts[0].bins.map((b: any) => [b.code, b.score.value])).toEqual([[x.code, x.currentScore.value], [y.code, y.currentScore.value]]);
+
+    const stored = (await bins.findByCode('B-02-03'))!;
+    requests = [];
+    script = [{ body: call('get_bin', { code: 'B-02-03' }) }, { body: text('Yes: B-02-03 has a score of 99.') }];
+    r = await ask({ question: 'Is the score of B-02-03 99?', history: [] }).expect(200);
+    expect(r.body.withheld).toEqual(['99 for B-02-03']);
+    expect(r.body.facts[0]).toMatchObject({ kind: 'bin', code: 'B-02-03', score: { value: stored.score!.value }, pallets: stored.pallets.length });
+
+    // A small count that none of B-02-03's records holds (a value that
+    // happens to be in them, such as a cap of 5, cannot be told apart).
+    const held = new Set(JSON.stringify(r.body.facts).match(/\d+/g));
+    const wrong = [1, 2, 3, 4, 5, 6, 7, 8, 9].find((n) => !held.has(String(n)) && n !== stored.pallets.length)!;
+    const [{ response: read }] = toolResponses();
+    expect(JSON.stringify(read)).not.toMatch(new RegExp(`[^\\d.]${wrong}[^\\d]`));
+    requests = [];
+    script = [{ body: call('get_bin', { code: 'B-02-03' }) }, { body: text(`B-02-03 holds ${wrong} pallets.`) }];
+    r = await ask({ question: 'How many pallets are in B-02-03?', history: [] }).expect(200);
+    expect(r.body.withheld).toEqual([`${wrong} for B-02-03`]);
+
+    requests = [];
+    script = [{ body: call('get_bin', { code: 'B-02-03' }) }, { body: text(`B-02-03 holds ${stored.pallets.length} pallets.`) }];
+    r = await ask({ question: 'How many pallets are in B-02-03?', history: [] }).expect(200);
+    expect(r.body.withheld).toBeNull();
+    expect(r.body.answer).toBe(`B-02-03 holds ${stored.pallets.length} pallets.`);
   });
 
   it('get_top_bins: the dashboard Top 5 in its order and score times; the answer, links and time come from this query', async () => {
