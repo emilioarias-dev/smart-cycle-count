@@ -1132,6 +1132,14 @@ with 'origin/m6-polish'"), `git pull --ff-only` ("Already up to date"),
 
 Rivy's real questions are not in this transcript (see Pending).
 
+## 2026-10-21 — WIN: Rivy's real questions on `m6-polish` (manual confirmation by the author)
+
+The author asked the four pending questions on Windows with the real
+model (the global ranking, a follow-up with history, a comparison, a
+question that states a wrong value) and confirms that Rivy answered all
+of them. Recorded as the author's manual confirmation: no screenshots
+or transcript of the answers are kept here.
+
 ## Pending
 
 Milestone 1: nothing pending (merged as `9622bb6`).
@@ -1166,19 +1174,14 @@ Windows (WIN):
   the key and its tier (Free), without enabling billing.
 - Done: `npm.cmd test` 126 + 11 and `npm.cmd run build` (2026-10-21,
   above).
-- Visual and real questions (separate from the automated checks): the
-  author's run on the PR's first commit is recorded above. Pending: only the affected cases on `8621d05` or later (the global
-  ranking, a follow-up with history, a comparison, a question that states a
-  wrong value), with calls, tokens, time and whether the text was shown or
-  replaced. The quota is not exhausted on purpose: quota errors were
-  tested simulated.
+- Done: visual and real questions. The author's run on the PR's first
+  commit and the affected cases on `m6-polish` (manual confirmation,
+  2026-10-21) are recorded above. The quota is not exhausted on purpose:
+  quota errors were tested simulated.
 
-Polish (`m6-polish`), code `eac93f2`: Windows tests and builds passed on
-`f864ddb` and the author's visual review is recorded (both above). Still
-pending: Rivy's real questions on this commit (the global ranking, a
-follow-up with history, a comparison, a question that states a wrong
-value), with the text shown or replaced; the author said they were run,
-but their results were not in the transcript shared.
+Polish (`m6-polish`), code `eac93f2`: nothing required pending. Windows
+tests and builds on `f864ddb`, the author's visual review and the manual
+confirmation of Rivy's real questions are recorded above.
 
 Later or optional:
 
