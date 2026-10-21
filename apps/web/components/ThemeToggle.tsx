@@ -35,13 +35,23 @@ export function ThemeToggle() {
 
   function toggle() {
     const next: Theme = currentTheme() === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
+    const apply = () => {
+      document.documentElement.dataset.theme = next;
+      setTheme(next);
+    };
+    // A short cross-fade where the browser supports it and motion is not
+    // reduced; the focus stays on this button either way.
+    const fade = 'startViewTransition' in document && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (fade) {
+      document.startViewTransition(apply);
+    } else {
+      apply();
+    }
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // Storage blocked: the theme still applies to this page.
     }
-    setTheme(next);
   }
 
   // The icon shows the theme the button switches to; the accessible name says it.

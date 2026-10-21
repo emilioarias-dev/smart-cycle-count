@@ -1,0 +1,48 @@
+# Browser regression checks
+
+Scripts kept from the verification of 2026-10-21 (see `VERIFICATION.md`):
+real browser checks of cases that the unit and API tests cannot reach.
+They are **not part of `npm test`** and add no dependency to the project:
+they need [Playwright](https://playwright.dev) with Chromium installed on
+the machine, and a bash shell (the plan check stops and restarts the proxy
+with `fuser` and `nohup`). They were run on Linux.
+
+| Script | What it checks |
+|---|---|
+| `ambiguous-plans.cjs` | Create plan when the plan is saved but the answer is a 502 or a cut-off body, and when the Server Action's own answer is lost: "Plan not confirmed", a link to Tasks, no Retry; Retry pressed three times while pending sends one request |
+| `count-retry.cjs` | A count whose result is unknown: "Send the same count again" resends exactly what was sent (also after a quantity was changed); the fields cannot change while sending; "Change quantities" is a new count, rejected without overwriting the saved one |
+| `modal-keyboard-motion.cjs` | Rivy's modal panel: Shift+Tab from the title stays inside, the page behind is inert, Esc returns the focus; the waiting seconds are not announced; reduced motion stops the busy ring (`::after`) |
+| `rivy-does-not-block.cjs` | With a slow Gemini, Create plan reaches the API and shows its result while Rivy waits; after a Gemini timeout the app keeps working |
+
+Helpers: `proxy.cjs` (port 3001, in front of the API on 3002: it can delay,
+cut or drop answers, and logs every request) and `mock-gemini.cjs` (a
+simulated Gemini on 127.0.0.1:4010; it is not the real model). Their modes
+are files in `$CHECKS_STATE` (default: `<tmp>/scc-browser-checks`).
+
+## Running them
+
+1. Build: `npm run build`. Load the original demo and make a plan with at
+   least four pending tasks (`count-retry.cjs` needs them; the plan check
+   creates plans of one bin):
+
+   ```bash
+   SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo   # deletes plans and counts
+   ```
+
+   then **Create plan** with Top N 5 in the app (or `POST /audit-plans`).
+
+2. Start the simulated Gemini, the API on port 3002 and the proxy on 3001,
+   then the web app (its `API_BASE_URL` is `http://localhost:3001`):
+
+   ```bash
+   node docs/browser-checks/mock-gemini.cjs &
+   PORT=3002 GEMINI_API_BASE=http://127.0.0.1:4010/v1beta GEMINI_API_KEY=simulated GEMINI_RPM=1000 npm run start -w apps/api &
+   node docs/browser-checks/proxy.cjs &
+   npm run start -w apps/web &
+   ```
+
+3. Run each script with Node, for example
+   `PLAYWRIGHT_MODULE=/path/to/playwright node docs/browser-checks/count-retry.cjs`
+   (`PLAYWRIGHT_MODULE` is only needed if `playwright` cannot be found by
+   `require`). Each prints one PASS / FAIL line per check and exits with 1
+   on a failure.

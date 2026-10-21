@@ -13,7 +13,7 @@ accepted by the author; D-006 to D-009 accepted for milestone 2; D-010 for
 milestone 3; E-004 and E-009 table statuses brought up to date; D-011 and
 the D-009 reset scope for plans accepted for milestone 4; 2026-10-19: D-012,
 D-010 formula v2 and the D-009 reset scope for counts accepted for
-milestone 5; 2026-10-20: D-013 to D-016). Milestone 1
+milestone 5; 2026-10-20: D-013 to D-016; 2026-10-21: D-017, D-018). Milestone 1
 implements E-002 to E-008; see `PROGRESS.md` for what milestone 2
 implements. "Claude's Linux workspace"
 below means the claude.ai session's cloud workspace where these decisions were
@@ -42,7 +42,9 @@ in the dated tables kept below).
 | D-013 | Visual direction: Rivero identity and dashboard additions | Accepted; implemented (PR #7, merged as `d8150d3`) |
 | D-014 | Next extensions: 3D heatmap, Rivy, data analysis | Accepted as direction; 3D (D-015) and Rivy (D-016) implemented, data analysis not started |
 | D-015 | 3D heatmap: view, scale, camera and interaction | Accepted; implemented (PR #8, merged as `53628f1`) |
-| D-016 | Rivy: read-only assistant on Gemini | Accepted; implemented on `m6-rivy`, not merged yet |
+| D-016 | Rivy: read-only assistant on Gemini | Accepted; implemented (PR #9, merged as `4a3664c`) |
+| D-017 | Demo scenarios: the original demo and a high-risk one | Accepted; implemented on `m6-polish`, not merged yet |
+| D-018 | Rivy from any page, motion and action states | Accepted; implemented on `m6-polish`, not merged yet |
 | E-001 | Develop on Linux, reproduce on Windows | Accepted; re-confirmed for Claude Code |
 | E-002 | PostgreSQL 16 in Docker, pinned image, Compose in both environments | Accepted |
 | E-003 | npm workspaces, one root lockfile, `npm ci` | Accepted |
@@ -263,9 +265,10 @@ the bin's inventory version.
 
 ### Limitations
 
-- After a FAIL, the system keeps expecting the recorded quantities until
-  someone adjusts them, so a recount of the same bin will fail again for the
-  same reason.
+- After a FAIL, the system keeps expecting the same quantities (nothing in
+  the app adjusts the inventory), so a later count fails again if the
+  discrepancy is still there; it passes if the quantities then match (for
+  example, when the earlier count was the mistake).
 - The MVP has no reconciliation workflow.
 
 ---
@@ -417,6 +420,131 @@ Limitations: one level per rack; no capacity per bin (see D-007).
 
 ---
 
+## D-018 — Rivy from any page, motion and action states
+
+**Status:** Accepted (2026-10-21, after the author reviewed a mockup);
+implemented on branch `m6-polish`. Presentation only: no rule, formula or
+data change; no new dependency.
+
+- **Floating button:** Rivero's symbol (the filled shape and its two
+  outlines) with eyes and a smile, in a 56 px black circle at the bottom
+  right. On hover or keyboard focus it shows "Ask Rivy", the outlines move
+  slightly and the smile widens. While Rivy answers with the panel closed
+  it shows a ring; an answer that arrives then leaves a dot ("new answer"
+  in its name). Hidden on `/rivy` and while a count is being entered (the
+  author found it too close to "Unexpected pallets" on a phone); Rivy stays
+  in the navigation.
+- **Panel:** the same `RivyChat` and the same conversation as `/rivy`,
+  kept in a provider of the root layout, so it survives navigation (and is
+  still lost on reload, as D-016 decided). From 1100 px wide it is docked
+  at the right (416 px) and the page narrows beside it, so it covers
+  nothing; below that it is a modal drawer (tablet) or a nearly
+  full-screen sheet (phone) with a backdrop, the focus kept inside, the
+  page not scrolling behind it. Esc or ✕ closes it and returns the focus
+  to the button; a link followed from a modal panel closes it. Opening
+  moves the focus to the question (docked) or to the panel title (modal, so
+  a phone keyboard does not pop up).
+- **Nothing hidden under the button:** the page reserves room at its end
+  and a `scroll-padding-bottom` so a focused field scrolls clear of it
+  (CSS `:has()`, also before the page is interactive).
+- **Action states:** Create plan and Recompute scores show working, then a
+  check with the server's own result once it confirmed it (partial plans
+  with their real counts, e.g. "25 of 30 tasks created"), then read their
+  action again after 4 s; the message stays. Errors: **rejected** (the API
+  said no with 400 / 409: its message, no retry), **failed** (nothing was
+  sent: a refused connection; Retry) and **not confirmed** (the outcome is
+  unknown). Not confirmed, corrected 2026-10-21 after an audit: besides a
+  lost answer, a 5xx after a write (a 502 from a gateway can follow a
+  saved plan), a success whose body cannot be read or lacks the result,
+  and a lost answer from the Server Action itself; none of them is shown
+  as "No plan created". When the API did answer, the page is refreshed to
+  show what it has now. A plan not confirmed may exist, so there is no
+  Retry, only a link to Tasks; a recompute can always be retried. Retry
+  ignores presses while it is pending (a guard set in the click itself;
+  `aria-disabled` alone does not stop clicks).
+- **Counts with an unknown result** (corrected 2026-10-21): the page keeps
+  the count exactly as it was sent; the quantities are read-only while it
+  is sent and while its result is unknown; **Send the same count again**
+  resends exactly that count (D-012: if it was saved, it comes back as
+  recovered). **Change quantities** unlocks the fields for a new count,
+  with a note that, if the first one was saved, it is kept and the new
+  quantities are rejected. A success without a readable count is unknown
+  too. Buttons stay focusable while working; a saved count moves the focus
+  to its result.
+- **Modal panel, corrected 2026-10-21:** Shift+Tab right after opening
+  (focus on the title) stays inside; the rest of the page is `inert` while
+  the panel is modal; the waiting seconds are shown but not announced (the
+  log is a live region); reduced motion also stops `::after` animations
+  (Rivy's busy ring).
+- **Motion (refined the same day at the author's request):** on
+  navigation the page's main blocks enter one after another (0.26 s each,
+  40 ms apart, the sixth and later together: at most 0.2 s of offset); the
+  link followed shows a thin bar while the next page loads
+  (`useLinkStatus`); panels slide in; the theme switch cross-fades over
+  0.25 s where the browser has View Transitions (otherwise it is
+  immediate). While Rivy reads the records its avatar's outlines pulse next
+  to the real state only ("Rivy is reading the app's records… N s"); no
+  reasoning steps are shown, because there are none to show. A new answer
+  is complete and already validated when it arrives; it is in the page at
+  once (screen readers read it whole) and only its blocks fade in 45 ms
+  apart (at most 12 steps); answers shown again later appear at once.
+  Nothing waits on purpose. With "reduce motion" there is no animation
+  (the existing global rule, plus the cross-fade skipped); the focus never
+  moves because of an animation.
+
+---
+
+## D-017 — Demo scenarios: the original demo and a high-risk one
+
+**Status:** Accepted (2026-10-21); implemented on branch `m6-polish`.
+Asked by the author: a demo with some bins really in the high band,
+without changing weights, thresholds or colors, keeping the original demo
+and showing which scenario is loaded, reproducibly, and without resetting
+the author's current data to prepare it.
+
+- **High-risk scenario (revised the same day at the author's request: too
+  many green bins, too few yellow):** a target to illustrate the demo, not
+  a real warehouse distribution: about **8 high, 12 medium and 10 low**,
+  with different scores within each band. Its own generator
+  (`src/demo-data/high-risk.ts`, version 2) plans each bin's inputs (days
+  since the simulated last audit, or never audited; movements and
+  adjustments in the 30 days before the reference) and produces them as
+  ordinary putaways, picks and adjustments of real pallets through the
+  movement function (no pallet goes negative, at most 4 per bin). Bins get
+  their plans through a seeded shuffle, so the bands are spread over the
+  warehouse. At the reference the unchanged formula gives high 75, 74, 73,
+  73, 72, 71, 71, 70; medium 67 to 41 (12 different); low 38 to 4 (10
+  different); no count result. Equal to the formula written independently
+  in SQL and to the plan (tests). Every planned total is at least 0.1 from
+  a .5, so rounding cannot flip it. The first version (four "hotspot"
+  bins weighted in the random simulation: 4 high, 3 medium, 23 low) was
+  replaced before merging.
+- **The original demo is unchanged:** its generator is back to the code of
+  `main` plus the scenario routing; a test pins the fingerprint of its data
+  taken before the scenarios.
+- **Which scenario is loaded:** a new one-row table, `demo_dataset`
+  (scenario, generator version, seed, reference, load time), written by
+  the reset in its transaction. Checked first: no existing table or column
+  can say which generator produced the data, and inferring it from the
+  data stops working once movements or counts change it. The migration
+  only adds the table; until the next reset the top bar says "Scenario not
+  recorded". `GET /demo` returns it; the top bar shows "Original demo" or
+  "High-risk demo" (with a red dot).
+- **Commands:** `npm run db:reset-demo` (original, as before) and
+  `npm run db:reset-demo-high-risk`; both delete the same data, with the
+  same protections (D-009). Nothing runs them automatically.
+- **Reference time and recomputing:** the distribution holds at the
+  reset's reference (`SEED_NOW`, or the time of the reset without it),
+  shown as "Scores as of" and in the top bar's title. A recompute or a
+  saved count scores every bin for the current time, which moves the
+  30-day window: measured from the fixed reference, +1 day gives 8 → 7
+  high, +3 days 1 high (18 medium, 11 low), +7 days 0 high, +30 days all
+  low. For a live demo, load the scenario without `SEED_NOW` on the day it
+  is shown; with `SEED_NOW` the data is exactly reproducible but any
+  recompute moves it to the current date.
+
+---
+
 ## D-016 — Rivy: read-only assistant on Gemini
 
 **Status:** Accepted (2026-10-20); implemented on branch `m6-rivy` (D-014's
@@ -467,9 +595,12 @@ reads. The data analysis follows in its own branch.
     not match, the records read are still shown, and the page offers Try
     again (200 with `withheld`). If no record was read, the question fails
     with `UNSUPPORTED` (502, retryable). The API logs what was withheld.
-  - Not a language checker: wording that misreads a correct figure, or a
-    number in words, is not caught; a correct sentence that repeats a value
-    only the question gave ("it is not 99") is withheld.
+  - Not a language checker, and no guarantee that the explanation is true:
+    it filters codes, links, dates, times and numbers. Wording that
+    misreads a correct figure (seen with the real model: "85.81 days" called
+    a longer time than "never audited"), reasoning, or a number in words is
+    not caught; a correct sentence that repeats a value only the question
+    gave ("it is not 99") is withheld. The records table is the reference.
   - A bin's page is listed as a source only if the answer names that bin;
     "Data as of" is the query time of the API. When no tool returns what a
     question needs, the expected answer says the records do not show it.
@@ -488,7 +619,17 @@ reads. The data analysis follows in its own branch.
   Node's `fetch` in the API, no SDK (no new dependency). The model's turn
   is sent back exactly as received, so thought signatures are kept. The
   key stays on the API server (`GEMINI_API_KEY` in `apps/api/.env`); the
-  browser talks only to the Next.js server, as for every page.
+  browser talks only to the Next.js server, as for every page. Questions
+  go through a Next.js route handler (`/api/rivy`) that forwards to
+  `POST /assistant/ask`, not through a Server Action (corrected
+  2026-10-21): Next.js runs a page's Server Actions one after another, and
+  a question waiting for Gemini held back Create plan, Recompute and counts
+  for up to 30 s. While Rivy answers, its waiting state is plain state,
+  not a React transition, so other actions' results are shown at once.
+- **compare_bins reads both bins once,** in one consistent snapshot
+  (corrected 2026-10-21): it used to read the scores for the order and
+  again for the figures, so a recompute between the two reads could show
+  figures that contradicted the order and its deciding rule.
 - **Limits per question:** at most 2 Gemini calls (the first may ask for
   tools; the second may not) and 2 tool runs; 500 characters per question;
   800 output tokens per call; 30 s per call and 60 s per question. A local
@@ -787,7 +928,10 @@ with real count results.
   **once per affected bin** (a move counts for its source and its
   destination; an adjustment once).
 - **Reference time:** after a demo reset, the reset's reference; the
-  recompute button uses the current time.
+  recompute button uses the current time, taken once it holds the scores
+  lock (corrected 2026-10-21: it was taken before waiting, so a count that
+  committed during the wait, with a later count time, fell outside the
+  window and its FAIL and audit date were dropped).
 - **Pallet count** is shown as context only; it is not a factor.
 - **Bands:** 0–39 low priority (green), 40–69 medium (yellow), 70–100 high
   (red), always shown with the number and the label.

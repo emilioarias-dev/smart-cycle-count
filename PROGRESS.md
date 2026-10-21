@@ -283,8 +283,8 @@ on the page background it measured 4.32:1, below 4.5:1.
 
 ### Known limitations
 
-- After a FAIL the inventory is not corrected (D-004): the next count of the
-  bin fails again until someone adjusts it.
+- After a FAIL the inventory is not corrected (D-004): a later count of the
+  bin fails again if the discrepancy is still there.
 - With an old `SEED_NOW`, a count recomputes every score for the current
   time, which moves the activity window past the demo activity.
 - Counts are serialised by the scores lock (30 bins recomputed each time):
@@ -364,7 +364,7 @@ migration, rule, formula or data change.
 | Layout of the 3D view and 2D checks kept | all | Yes (8 views 0 issues; 2D: 33 flows, Count fields, chart, 56 views) | Reported by the author |
 | Tests and builds, clean `npm ci` | `npm test`, `npm run build` | Yes (103 API + 11 web; builds, also without network) | Reported by the author |
 
-### Rivy (branch `m6-rivy`, from `main` after PR #8)
+### Rivy (branch `m6-rivy`, from `main` after PR #8; PR #9, merged as `4a3664c`)
 
 The second extension of D-014, decided in D-016: a read-only assistant on
 Gemini (`gemini-3.5-flash-lite`) at `/rivy`. REST with `fetch`, no new
@@ -375,7 +375,7 @@ answers.
 
 | Item | Where | CC verified | WIN verified |
 |---|---|---|---|
-| Five read tools: stored score and breakdown; comparison with the D-011 rule and availability for a new plan; the dashboard's Top 5 (added after the Windows run); tasks and counts (score at selection apart from current, no history ≠ PASS); versioned rules | `apps/api/src/assistant/tools.ts` | Yes, simulated (figures equal to the API's; tie decided by "never audited"; Top 5 = `GET /scores/top`) | Four tools reported by the author; Top 5 pending |
+| Five read tools: stored score and breakdown; comparison with the D-011 rule and availability for a new plan; the dashboard's Top 5 (added after the Windows run); tasks and counts (score at selection apart from current, no history ≠ PASS); versioned rules | `apps/api/src/assistant/tools.ts` | Yes, simulated (figures equal to the API's; tie decided by "never audited"; Top 5 = `GET /scores/top`) | Four tools reported by the author; Top 5 confirmed manually by the author on `m6-polish` |
 | Answer check: codes, links, dates, times and numbers only from this question's tool results (not the question, not earlier answers), all numbers including small ones, a figure next to a bin only if it is that bin's; otherwise the text is replaced and the records stay; sources limited to the bins named | `apps/api/src/assistant/grounding.ts`, `assistant.service.ts` | Yes, simulated (the Windows case, swapped figures, a value from the question, a small invented count; 13 mutations caught); the affected cases with the real model from CC | Pending (re-run of the affected cases) |
 | Records read as structured data under each answer | `apps/api/src/assistant/facts.ts`, `components/RivyFacts.tsx` | Yes, simulated (tables = API data) | Pending |
 | Read-only: no write tool, no model SQL, unknown tools refused | `tools.ts`, `assistant.service.ts` | Yes, simulated (`create_plan` refused, database unchanged) | Pending |
@@ -387,6 +387,26 @@ answers.
 | Tests and builds | `npm test`, `npm run build` | Yes (API 126/126 incl. 15 Rivy e2e and 8 check tests; web 11/11; builds; 6 + 13 mutations caught) | Yes (126/126, 11/11, builds; 2026-10-21) |
 | Real answers: the four capabilities, a follow-up and a case without data, in English and Spanish | `/rivy` with the author's key | Only the affected cases, from CC through its proxy (ranking, follow-up, rules) | Run by the author (screenshots): coherent, except the global ranking (invented bins and scores) and invented times; re-run of the affected cases pending |
 
+### Polish (branch `m6-polish`, from `m6-rivy`)
+
+Asked on 2026-10-21, after the Rivy fix: Rivy from any page (D-018),
+transitions and action states (D-018) and a high-risk demo scenario
+(D-017). One migration (adds `demo_dataset`); no new dependency; no rule,
+formula, weight, band or color change. Opened after PR #9 was merged.
+
+| Item | Where | CC verified | WIN verified |
+|---|---|---|---|
+| Floating button with Rivero's smiling symbol, hover / focus effect, ring while answering, dot for a new answer | `components/RivyDock.tsx`, `RivyAvatar.tsx` | Yes (browser checks) | Visual review reported on `eac93f2`, not itemized |
+| Same conversation everywhere, kept while navigating; docked ≥ 1100 px, drawer / sheet below; focus, Esc, Tab kept inside a modal | `components/RivyProvider.tsx`, `RivyDock.tsx`, `app/layout.tsx` | Yes (browser checks) | Visual review reported on `eac93f2`, not itemized |
+| Button hidden on `/rivy` and while counting; nothing interactive under the button or the docked panel | `CountForm.tsx`, `globals.css` | Yes (40 page × width checks; fails without the rule) | Visual review reported on `eac93f2`, not itemized |
+| Create plan / Recompute: working, check with the real result (partial plans), rejected / failed + Retry / not confirmed | `WarehouseHead.tsx`, `app/actions.ts`, `lib/api.ts` | Yes (real API behind a proxy that cuts or drops answers) | Visual review reported on `eac93f2`, not itemized |
+| Count: "Result unknown", send again (recovered), focus on the result | `CountForm.tsx` | Yes (same proxy) | Visual review reported on `eac93f2`, not itemized |
+| Staggered entry of the main blocks, link loading bar, theme cross-fade, Rivy reading indicator, progressive reveal of a validated answer; no motion with reduced motion | `app/template.tsx`, `Navigation.tsx`, `ThemeToggle.tsx`, `RivyChat.tsx`, `globals.css` | Yes (20 checks) | Visual review reported on `eac93f2`, not itemized |
+| High-risk scenario: planned inputs for 8 high, 12 medium, 10 low, different scores per band, with the unchanged formula; original demo unchanged; scenario in the top bar | `src/demo-data/high-risk.ts`, `demo.controller.ts`, migration | Yes (tests: SQL formula, plan, fingerprint; a wrong plan fails) | Visual review reported on `eac93f2`, not itemized |
+| Earlier checks kept | — | Yes (2D flows 33/33, Count fields, chart, 56 views, 3D 30/30 + interaction + 8 views, Rivy 67/67 + 22/22) | — |
+| Audit fixes (2026-10-21): recompute time after the lock; ambiguous plan answers not confirmed, Retry guarded; exact count retry, fields locked; compare_bins in one snapshot; modal Shift+Tab, inert page, `::after` reduced motion, seconds not announced; Rivy through a route handler | `scoring/recompute.ts`, `lib/api.ts`, `app/actions.ts`, `WarehouseHead.tsx`, `CountForm.tsx`, `assistant/tools.ts`, `RivyDock.tsx`, `RivyProvider.tsx`, `app/api/rivy/route.ts` | Yes (each reproduced first, then fixed; API and web tests, 17 browser checks kept in `docs/browser-checks/`) | Visual review reported on `eac93f2`, not itemized |
+| Tests and builds | `npm test`, `npm run build` | Yes (API 133/133, web 14/14) | Yes (on `f864ddb`: API 133/133, web 14/14, builds OK) |
+
 Next: the author's data analysis, on its own branch. Delivery planned for
-Thursday 2026-10-22; final acceptance of the whole (clean clones, version
+Wednesday 2026-10-21; final acceptance of the whole (clean clones, version
 tag) after the extensions.

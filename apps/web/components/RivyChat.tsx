@@ -1,73 +1,42 @@
 'use client';
 
 import Link from 'next/link';
-import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState, useTransition } from 'react';
-import { askRivyAction } from '../app/actions';
-import type { RivyAnswer, RivyExchange } from '../lib/api';
+import { type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import type { RivyAnswer } from '../lib/api';
 import { utcDateTime } from '../lib/format';
 import { Icon } from './Icon';
+import { RivyAvatar } from './RivyAvatar';
 import { RivyFacts } from './RivyFacts';
+import { type Exchange, MAX_CHARS, WINDOW, useRivy } from './RivyProvider';
 
-// The conversation, in this page's memory only. Rivy is sent the last six
-// complete exchanges with each question; older ones are dropped here too.
-const WINDOW = 6;
-const MAX_CHARS = 500;
+// The conversation view: on the /rivy page and in the floating panel, both
+// showing the same conversation (RivyProvider).
 
 const SUGGESTIONS = [
   'Why does bin B-02-03 have its priority?',
   'Compare A-02-01 and B-01-05: which one comes first, and why?',
   'What were the results of the counts of B-02-03?',
+  'Which bins have the highest scores?',
   'How is the risk score calculated?',
 ];
 
-type Exchange = { question: string; answer: RivyAnswer };
-type Failure = { question: string; code: string; message: string; retryable: boolean };
-
 export function RivyChat() {
-  const [exchanges, setExchanges] = useState<Exchange[]>([]);
-  const [dropped, setDropped] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [asking, setAsking] = useState<string | null>(null);
+  const { exchanges, dropped, failure, asking, startedAt, pending, draft, setDraft, send, clear } = useRivy();
   const [elapsed, setElapsed] = useState(0);
-  const [pending, startTransition] = useTransition();
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!pending) {
+    if (startedAt === null) {
+      setElapsed(0);
       return;
     }
-    const started = Date.now();
-    const timer = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    const timer = setInterval(() => setElapsed(Math.round((Date.now() - startedAt) / 1000)), 1000);
     return () => clearInterval(timer);
-  }, [pending]);
+  }, [startedAt]);
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'nearest' });
   }, [exchanges, failure, asking]);
-
-  function send(question: string) {
-    const text = question.trim();
-    if (!text || pending) {
-      return;
-    }
-    const history: RivyExchange[] = exchanges.map((e) => ({ question: e.question, answer: e.answer.answer }));
-    setFailure(null);
-    setAsking(text);
-    setElapsed(0);
-    startTransition(async () => {
-      const outcome = await askRivyAction(text, history);
-      setAsking(null);
-      if (outcome.status === 'ok') {
-        const next = [...exchanges, { question: text, answer: outcome.data }];
-        setDropped(dropped || next.length > WINDOW);
-        setExchanges(next.slice(-WINDOW));
-        setDraft('');
-      } else {
-        setFailure({ question: text, code: outcome.code, message: outcome.message, retryable: outcome.retryable });
-      }
-    });
-  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -98,44 +67,19 @@ export function RivyChat() {
         )}
         {dropped && <p className="note rivy-window">Rivy keeps the last {WINDOW} exchanges; older ones were cleared.</p>}
         {exchanges.map((e, i) => (
-          <article key={`${i}-${e.question}`} className="rivy-exchange">
-            <p className="rivy-question">{e.question}</p>
-            <div className="rivy-answer">
-              {e.answer.withheld ? (
-                <div className="callout info rivy-withheld" role="note">
-                  <p>{e.answer.answer}</p>
-                  <button type="button" className="btn btn-outline btn-sm" onClick={() => send(e.question)} disabled={pending}>
-                    Try again
-                  </button>
-                </div>
-              ) : (
-                <p className="rivy-text">{withLinks(e.answer.answer, e.answer.references)}</p>
-              )}
-              <RivyFacts facts={e.answer.facts} />
-              {e.answer.truncated && <p className="note">The answer reached its length limit and may be cut.</p>}
-              {e.answer.references.length > 0 && (
-                <p className="rivy-refs">
-                  {e.answer.references.map((r) => (
-                    <Link key={r.href} className="chip rivy-ref" href={r.href}>
-                      {r.label}
-                    </Link>
-                  ))}
-                </p>
-              )}
-              <p className="subline rivy-meta">
-                {e.answer.queriedAt ? `Data as of ${utcDateTime(e.answer.queriedAt)}` : 'No app data read'} ·{' '}
-                {e.answer.tools.length > 0 ? `read: ${e.answer.tools.map((t) => t.name).join(', ')}` : 'no tools'} · {e.answer.usage.modelCalls} Gemini{' '}
-                {e.answer.usage.modelCalls === 1 ? 'call' : 'calls'} · {e.answer.usage.totalTokens} tokens · {(e.answer.ms / 1000).toFixed(1)} s
-              </p>
-            </div>
-          </article>
+          <ExchangeView key={`${i}-${e.question}`} exchange={e} pending={pending} onRetry={send} />
         ))}
         {asking && (
           <article className="rivy-exchange">
             <p className="rivy-question">{asking}</p>
+            {/* Only the real state: the API answers once, after its checks. */}
             <p className="rivy-answer rivy-waiting" role="status">
-              <span className="spinner" aria-hidden="true" />
-              Rivy is reading the app&apos;s records… {elapsed > 0 ? `${elapsed} s` : ''}
+              <span className="rivy-thinking" aria-hidden="true">
+                <RivyAvatar size={28} />
+              </span>
+              Rivy is reading the app&apos;s records…{' '}
+              {/* Seen, not announced: the log is a live region. */}
+              <span aria-hidden="true">{elapsed > 0 ? `${elapsed} s` : ''}</span>
             </p>
           </article>
         )}
@@ -170,7 +114,9 @@ export function RivyChat() {
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKey}
           placeholder="Why is B-02-03 a priority?"
-          disabled={pending}
+          // Read-only, not disabled, while Rivy answers: the field keeps the focus.
+          readOnly={pending}
+          aria-busy={pending}
         />
         <div className="rivy-actions">
           <span className="subline">
@@ -180,11 +126,7 @@ export function RivyChat() {
             type="button"
             className="btn btn-text"
             disabled={pending || (exchanges.length === 0 && !failure)}
-            onClick={() => {
-              setExchanges([]);
-              setFailure(null);
-              setDropped(false);
-            }}
+            onClick={clear}
           >
             Clear conversation
           </button>
@@ -195,6 +137,66 @@ export function RivyChat() {
         </div>
       </form>
     </div>
+  );
+}
+
+// How recent an answer must be, when shown, to be revealed progressively;
+// older ones (after navigating or reopening the panel) appear at once.
+const FRESH_MS = 1500;
+
+// One exchange. A new answer, already validated and complete in the page
+// (screen readers get it at once), is revealed line by line: each block
+// fades in 45 ms after the previous one, at most 12 steps; nothing with
+// reduced motion.
+function ExchangeView({ exchange: e, pending, onRetry }: { exchange: Exchange; pending: boolean; onRetry: (question: string) => void }) {
+  const [fresh] = useState(() => Date.now() - e.receivedAt < FRESH_MS);
+  const lines = e.answer.withheld ? [] : e.answer.answer.split('\n');
+  let step = 0;
+  const next = () => ({ '--i': Math.min(step++, 12) }) as CSSProperties;
+  return (
+    <article className={`rivy-exchange${fresh ? ' rivy-reveal' : ''}`}>
+      <p className="rivy-question">{e.question}</p>
+      <div className="rivy-answer">
+        {e.answer.withheld ? (
+          <div className="callout info rivy-withheld rivy-step" role="note" style={next()}>
+            <p>{e.answer.answer}</p>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => onRetry(e.question)} disabled={pending}>
+              Try again
+            </button>
+          </div>
+        ) : (
+          <p className="rivy-text">
+            {lines.map((line, i) => (
+              <span key={i} className="rivy-line rivy-step" style={next()}>
+                {line === '' ? ' ' : withLinks(line, e.answer.references)}
+              </span>
+            ))}
+          </p>
+        )}
+        <div className="rivy-step" style={next()}>
+          <RivyFacts facts={e.answer.facts} />
+        </div>
+        {e.answer.truncated && (
+          <p className="note rivy-step" style={next()}>
+            The answer reached its length limit and may be cut.
+          </p>
+        )}
+        {e.answer.references.length > 0 && (
+          <p className="rivy-refs rivy-step" style={next()}>
+            {e.answer.references.map((r) => (
+              <Link key={r.href} className="chip rivy-ref" href={r.href}>
+                {r.label}
+              </Link>
+            ))}
+          </p>
+        )}
+        <p className="subline rivy-meta rivy-step" style={next()}>
+          {e.answer.queriedAt ? `Data as of ${utcDateTime(e.answer.queriedAt)}` : 'No app data read'} ·{' '}
+          {e.answer.tools.length > 0 ? `read: ${e.answer.tools.map((t) => t.name).join(', ')}` : 'no tools'} · {e.answer.usage.modelCalls} Gemini{' '}
+          {e.answer.usage.modelCalls === 1 ? 'call' : 'calls'} · {e.answer.usage.totalTokens} tokens · {(e.answer.ms / 1000).toFixed(1)} s
+        </p>
+      </div>
+    </article>
   );
 }
 

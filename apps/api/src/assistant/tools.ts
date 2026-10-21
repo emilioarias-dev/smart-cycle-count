@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { type BinDetail, BinsService } from '../bins/bins.service.js';
+import { BinsService } from '../bins/bins.service.js';
 import { readCount } from '../counting/submit.js';
 import { normalizeBinCode } from '../inventory/bin-code.js';
 import { comparePriority } from '../planning/selection.js';
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CAPS, FORMULA_VERSION, WEIGHTS, WINDOW_DAYS } from '../scoring/formula.js';
+import { type ScoreDetail, scoreDetail } from '../scoring/presenter.js';
 import { ScoresService, TOP_SIZE } from '../scores/scores.service.js';
 
 // Rivy's tools (D-016). Read-only: they only read through the existing
@@ -122,7 +124,7 @@ export class AssistantTools {
       found: true,
       code: bin.code,
       queriedAt,
-      currentScore: currentScore(bin),
+      currentScore: currentScore(bin.score),
       lastAudit: bin.lastAuditedAt
         ? { date: iso(bin.lastAuditedAt), note: 'The latest count in the app; before a first count it is simulated demo data.' }
         : { date: null, note: 'Never audited.' },
@@ -136,21 +138,29 @@ export class AssistantTools {
   async compareBins(rawFirst: string, rawSecond: string): Promise<ToolResult> {
     const codes = [normalizeBinCode(rawFirst), normalizeBinCode(rawSecond)];
     const queriedAt = new Date().toISOString();
-    const load = (code: string) =>
-      this.prisma.bin.findUnique({ where: { code }, include: { score: true, auditTasks: { where: { status: 'PENDING' }, select: { id: true } } } });
-    const rows = await Promise.all(codes.map((code) => (BIN_CODE.test(code) ? load(code) : Promise.resolve(null))));
+    // Both bins in one read, in one snapshot: the order, the deciding rule
+    // and the figures shown come from the same records, even if a recompute
+    // commits meanwhile.
+    const found = await this.prisma.$transaction(
+      (tx) =>
+        tx.bin.findMany({
+          where: { code: { in: codes.filter((code) => BIN_CODE.test(code)) } },
+          include: { score: true, auditTasks: { where: { status: 'PENDING' }, select: { id: true } } },
+        }),
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    const rows = codes.map((code) => found.find((row) => row.code === code) ?? null);
     const missing = codes.filter((_, i) => !rows[i]);
     if (missing.length > 0) {
       return { found: false, missing, queriedAt, message: `No bin ${missing.join(' or ')}.` };
     }
     const [a, b] = rows.map((row) => row!);
-    const details = await Promise.all([this.bins.findByCode(a.code), this.bins.findByCode(b.code)]);
     const eligibility = (row: typeof a) =>
       row.auditTasks.length > 0 ? 'Not available for a new plan: it already has a pending task.' : row.score ? 'Available for a new plan.' : 'Not available for a new plan: no stored score.';
     const base = {
       found: true,
       queriedAt,
-      bins: details.map((d, i) => ({ code: d!.code, currentScore: currentScore(d!), forNewPlan: eligibility([a, b][i]) })),
+      bins: [a, b].map((row) => ({ code: row.code, currentScore: currentScore(scoreDetail(row.score)), forNewPlan: eligibility(row) })),
       links: codes.map((code) => ({ label: `Bin ${code}`, href: `/bins/${code}` })),
     };
     if (!a.score || !b.score) {
@@ -241,17 +251,17 @@ export class AssistantTools {
   }
 }
 
-function currentScore(bin: BinDetail) {
-  if (!bin.score) {
+function currentScore(score: ScoreDetail | null) {
+  if (!score) {
     return null;
   }
-  const { factors, total } = bin.score.breakdown;
+  const { factors, total } = score.breakdown;
   return {
-    value: bin.score.value,
-    band: bin.score.label,
-    scoreTime: iso(bin.score.reference),
-    computedAt: iso(bin.score.computedAt),
-    formulaVersion: bin.score.formulaVersion,
+    value: score.value,
+    band: score.label,
+    scoreTime: iso(score.reference),
+    computedAt: iso(score.computedAt),
+    formulaVersion: score.formulaVersion,
     factors: [
       { factor: 'time since last audit', weight: factors.age.weight, input: factors.age.neverAudited ? 'never audited' : `${round2(factors.age.input)} days`, cap: `${factors.age.cap} days`, points: round2(factors.age.contribution) },
       { factor: 'activity', weight: factors.activity.weight, input: `${factors.activity.input} movements in ${WINDOW_DAYS} days`, cap: factors.activity.cap, points: round2(factors.activity.contribution) },

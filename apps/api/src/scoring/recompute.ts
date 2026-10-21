@@ -14,14 +14,28 @@ export type RecomputeSummary = {
   byPriority: { low: number; medium: number; high: number };
 };
 
-// Own transaction (used by the recompute button). READ COMMITTED on purpose:
-// after waiting for the scores lock, the inputs include what the previous
-// holder committed.
+// Own transaction, for an explicit reference (tests and scripts). READ
+// COMMITTED on purpose: after waiting for the scores lock, the inputs include
+// what the previous holder committed.
 export function recomputeScores(prisma: PrismaClient, reference: Date): Promise<RecomputeSummary> {
   return prisma.$transaction(
     async (tx) => {
       await lockScores(tx, 'exclusive');
       return recomputeScoresInTransaction(tx, reference);
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, maxWait: 10_000, timeout: 30_000 },
+  );
+}
+
+// The recompute button: scores every bin for the time it gets its turn. The
+// time is taken after the lock, never before: a count that committed while
+// this one waited (with a later count time) is then inside the window, and
+// its result and audit date are not dropped by an earlier reference.
+export function recomputeScoresNow(prisma: PrismaClient): Promise<RecomputeSummary> {
+  return prisma.$transaction(
+    async (tx) => {
+      await lockScores(tx, 'exclusive');
+      return recomputeScoresInTransaction(tx, new Date());
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, maxWait: 10_000, timeout: 30_000 },
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon, type IconName } from './Icon';
 
@@ -12,6 +12,13 @@ const LINKS: { href: string; label: string; icon: IconName }[] = [
   { href: '/rivy', label: 'Rivy', icon: 'chat' },
   { href: '/count', label: 'Count', icon: 'scan' },
 ];
+
+// While the next page loads, a thin bar under the link that was followed.
+// Always rendered (no layout shift); only its opacity changes.
+function Pending() {
+  const { pending } = useLinkStatus();
+  return <span className={`link-pending${pending ? ' on' : ''}`} aria-hidden="true" />;
+}
 
 function useActive(): (href: string) => boolean {
   const pathname = usePathname();
@@ -31,6 +38,7 @@ export function TopNav() {
         >
           {link.label}
           {link.href === '/count' && <Icon name="arrow" className="arrow" />}
+          <Pending />
         </Link>
       ))}
     </nav>
@@ -45,6 +53,7 @@ export function TabBar() {
         <Link key={link.href} href={link.href} aria-current={isActive(link.href) ? 'page' : undefined}>
           <Icon name={link.icon} />
           {link.label}
+          <Pending />
         </Link>
       ))}
     </nav>

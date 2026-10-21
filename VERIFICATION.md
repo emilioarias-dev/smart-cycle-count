@@ -1011,6 +1011,31 @@ general language check.
 | Compare B-01-05 and A-02-01… | 200 in 1.8 s, `compare_bins`, 2963 tokens: "A-02-01 (57) … B-01-05 (55)", shown. Its wording also called 85.81 days "a longer time since the last audit" than never audited, which is wrong; the figures are right and the table shows them (wording is not checked) |
 | Is the score of B-02-03 99? How many pallets does it hold? | 200 in 1.4 s, `get_bin`, 2732 tokens: the text mentioned 99 and was replaced ("99 for B-02-03"); the records (score, pallets) shown |
 
+## 2026-10-21 — CC: polish branch (code `37c916a` scenario, `5e70c8b` web)
+
+Production build, Playwright with Chromium. Gemini **simulated** (fake on
+:4010). For the error and lost-answer cases the API ran on :3002 behind a
+scratch proxy on :3001 that could delay GETs, cut connections, or forward a
+POST and drop its answer. Data: `SEED_NOW=2026-10-18T12:00:00Z`; the
+high-risk scenario for the new checks, the original demo for the earlier
+ones. Only this container's database was reset; the author's data was not
+touched. Scripts were scratch files.
+
+| Command / check | Result |
+|---|---|
+| Fingerprint of the original demo's data before the change | `4772127561d7…a8b7`, pinned in `test/demo-scenario.e2e-spec.ts`; unchanged after |
+| Hotspot weights tried (activity / adjustments), high-risk at the fixed reference | 18 / 30 → 3 high, 5 medium, 22 low; 24 / 30 → **4 high, 3 medium, 23 low** (chosen); 24 / 45 → 4, 2, 24; 30 / 40 → 4, 3, 23 |
+| `npm test` | API **131/131** (5 scenario tests: fingerprint, formula constants, high-risk = SQL formula with 4 high, original reloaded and shown, one row at most); web **11/11** |
+| `npx tsc --noEmit` (API, scripts, web); `npm run build` | Exit 0; builds OK; every page now dynamic (the scenario is read per request) |
+| `npm run db:migrate` on this container's development database (plan, tasks and counts present) | Applied `20261021090000_demo_dataset`; bins, movements, plans, tasks, counts and the sum of scores identical before and after; the top bar says "Scenario not recorded" |
+| `SEED_NOW=… npm run db:reset-demo-high-risk`, then `db:reset-demo` | "High-risk demo … 4 high, 3 medium, 23 low"; then "Original demo … 0 high, 9 medium, 21 low"; `GET /demo` follows |
+| Browser checks, **56/56** | Scenario: top bar "High-risk demo" with its reference, 4 high bins on the heatmap = API, mix 4/3/23. Button: named, hover and keyboard focus show "Ask Rivy" and move the avatar. Docked at 1440: 416 px, page and 3D view (with +, −, Reset) left of it, focus on the question, still narrowed after navigating; conversation kept across Tasks, `/rivy` (no button, same conversation) and back; Esc closes and returns focus. Closed while answering: ring and "answering", then a dot and "new answer", cleared on opening. Phone: button above the tab bar; sheet `role=dialog`, top 12 px, full width, page locked, focus on the title, 25 Tab / Shift+Tab stay inside; a link in an answer opens its page and closes the sheet; conversation kept; ✕ returns focus. Tablet: 448 px drawer, backdrop click closes. Plans: "Creating…" then "5 of 5 tasks created" (focus kept, back to "Create plan" after 4 s); API unreachable → "No plan created" + Retry → "3 of 3"; answer dropped → "Plan not confirmed", check Tasks, no Retry (the plan did exist); connection cut → "not confirmed" (none created); N = 30 → "20 of 30 tasks created" with "Skipped: 10 with a pending task"; none available → the API's message, no Retry. Recompute: working then confirmed; unreachable then Retry. Count: button hidden while counting, Rivy in the tab bar; cut → "Result unknown", nothing saved, sent again → saved, focus on the result, button back; answer dropped → saved on the server, "Result unknown", sent again → "Recovered". Page fade; loading bar under the link (slow GETs); reduced motion: no fade, no button, avatar or panel animation. No page errors |
+| Overlap, **40/40** | 320, 390, 768, 1100 and 1440 px (and docked at 1100 and 1440): `/`, 3D view, `/tasks`, `/count`, a bin, a count form: every visible control focused and scrolled as by the keyboard is clear of the button and the panel; the end of each page clears the button; no sideways scroll. Without the `scroll-padding` rule: 10 fail |
+| Earlier checks on this branch | 2D flows **33/33**; Count fields reachable (7 viewports); chart **10/10**; layout **56 views, 0 issues**; 3D direct selection **30/30**, interaction checks all passed, 3D layout **8 views, 0 issues**; `/rivy` **67/67** (5 suggestions now) and affected cases **22/22** |
+| Found and fixed while checking | Esc did not close the panel while Rivy answered (the field was disabled and lost the focus): the field is read-only while answering and Esc works window-wide. Classes set on `<html>` were wiped by React on navigation and missing before hydration: replaced by CSS `:has()`. The page wrapper of the fade took `main` out of the body's column, so the phone tab bar floated on short pages: the wrapper now carries the column. In the docked panel, bin codes wrapped in the records table: kept on one line |
+
+Not checked: Safari, Firefox, real phones, the real Gemini through the
+panel, and Windows.
 ## 2026-10-21 — WIN: Rivy branch, tests and builds (shared by the author, PowerShell transcript)
 
 **Automated checks only.** The visual checks and the real questions on
@@ -1027,6 +1052,93 @@ files and counts are those of code `8621d05` (docs `a839f49`):
 | `npm.cmd test` (API) | **126/126**, 15 files, 112.95 s; test database: 5 migrations, none pending. The two expected messages: the `[Nest] ERROR … simulated failure while recomputing` log (rollback test) and one `pg` DeprecationWarning (the detector's self-test) |
 | `npm.cmd test` (web) | **11/11** (`node --test`, 3D geometry) |
 | `npm.cmd run build` | API and web OK (Next.js 16.4.2, Turbopack); `/rivy` static, the other pages dynamic |
+
+## 2026-10-21 — CC: polish, second round (code `689741e` scenario, `d517568` web)
+
+Asked by the author after reviewing the first round: a more varied
+high-risk scenario (about 8 high, 12 medium, 10 low) and refined motion.
+Same setup as the first round (production build, Chromium, Gemini
+**simulated**, this container's database only).
+
+| Command / check | Result |
+|---|---|
+| Plan search (formula replicated with the same floating point) | 30 targets: high 75, 74, 73, 73, 72, 71, 71, 70; medium 67, 64, 61, 58, 55, 52, 50, 48, 46, 44, 42, 41; low 38, 35, 31, 27, 23, 19, 15, 11, 7, 4; each total ≥ 0.1 from a .5 |
+| `npm test` | API **131/131** (the high-risk test now checks 8 / 12 / 10, every score = SQL formula = plan, 6 / 12 / 10 different scores per band, no negative pallet, ≤ 4 pallets per bin, version 2); web **11/11** |
+| Mutation: one planned audit age changed | The scenario test fails; restored |
+| `npx tsc --noEmit` (API, scripts, web); `npm run build` | Exit 0; builds OK |
+| `SEED_NOW=2026-10-18T12:00:00Z npm run db:reset-demo-high-risk` | "High-risk demo (high-risk), generator v2 … 8 high, 12 medium, 10 low"; the original demo still "0 high, 9 medium, 21 low" |
+| Recompute after the fixed reference (test database) | +0 d: 8 / 12 / 10; +1 d: 7 / 12 / 11; +3 d: 1 / 18 / 11; +7 d: 0 / 18 / 12; +30 d: 0 / 0 / 30 (high / medium / low) |
+| New browser checks, **20/20** | Heatmap and priority mix 8 / 12 / 10 = API; reference shown ("Scores as of", top bar title). Main blocks enter 0, 40, 80 ms … (≤ 0.2 s), also after navigating; after 0.6 s all in place, no transform left. Theme toggle by keyboard: one View Transition, theme changed, focus kept. Rivy while reading: avatar outlines animated, only "Rivy is reading the app's records…", no answer text, focus in the question; the answer's whole text is in the page at once and its blocks are revealed 45 ms apart (≤ 12 steps), focus kept; reopened later, not revealed again. Reduced motion: no entry, no cross-fade, still indicator, answer at once. Phone sheet: revealed, no sideways scroll. No page errors |
+| Earlier checks, again | Polish round 1 **56/56** (with 8 high now) and overlap **40/40**; 2D flows **33/33**; Count fields; chart; layout **56 views, 0 issues**; 3D selection **30/30**, interaction, **8 views, 0 issues**; `/rivy` **67/67**; Rivy affected cases **22/22** |
+
+Not checked: Safari and Firefox (no View Transitions in some versions: the
+theme then switches at once), real phones, Windows.
+
+## 2026-10-21 — CC: audit fixes (code `a13df35` API, `9d04bec` web)
+
+An external review (ChatGPT) of `7792469` reported possible defects from
+isolated reproductions with simulated answers. Each finding was checked
+against the code and **reproduced here first** with the real app
+(production build, PostgreSQL, Chromium; Gemini **simulated**; the scratch
+proxy of the first polish round, extended), then fixed and checked again.
+No rule, formula, stack or feature change. Only this container's database
+was reset.
+
+| Finding | Reproduced on `7792469` | Fix | After |
+|---|---|---|---|
+| 1. A recompute took "now" before waiting for the scores lock | Yes, in `counts.e2e-spec.ts` (lock held, a FAIL count queued, then the recompute queued, released): reference 50 ms **before** the count time, so the FAIL fell outside the window | The button's time is taken after the lock (`recomputeScoresNow`); explicit references unchanged | The recompute scores after the count: FAIL kept (25 points), age from the count time, scores = SQL formula; 5 runs in a row; the old call fails the test |
+| 2. Ambiguous answers to Create plan | Yes, browser + proxy: plan saved then **502** → "No plan created" **with Retry**; saved then a **cut-off body** → no message and the page broke | 5xx after a write, an unreadable or incomplete success and a lost Server Action answer are "not confirmed" (link to Tasks, no Retry); refresh only if the API answered; Retry guarded by a ref | 502 and cut-off body: "Plan not confirmed", plan exists, no Retry; Server Action answer lost (aborted in the browser): "not confirmed", page working, 0 errors; Retry pressed 3 times while pending: **1** request. `lib/api.test.ts`: the classification (a 5xx mutation fails it) |
+| 3. Count retry rebuilt from the fields | Yes: cut before saving, quantity changed, "Send the same count again" → the **changed** quantities saved (FAIL); saved then answer lost, changed → "Already counted"; fields editable while sending (field 38, sent 33) | The sent payload is kept and resent exactly; fields read-only while sending and while unknown; "Change quantities" is a new count | Same steps: the original count saved (PASS); recovered; typing ignored while sending; Change quantities → rejected, saved count kept and shown |
+| 4. compare_bins read twice | Yes, `assistant.e2e-spec.ts`: a recompute committed between the reads (A-02-01 raised with real movements) → figures 74 vs 57 with "B-01-05 first, same score" | One read of both bins in one `REPEATABLE READ` snapshot | Order, rule and figures from one state; existing comparison test (tie at 57 by "never audited") unchanged |
+| 5. Modal keyboard and waiting states | Yes: Shift+Tab from the title left the modal; nothing inert; the busy ring (`::after`) spun with reduced motion; the seconds changed the live region every second | Wrap from the title; page `inert` while modal; `*::after` in the reduced-motion rule; seconds `aria-hidden` | All 6 checks pass; Esc closes, nothing left inert, focus back |
+| 6. Rivy holding back other actions | Yes: Gemini slow (40 s, API cut at 30 s), Create plan pressed at 1.6 s **reached the API at 30.1 s** | Rivy through a route handler (`/api/rivy` → `POST /assistant/ask`); then the plan arrived at once but its result showed only at 30 s (React held it behind Rivy's pending transition), so Rivy's waiting state is plain state | Plan at the API at 1.67 s, result shown at 1.77 s; after the Gemini timeout, a clear message and the app keeps working |
+
+| Command / check | Result |
+|---|---|
+| `npm test` | API **133/133** (2 new); web **14/14** (3 new, `lib/api.test.ts`) |
+| `npx tsc --noEmit` (API, scripts, web); `npm run build` | Exit 0; builds OK; new route `ƒ /api/rivy` |
+| Browser regression kept in `docs/browser-checks/` (run from the repository copies) | `ambiguous-plans` **4/4**, `count-retry` **4/4**, `modal-keyboard-motion` **6/6**, `rivy-does-not-block` **3/3** |
+| Earlier checks on the final build | Polish **56/56**, second round **20/20**, overlap **40/40**; 2D flows **33/33**; Count fields; chart; layout **56 views, 0 issues**; 3D **30/30**, interaction, **8 views, 0 issues**; `/rivy` **67/67**; Rivy affected cases **22/22** |
+| Found and fixed while checking | Refreshing the page on every "not confirmed" replaced the dashboard by its error state when the API was down, hiding the message: now only when the API answered |
+
+Not checked: Safari, Firefox, real phones, the real Gemini through the
+route handler, and Windows.
+
+## 2026-10-21 — WIN: polish on `eac93f2`, visual review (reported by the author)
+
+The author tested the latest version of `m6-polish` on Windows and reports
+that everything they reviewed works, with no new issues. Recorded as
+visual acceptance of what was observed only, apart from tests and builds:
+the items reviewed were not listed one by one, and no `npm.cmd test` or
+`npm.cmd run build` output on `eac93f2` was shared, so this entry confirms
+neither. The automated evidence for this commit is the CC run above.
+
+## 2026-10-21 — WIN: polish on `f864ddb` (code `eac93f2`), tests and builds — **PASSED** (shared by the author, PowerShell transcript)
+
+**Automated checks only**, apart from the visual review above. Commands
+in the transcript: `git fetch origin`, `git switch m6-polish` ("up to date
+with 'origin/m6-polish'"), `git pull --ff-only` ("Already up to date"),
+`git rev-parse HEAD` → `f864ddbec32c1392e940adfc8de29b80fa664880`
+(documentation only after code `eac93f2`), `npm.cmd run db:up`,
+`npm.cmd ci`, `npm.cmd test`, `npm.cmd run build`.
+
+| Command | Result |
+|---|---|
+| `npm.cmd run db:up` | Container healthy |
+| `npm.cmd ci` | 457 packages added, 460 audited, 0 vulnerabilities |
+| `npm.cmd test` (API) | **133/133**, 16 files, 119.78 s; test database: 6 migrations, none pending. Includes the audit regressions: "a recompute asked while a count holds the turn scores after the count: its FAIL is kept" and "compare_bins: a recompute during the comparison cannot mix states". The two expected messages: the `[Nest] ERROR … simulated failure while recomputing` log (rollback test) and one `pg` DeprecationWarning (the detector's self-test) |
+| `npm.cmd test` (web) | **14/14** (`node --test`): the three API client cases ("three unknown outcomes", refused connection, count answers) and the 3D geometry |
+| `npm.cmd run build` | API and web OK (Next.js 16.4.2, Turbopack); route `ƒ /api/rivy` present |
+
+Rivy's real questions are not in this transcript (see Pending).
+
+## 2026-10-21 — WIN: Rivy's real questions on `m6-polish` (manual confirmation by the author)
+
+The author asked the four pending questions on Windows with the real
+model (the global ranking, a follow-up with history, a comparison, a
+question that states a wrong value) and confirms that Rivy answered all
+of them. Recorded as the author's manual confirmation: no screenshots
+or transcript of the answers are kept here.
 
 ## Pending
 
@@ -1055,18 +1167,21 @@ review of `3ec45ca` reported by the author; outputs not shared). Merged
 through PR #8 as `53628f1`. Final acceptance of the whole: after the next
 extensions (D-014).
 
-Rivy (`m6-rivy`), pending on Windows (WIN):
+Rivy (`m6-rivy`): merged through PR #9 as `4a3664c`. Still pending on
+Windows (WIN):
 
 - In AI Studio: the TPM limit of Gemini 3.5 Flash-Lite, the project behind
   the key and its tier (Free), without enabling billing.
 - Done: `npm.cmd test` 126 + 11 and `npm.cmd run build` (2026-10-21,
   above).
-- Visual and real questions (separate from the automated checks): the author's run on the PR's first commit is recorded
-  above. Pending: only the affected cases on `8621d05` or later (the global
-  ranking, a follow-up with history, a comparison, a question that states a
-  wrong value), with calls, tokens, time and whether the text was shown or
-  replaced. The quota is not exhausted on purpose: quota errors were
-  tested simulated.
+- Done: visual and real questions. The author's run on the PR's first
+  commit and the affected cases on `m6-polish` (manual confirmation,
+  2026-10-21) are recorded above. The quota is not exhausted on purpose:
+  quota errors were tested simulated.
+
+Polish (`m6-polish`), code `eac93f2`: nothing required pending. Windows
+tests and builds on `f864ddb`, the author's visual review and the manual
+confirmation of Rivy's real questions are recorded above.
 
 Later or optional:
 

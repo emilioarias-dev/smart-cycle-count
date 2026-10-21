@@ -1,5 +1,6 @@
 import type { MovementInput } from '../inventory/movements.js';
 import { type BinLocation, PRODUCTS, warehouseLayout } from './catalog.js';
+import { generateHighRiskData } from './high-risk.js';
 import { SeededRandom } from './random.js';
 
 // Generates the demo warehouse as plain data (D-009). Nothing here touches the
@@ -9,6 +10,13 @@ import { SeededRandom } from './random.js';
 // logic below changes the data, so it must come with a new GENERATOR_VERSION.
 export const GENERATOR_VERSION = 1;
 export const DEFAULT_SEED = 20261018;
+
+// Scenarios (D-017). `standard` is the original demo, this generator,
+// unchanged. `high-risk` (high-risk.ts) plans each bin's inputs to show a
+// wider spread of priorities with the same formula.
+export const SCENARIOS = ['standard', 'high-risk'] as const;
+export type Scenario = (typeof SCENARIOS)[number];
+export const SCENARIO_LABEL: Record<Scenario, string> = { standard: 'Original demo', 'high-risk': 'High-risk demo' };
 
 const SECOND = 1000;
 const DAY = 86_400 * SECOND;
@@ -29,6 +37,7 @@ export type DemoProduct = { sku: string; name: string; unit: string };
 export type DemoBin = BinLocation & { lastAuditedAt: Date | null };
 export type DemoData = {
   generatorVersion: number;
+  scenario: Scenario;
   seed: number;
   reference: Date;
   products: DemoProduct[];
@@ -37,7 +46,10 @@ export type DemoData = {
   movements: MovementInput[];
 };
 
-export function generateDemoData(options: { reference: Date; seed?: number }): DemoData {
+export function generateDemoData(options: { reference: Date; seed?: number; scenario?: Scenario }): DemoData {
+  if (options.scenario === 'high-risk') {
+    return generateHighRiskData({ reference: options.reference, seed: options.seed ?? DEFAULT_SEED });
+  }
   const { reference } = options;
   const seed = options.seed ?? DEFAULT_SEED;
   const random = new SeededRandom(seed);
@@ -160,6 +172,7 @@ export function generateDemoData(options: { reference: Date; seed?: number }): D
 
   return {
     generatorVersion: GENERATOR_VERSION,
+    scenario: 'standard',
     seed,
     reference,
     products: PRODUCTS.map(({ sku, name, unit }) => ({ sku, name, unit })),
