@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { RivyAnswer } from '../lib/api';
 import { utcDateTime } from '../lib/format';
 import { Icon } from './Icon';
+import { RivyAvatar } from './RivyAvatar';
 import { RivyFacts } from './RivyFacts';
-import { MAX_CHARS, WINDOW, useRivy } from './RivyProvider';
+import { type Exchange, MAX_CHARS, WINDOW, useRivy } from './RivyProvider';
 
 // The conversation view: on the /rivy page and in the floating panel, both
 // showing the same conversation (RivyProvider).
@@ -66,43 +67,16 @@ export function RivyChat() {
         )}
         {dropped && <p className="note rivy-window">Rivy keeps the last {WINDOW} exchanges; older ones were cleared.</p>}
         {exchanges.map((e, i) => (
-          <article key={`${i}-${e.question}`} className="rivy-exchange">
-            <p className="rivy-question">{e.question}</p>
-            <div className="rivy-answer">
-              {e.answer.withheld ? (
-                <div className="callout info rivy-withheld" role="note">
-                  <p>{e.answer.answer}</p>
-                  <button type="button" className="btn btn-outline btn-sm" onClick={() => send(e.question)} disabled={pending}>
-                    Try again
-                  </button>
-                </div>
-              ) : (
-                <p className="rivy-text">{withLinks(e.answer.answer, e.answer.references)}</p>
-              )}
-              <RivyFacts facts={e.answer.facts} />
-              {e.answer.truncated && <p className="note">The answer reached its length limit and may be cut.</p>}
-              {e.answer.references.length > 0 && (
-                <p className="rivy-refs">
-                  {e.answer.references.map((r) => (
-                    <Link key={r.href} className="chip rivy-ref" href={r.href}>
-                      {r.label}
-                    </Link>
-                  ))}
-                </p>
-              )}
-              <p className="subline rivy-meta">
-                {e.answer.queriedAt ? `Data as of ${utcDateTime(e.answer.queriedAt)}` : 'No app data read'} ·{' '}
-                {e.answer.tools.length > 0 ? `read: ${e.answer.tools.map((t) => t.name).join(', ')}` : 'no tools'} · {e.answer.usage.modelCalls} Gemini{' '}
-                {e.answer.usage.modelCalls === 1 ? 'call' : 'calls'} · {e.answer.usage.totalTokens} tokens · {(e.answer.ms / 1000).toFixed(1)} s
-              </p>
-            </div>
-          </article>
+          <ExchangeView key={`${i}-${e.question}`} exchange={e} pending={pending} onRetry={send} />
         ))}
         {asking && (
           <article className="rivy-exchange">
             <p className="rivy-question">{asking}</p>
+            {/* Only the real state: the API answers once, after its checks. */}
             <p className="rivy-answer rivy-waiting" role="status">
-              <span className="spinner" aria-hidden="true" />
+              <span className="rivy-thinking" aria-hidden="true">
+                <RivyAvatar size={28} />
+              </span>
               Rivy is reading the app&apos;s records… {elapsed > 0 ? `${elapsed} s` : ''}
             </p>
           </article>
@@ -161,6 +135,66 @@ export function RivyChat() {
         </div>
       </form>
     </div>
+  );
+}
+
+// How recent an answer must be, when shown, to be revealed progressively;
+// older ones (after navigating or reopening the panel) appear at once.
+const FRESH_MS = 1500;
+
+// One exchange. A new answer, already validated and complete in the page
+// (screen readers get it at once), is revealed line by line: each block
+// fades in 45 ms after the previous one, at most 12 steps; nothing with
+// reduced motion.
+function ExchangeView({ exchange: e, pending, onRetry }: { exchange: Exchange; pending: boolean; onRetry: (question: string) => void }) {
+  const [fresh] = useState(() => Date.now() - e.receivedAt < FRESH_MS);
+  const lines = e.answer.withheld ? [] : e.answer.answer.split('\n');
+  let step = 0;
+  const next = () => ({ '--i': Math.min(step++, 12) }) as CSSProperties;
+  return (
+    <article className={`rivy-exchange${fresh ? ' rivy-reveal' : ''}`}>
+      <p className="rivy-question">{e.question}</p>
+      <div className="rivy-answer">
+        {e.answer.withheld ? (
+          <div className="callout info rivy-withheld rivy-step" role="note" style={next()}>
+            <p>{e.answer.answer}</p>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => onRetry(e.question)} disabled={pending}>
+              Try again
+            </button>
+          </div>
+        ) : (
+          <p className="rivy-text">
+            {lines.map((line, i) => (
+              <span key={i} className="rivy-line rivy-step" style={next()}>
+                {line === '' ? ' ' : withLinks(line, e.answer.references)}
+              </span>
+            ))}
+          </p>
+        )}
+        <div className="rivy-step" style={next()}>
+          <RivyFacts facts={e.answer.facts} />
+        </div>
+        {e.answer.truncated && (
+          <p className="note rivy-step" style={next()}>
+            The answer reached its length limit and may be cut.
+          </p>
+        )}
+        {e.answer.references.length > 0 && (
+          <p className="rivy-refs rivy-step" style={next()}>
+            {e.answer.references.map((r) => (
+              <Link key={r.href} className="chip rivy-ref" href={r.href}>
+                {r.label}
+              </Link>
+            ))}
+          </p>
+        )}
+        <p className="subline rivy-meta rivy-step" style={next()}>
+          {e.answer.queriedAt ? `Data as of ${utcDateTime(e.answer.queriedAt)}` : 'No app data read'} ·{' '}
+          {e.answer.tools.length > 0 ? `read: ${e.answer.tools.map((t) => t.name).join(', ')}` : 'no tools'} · {e.answer.usage.modelCalls} Gemini{' '}
+          {e.answer.usage.modelCalls === 1 ? 'call' : 'calls'} · {e.answer.usage.totalTokens} tokens · {(e.answer.ms / 1000).toFixed(1)} s
+        </p>
+      </div>
+    </article>
   );
 }
 

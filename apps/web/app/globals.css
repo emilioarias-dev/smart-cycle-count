@@ -195,8 +195,23 @@ code { font-size: 0.9em; }
 /* A short fade-in of each page (app/template.tsx); no transform remains. */
 /* The wrapper takes main's place in the body's column (main { flex: 1 }), so
    the phone tab bar stays at the bottom of short pages. */
-.page-enter { flex: 1; display: flex; flex-direction: column; animation: page-enter 0.18s var(--ease) backwards; }
-@keyframes page-enter { from { opacity: 0; transform: translateY(4px); } }
+.page-enter { flex: 1; display: flex; flex-direction: column; }
+/* On navigation the page's main blocks enter one after another: 0.26 s each,
+   40 ms apart, the sixth and later together (at most 0.2 s of offset). Only
+   opacity and a 6 px rise; no transform remains afterwards. */
+.page-enter > main > * { animation: block-enter 0.26s var(--ease) backwards; }
+.page-enter > main > :nth-child(2) { animation-delay: 0.04s; }
+.page-enter > main > :nth-child(3) { animation-delay: 0.08s; }
+.page-enter > main > :nth-child(4) { animation-delay: 0.12s; }
+.page-enter > main > :nth-child(5) { animation-delay: 0.16s; }
+.page-enter > main > :nth-child(n + 6) { animation-delay: 0.2s; }
+@keyframes block-enter { from { opacity: 0; transform: translateY(6px); } }
+/* Theme switch: a 0.25 s cross-fade of the whole page (View Transitions,
+   where the browser has them; otherwise the switch is immediate). */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.25s; animation-timing-function: var(--ease); }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
 .nav a.btn[aria-current] { box-shadow: 0 0 0 2px var(--rv-black), 0 0 0 4px #8aa8ff; }
 .theme-toggle { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid #3a3a3a; background: transparent; color: #f2f2f2; cursor: pointer; transition: border-color 0.2s var(--ease); }
 .theme-toggle:hover { border-color: #8a8a8a; }
@@ -593,6 +608,15 @@ a.code { display: inline-flex; align-items: center; min-height: 2.75rem; }
 .rivy-fact-task { margin-top: 0.4rem; }
 .rivy-fact a { white-space: nowrap; }
 .rivy-withheld p { margin: 0 0 0.6rem; }
+/* A new, validated answer appears block by block (see RivyChat). */
+.rivy-line { display: block; }
+.rivy-reveal .rivy-step { animation: block-enter 0.22s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 45ms); }
+/* While Rivy reads the records: the avatar's outlines pulse outwards. */
+.rivy-thinking { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--rv-black); }
+.rivy-thinking .rivy-avatar-echo.one { animation: rivy-echo 0.9s var(--ease) infinite alternate; }
+.rivy-thinking .rivy-avatar-echo.two { animation: rivy-echo-far 0.9s var(--ease) 0.15s infinite alternate; }
+@keyframes rivy-echo { from { transform: translateX(0); opacity: 1; } to { transform: translateX(2px); opacity: 0.55; } }
+@keyframes rivy-echo-far { from { transform: translateX(0); opacity: 1; } to { transform: translateX(4px); opacity: 0.3; } }
 .rivy-waiting { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); margin: 0; }
 .rivy-form { display: grid; gap: 0.4rem; }
 .rivy-input { height: auto; min-height: 4.5rem; padding: 0.7rem 1rem; resize: vertical; font-size: 1rem; line-height: 1.5; }

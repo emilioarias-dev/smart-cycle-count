@@ -12,7 +12,9 @@ import type { RivyAnswer, RivyExchange } from '../lib/api';
 export const WINDOW = 6;
 export const MAX_CHARS = 500;
 
-export type Exchange = { question: string; answer: RivyAnswer };
+// `receivedAt`: when the validated answer arrived, so that only a new answer
+// is revealed progressively (not again after navigating).
+export type Exchange = { question: string; answer: RivyAnswer; receivedAt: number };
 export type Failure = { question: string; code: string; message: string; retryable: boolean };
 
 type Rivy = {
@@ -83,7 +85,7 @@ export function RivyProvider({ children }: { children: ReactNode }) {
         setAsking(null);
         setStartedAt(null);
         if (outcome.status === 'ok') {
-          const next = [...exchanges, { question: text, answer: outcome.data }];
+          const next = [...exchanges, { question: text, answer: outcome.data, receivedAt: Date.now() }];
           setDropped((was) => was || next.length > WINDOW);
           setExchanges(next.slice(-WINDOW));
           setDraft('');
